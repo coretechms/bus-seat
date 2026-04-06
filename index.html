@@ -1,0 +1,2188 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>탑승 좌석 실시간 공유</title>
+  <style>
+    :root {
+      --bg: #dcdcdc;
+      --panel: #e6e3c5;
+      --outer: #d8d4b8;
+      --line: #666;
+      --green: #90ea8b;
+      --green-light: #bfe8b8;
+      --seatFilled: #ececbc;
+      --lightGreen: #cfeea7;
+      --blue: #1428c8;
+      --yellow: #f1eb5d;
+      --deepBlue: #0323ff;
+      --paidBg: var(--seatFilled);
+      --paidText: #b26a00;
+      --waitBg: #d998ff;
+      --waitText: #000000;
+      --waitAltBg: #d9d9d9;
+      --waitAltText: #333333;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      background: var(--bg);
+      color: #111;
+    }
+    .app {
+      height: 100vh;
+      min-height: 100vh;
+      padding: 8px;
+      overflow: hidden;
+    }
+    .shell {
+      width: min(14cm, 100%);
+      max-width: 14cm;
+      min-width: 0;
+      height: calc(100vh - 16px);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+    }
+    .board-wrap {
+      flex: 0 0 auto;
+      border-radius: 6px;
+      border: 1px solid #8f8f8f;
+      background: var(--outer);
+      padding: 15px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      transform: scaleY(0.85);
+      transform-origin: top;
+    }
+    .board {
+      border: 2px solid #333;
+      background: var(--panel);
+      padding: 15px;
+    }
+    .title {
+      text-align: center;
+      font-size: 18px;
+      letter-spacing: 0.3em;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    .seat-layout {
+      display: grid;
+      grid-template-columns: 1fr 30px 1fr;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .side-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .driver-box-wrap {
+      grid-column: span 2;
+      padding: 8px 16px 0;
+    }
+    .driver-box,
+    .header-box {
+      display: flex;
+      height: 32px;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid var(--line);
+      background: var(--lightGreen);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+    }
+    .header-box.no-border { border-bottom: 0; }
+    .middle-aisle {
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      background: #d9d9d9;
+    }
+    .door-cell { border-bottom: 1px solid var(--line); }
+    .goods-cell {
+      border-bottom: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      background: #d9d9d9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 40px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+    }
+    .seat {
+      position: relative;
+      min-height: 48px;
+      height: 48px;
+      border-right: 1px dotted #8a8a8a;
+      border-bottom: 1px dotted #8a8a8a;
+      padding: 0;
+      text-align: center;
+      background: var(--green);
+      cursor: pointer;
+      user-select: none;
+    }
+    .seat.light { background: var(--green-light); }
+    .seat.occupied { background: var(--seatFilled); }
+    .seat.locked { cursor: not-allowed; opacity: 0.8; }
+    .seat.unavailable {
+      background: #d9d9d9 !important;
+      cursor: not-allowed;
+      opacity: 1;
+      border-right: 1px dotted #cfcfcf !important;
+      border-bottom: 1px dotted #cfcfcf !important;
+    }
+    .seat-save-flash { background: #86efac !important; transition: background 0.2s ease; }
+    .seat.waiting-warning { animation: waiting-warning-blink 8s steps(2, start) infinite; }
+    @keyframes waiting-warning-blink {
+      0%, 100% { background: var(--waitBg); }
+      50% { background: #fff176; }
+    }
+    .seat-number {
+      position: absolute;
+      top: 4px;
+      font-size: 12px;
+      line-height: 1;
+      color: var(--blue);
+    }
+    .seat.unavailable .seat-number,
+    .seat.unavailable .seat-name,
+    .seat.unavailable .status-pill {
+      color: #d9d9d9 !important;
+    }
+    .seat-number.left { left: 2px; }
+    .seat-number.right { right: 2px; }
+    .seat-inner {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 4px 2px;
+    }
+    .seat-name {
+      min-height: 16px;
+      font-size: 15px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      color: #000;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 86%;
+      font-weight: 400;
+    }
+    .seat-name.duplicate-old { color: #ea580c; }
+    .seat-name.duplicate-new { color: #2563eb; }
+    .offset-left { margin-left: 16%; }
+    .offset-right { margin-left: -16%; }
+    .inline-input {
+      height: 18px;
+      width: 78%;
+      border: 1px solid #666;
+      background: #fff;
+      padding: 0 4px;
+      text-align: center;
+      font-size: 10px;
+      outline: none;
+    }
+    .status-pill {
+      margin-top: 4px;
+      padding: 1px 6px;
+      font-size: 9px;
+      color: #000;
+      line-height: 1.1;
+      border-radius: 0;
+    }
+    .status-paid { background: var(--paidBg); color: var(--paidText); }
+    .status-waiting { background: var(--waitBg); color: var(--waitText); }
+    .status-waiting_alt { background: var(--waitAltBg); color: var(--waitAltText); }
+    .summary {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid var(--line);
+    }
+    .summary > div {
+      padding: 4px 12px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .summary-empty { background: var(--yellow); color: var(--blue); }
+    .summary-filled { background: var(--deepBlue); color: #fff; }
+    .account {
+      display: grid;
+      grid-template-columns: 1fr 0.9fr 0.8fr;
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--seatFilled);
+      text-align: center;
+      font-size: 12px;
+      color: var(--blue);
+    }
+    .account > div {
+      padding: 4px 8px;
+      white-space: nowrap;
+    }
+    .account-number {
+      margin-left: 8px;
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #d22b00;
+    }
+    .controls {
+      margin-top: -82px;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 4px;
+      padding-bottom: 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #d7d7d7;
+      border-radius: 14px;
+      padding: 6px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .card-title { font-size: 14px; font-weight: 700; }
+    .tabs {
+      display: inline-flex;
+      background: #f1f1f1;
+      border-radius: 10px;
+      padding: 4px;
+      gap: 4px;
+    }
+    .tab {
+      border: 0;
+      background: transparent;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 10px;
+    }
+    .tab.active {
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+      font-weight: 700;
+    }
+    .grid-2, .grid-3 { display: grid; gap: 8px; }
+    .grid-2 > div, .grid-3 > div { display: flex; align-items: center; gap: 6px; }
+    .grid-2 label, .grid-3 label { width: 80px; margin-bottom: 0; flex-shrink: 0; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr; }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #d4d4d4;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      background: #fff;
+      font-family: inherit;
+    }
+    input, select { height: 30px; padding: 0 10px; }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    button.btn {
+      height: 28px;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .btn-primary { background: #111827; color: #fff; }
+    .btn-outline { background: #fff; color: #111; border: 1px solid #d4d4d4 !important; }
+    .btn-danger { background: #d32f2f; color: #fff; }
+    .btn-success-flash { background: #16a34a !important; color: #fff !important; }
+    .btn-press-flash { background: #16a34a !important; color: #fff !important; transition: background 0.2s ease; }
+    .help-text { font-size: 13px; color: #555; line-height: 1.5; }
+    .notice {
+      border: 1px solid #f2c26b;
+      background: #fff7e6;
+      color: #9a6500;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .status-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #f7f7f7;
+      padding: 4px 6px;
+      font-size: 10px;
+    }
+    .hidden { display: none !important; }
+    .muted { color: #666; font-size: 12px; }
+    .online-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #10b981;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @media (min-width: 1024px) {
+      .grid-3 { grid-template-columns: 1fr; }
+      .title { font-size: 19px; letter-spacing: 0.35em; }
+      .seat-layout { grid-template-columns: 1fr 42px 1fr; }
+      .driver-box-wrap { padding: 8px 24px 0; }
+      .driver-box { height: 30px; font-size: 14px; letter-spacing: 0.35em; }
+      .summary > div { font-size: 14px; padding: 6px 16px; }
+      .account { font-size: 15px; }
+      .account > div { padding: 6px 12px; }
+      .account-number { margin-left: 32px; font-size: 16px; }
+      .seat-name { font-size: 12px; }
+      .status-pill { font-size: 6px; }
+    }
+    @media (max-width: 760px) {
+      .app { padding: 12px; }
+      .shell { width: 100%; max-width: 100%; height: calc(100vh - 20px); gap: 0; }
+      .board-wrap { top: 0; padding: 4px; }
+      .board { padding: 6px; }
+      .title { font-size: 12px; letter-spacing: 0.18em; }
+      .seat-layout { grid-template-columns: 1fr 20px 1fr; }
+      .driver-box-wrap { padding: 6px 8px 0; }
+      .driver-box, .header-box { height: 24px; font-size: 12px; letter-spacing: 0.1em; }
+      .goods-cell { height: 30px; font-size: 12px; letter-spacing: 0.08em; }
+      .seat { min-height: 38px; height: 38px; }
+      .seat-number { top: 3px; font-size: 10px; }
+      .seat-inner { padding: 7px 2px 1px; }
+      .seat-name { width: 80%; font-size: 12px; }
+      .inline-input { width: 92%; height: 22px; font-size: 11px; }
+      .summary > div, .account, .account-number { font-size: 10px; }
+      .account > div { padding: 4px 4px; }
+      .controls { padding-right: 2px; gap: 10px; }
+      .card { padding: 10px; border-radius: 12px; }
+      .card-title { font-size: 12px; }
+      .tabs { padding: 3px; gap: 3px; }
+      .tab { padding: 6px 8px; font-size: 9px; }
+      #memberPanel .grid-2 { grid-template-columns: 1fr 1fr; gap: 6px; }
+      #memberPanel .grid-2 > div { display: flex; align-items: center; gap: 4px; }
+      #memberPanel .grid-2 label { width: auto; min-width: fit-content; margin-bottom: 0; white-space: nowrap; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .grid-2 > div, .grid-3 > div { gap: 4px; }
+      .grid-2 label, .grid-3 label { width: 66px; font-size: 11px; }
+      input, select, button.btn { height: 30px; font-size: 11px; }
+      #adminPanel > div:first-child {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: space-between !important;
+        align-items: center;
+        gap: 6px;
+      }
+      #adminPanel > div:first-child > div:first-child {
+        display: flex;
+        gap: 6px;
+        flex-wrap: nowrap;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      #adminPanel > div:first-child > div:first-child > button {
+        flex: 1 1 0;
+        min-width: 0;
+        width: auto !important;
+        padding: 0 6px;
+        font-size: 11px;
+      }
+      #adminPanel > div:first-child > .status-box {
+        flex: 0 0 auto;
+        width: auto;
+        min-width: 92px;
+        justify-content: center;
+        padding: 4px 4px;
+      }
+      #adminPanel > div:first-child > .status-box > span { display: none; }
+      #adminLogoutBtn { width: 100% !important; min-width: 80px; margin-left: 0 !important; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="shell">
+      <div class="board-wrap">
+        <div class="board">
+          <div class="title" id="titleMain"></div>
+          <div class="seat-layout">
+            <div>
+              <div class="side-grid" id="leftGrid">
+                <div class="driver-box-wrap"><div class="driver-box">운전석</div></div>
+              </div>
+            </div>
+            <div class="middle-aisle"></div>
+            <div>
+              <div class="side-grid" id="rightGrid">
+                <div class="door-cell"><div class="header-box no-border">출 입 문&lt;-</div></div>
+                <div class="goods-cell">---</div>
+              </div>
+            </div>
+          </div>
+          <div class="summary">
+            <div class="summary-empty">빈 자리 <span id="emptyCount">0</span> 명</div>
+            <div class="summary-filled">참석인원 <span id="occupiedCount">0</span> 명</div>
+          </div>
+          <div class="account">
+            <div><span id="feeLabel"></span><span class="account-number" id="accountNumber"></span></div>
+            <div id="bankName"></div>
+            <div id="accountOwner"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="card">
+          <div class="card-title-row">
+            <div class="card-title">좌석 등록</div>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button class="btn btn-outline" id="captureBoardBtn" type="button" style="height:18px;font-size:10px">캡쳐</button>
+              <button class="btn btn-outline" id="boardingPointBtn" type="button" style="height:18px;font-size:10px">탑승지</button>
+            </div>
+            <div class="tabs">
+              <button class="tab active" id="memberTab" type="button">회원 입력</button>
+              <button class="tab" id="adminTab" type="button">관리자</button>
+            </div>
+          </div>
+
+          <div id="memberPanel">
+            <div class="grid-2">
+              <div>
+                <label for="memberSeat">좌석번호</label>
+                <select id="memberSeat"></select>
+              </div>
+              <div>
+                <label for="memberName">이름</label>
+                <input id="memberName" type="text" placeholder="회원 이름" />
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:8px;">
+              <button class="btn btn-primary" id="memberSaveBtn" type="button">저장</button>
+              <button class="btn btn-outline" id="memberCancelBtn" type="button">입력취소</button>
+            </div>
+            <div class="status-box" style="margin-top:8px;">
+              <span><span class="online-dot"></span><strong id="connectionText">연결 준비중</strong></span>
+              <span class="muted" id="projectText">프로젝트 미설정</span>
+            </div>
+          </div>
+
+          <div class="help-text" style="margin-top:8px;">본인이 직접 좌석을 선택 합니다.</div>
+
+          <div id="adminLoginPanel" class="hidden">
+            <div style="display:flex; gap:12px; align-items:end; margin-top:12px;">
+              <div style="flex:1;">
+                <label for="adminPasswordInput">관리자 비밀번호</label>
+                <input id="adminPasswordInput" type="password" placeholder="비밀번호 입력" />
+              </div>
+              <button class="btn btn-primary" id="adminLoginBtn" type="button" style="width:38%; height:28px;">관리자 로그인</button>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:8px;">
+              <div style="flex:1;">
+                <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:100%; height:28px;">비밀번호 초기화</button>
+              </div>
+              <div style="width:38%;"></div>
+            </div>
+          </div>
+
+          <div id="adminPanel" class="hidden">
+
+            <div class="grid-3" style="margin-top:12px;">
+              
+              <div style="display:flex; gap:8px; flex-wrap:nowrap;">
+                <select id="adminSeat" style="flex:1; min-width:0;"></select>
+                <input id="adminMemberName" type="text" placeholder="이름 수정" style="flex:1;" />
+                <select id="adminStatus" style="flex:1;">
+                  <option value="paid">완납</option>
+                  <option value="waiting">입금대기</option>
+                  <option value="waiting_alt">미납</option>
+                  <option value="reserved">이름만 표시</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-top:10px;">
+              <button class="btn btn-outline" id="adminClearSeatBtn" type="button" style="flex:1;">선택좌석 삭제</button>
+              <button class="btn btn-outline" id="adminMarkNamedPaidBtn" type="button" style="flex:1;">이름만 남기기</button>
+              <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="flex:1;">로그아웃</button>
+            </div>
+
+            <div id="resetInlineConfirm" class="hidden" style="margin-bottom:6px; padding:8px; border:1px solid #d32f2f; border-radius:8px; background:#fff5f5;">
+              <div style="font-size:12px; margin-bottom:6px; color:#b91c1c; font-weight:700;">전체 좌석을 모두 초기화하시겠습니까?</div>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-outline" id="resetInlineCancelBtn" type="button">취소</button>
+                <button class="btn btn-danger" id="resetInlineConfirmBtn" type="button">확인</button>
+              </div>
+            </div>
+
+            <div class="btn-row" style="margin-top:10px;">
+              <button class="btn btn-primary" id="adminSaveBtn" type="button">상태저장</button>
+              <button class="btn btn-danger" id="resetBtn" type="button">전체초기화</button>
+            </div>
+
+            <div style="margin-top:12px;">
+              <div style="display:flex; gap:8px; align-items:center;">
+                <label for="busTypeSelect" style="width:80px; margin-bottom:0;">버스선택</label>
+                <select id="busTypeSelect" style="flex:1;">
+                  <option value="44">44인승</option>
+                  <option value="31">31인승</option>
+                </select>
+                <button class="btn btn-outline" id="saveBusTypeBtn" type="button" style="width:38%;">버스변경</button>
+              </div>
+            </div>
+
+            <div id="adminPasswordInline" style="margin-top:12px;">
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input id="newAdminPassword" type="password" placeholder="비밀번호 입력" style="flex:1;" />
+                <button class="btn btn-outline" id="changePasswordBtn" type="button" style="width:38%;">비밀번호변경</button>
+              </div>
+            </div>
+
+            <div id="adminExpireInline" style="margin-top:12px;">
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input id="waitingExpireHoursInput" type="number" min="1" step="1" placeholder="자동삭제 시간(시간)" style="flex:1;" />
+                <button class="btn btn-outline" id="saveWaitingExpireBtn" type="button" style="width:38%;">시간저장</button>
+              </div>
+            </div>
+
+            <div id="adminNameExportPanel" style="margin-top:12px; border:1px solid #d4d4d4; border-radius:10px; padding:10px; background:#fafafa;">
+              <div style="font-size:13px; font-weight:700; margin-bottom:8px;">좌석 이름 데이터</div>
+              <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                <select id="adminNameExportType" style="flex:1; min-width:0;">
+                  <option value="line">줄바꿈 목록</option>
+                  <option value="csv">CSV</option>
+                  <option value="json">JSON</option>
+                </select>
+                <button class="btn btn-outline" id="copyNameExportBtn" type="button" style="width:38%;">복사</button>
+              </div>
+              <textarea id="adminNameExportText" readonly style="width:100%; min-height:48px; height:auto; overflow:hidden; resize:none; background:#fff;"></textarea>
+              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 localStorage 와 window.BusSeatNameBridge 에 동시에 저장됩니다.</div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px; border-top:1px solid #e5e5e5; padding-top:14px;">
+            
+            <div id="busInfoLocked" class="notice">좌석을 변경 하려면 원하는 좌석을 선택후 이름을 입력 하면 [신규 파랑] [기존 주황] 으로 이름이 변경 됩니다 기존 좌석 취소는 하단의 좌석번호 를 찾아서 [ 입력 취소 ] 버튼을 누르면 됩니다.</div>
+            <div id="busInfoEditor" class="hidden" style="margin-top:12px;">
+              <div class="grid-2">
+                <div>
+                  <label for="infoTitleMain">메인 제목</label>
+                  <input id="infoTitleMain" type="text" />
+                </div>
+                <div>
+                  <label for="infoFeeLabel">회비 문구</label>
+                  <input id="infoFeeLabel" type="text" />
+                </div>
+              </div>
+              <div class="grid-2" style="margin-top:8px;">
+                <div>
+                  <label for="infoAccountNumber">계좌번호</label>
+                  <input id="infoAccountNumber" type="text" />
+                </div>
+                <div>
+                  <label for="infoBankName">은행명</label>
+                  <input id="infoBankName" type="text" />
+                </div>
+              </div>
+              <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
+                <label for="infoAccountOwner" style="width:80px; margin-bottom:0; flex-shrink:0;">예금주</label>
+                <input id="infoAccountOwner" type="text" />
+              </div>
+              <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
+                <label for="infoSeatGuideText" style="width:80px; margin-bottom:0; flex-shrink:0;">안내문구</label>
+                <textarea id="infoSeatGuideText" style="height:80px; resize:vertical;"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getDatabase, ref, onValue, get, set, update } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBbN8CF35V00kAQzVCZoZoonXDGKTqPfZA",
+      authDomain: "bus-set-no1.firebaseapp.com",
+      databaseURL: "https://bus-set-no1-default-rtdb.asia-southeast1.firebasedatabase.app/",
+      projectId: "bus-set-no1",
+      storageBucket: "bus-set-no1.firebasestorage.app",
+      messagingSenderId: "744201337161",
+      appId: "1:744201337161:web:a63c6118182a4ed8dd0298"
+    };
+
+    const DEFAULT_ADMIN_PASSWORD = "1234";
+    const INTERNAL_KEY = atob("OTk5OTk5OTk5");
+    const ROOT_PATH = "busSeatApp";
+    const DEFAULT_WAITING_EXPIRE_HOURS = 48;
+    const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
+
+    const BUS_LAYOUTS = {
+      "44": {
+        capacity: 44,
+        renderCapacity: 44,
+        leftPairs: [[1,2],[5,6],[9,10],[13,14],[17,18],[21,22],[25,26],[29,30],[33,34],[37,38],[41,42]],
+        rightPairs: [[3,4],[7,8],[11,12],[15,16],[19,20],[23,24],[27,28],[31,32],[35,36],[39,40],[43,44]],
+        blockedSeats: [4],
+        goodsText: "---",
+        seatNumberMap: Object.fromEntries(Array.from({ length: 44 }, (_, i) => [i + 1, i + 1]))
+      },
+      "31": {
+        capacity: 44,
+        renderCapacity: 44,
+        leftPairs: [[1,2],[5,6],[9,10],[13,14],[17,18],[21,22],[25,26],[29,30],[33,34],[37,38],[41,42]],
+        rightPairs: [[3,4],[7,8],[11,12],[15,16],[19,20],[23,24],[27,28],[31,32],[35,36],[39,40],[43,44]],
+        blockedSeats: [3,7,11,15,19,23,27,31,35,41,42,43,44],
+        goodsText: "---",
+        seatNumberMap: {
+          1:1,2:2,4:3,5:4,6:5,8:6,9:7,10:8,12:9,13:10,14:11,16:12,17:13,18:14,
+          20:15,21:16,22:17,24:18,25:19,26:20,28:21,29:22,30:23,32:24,33:25,
+          34:26,36:27,37:28,38:29,39:30,40:31
+        }
+      }
+    };
+
+    const defaultBusInfo = {
+      titleMain: "버스 탑승 좌석",
+      feeLabel: "회비 입금",
+      accountNumber: "333 330 117 5534",
+      bankName: "카카오뱅킹",
+      accountOwner: "검암산악회",
+      seatGuideText: "좌석을 변경 하려면 원하는 좌석을 선택후 이름을 입력 하면 [신규 파랑] [기존 주황] 으로 이름이 변경 됩니다 기존 좌석 취소는 하단의 좌석번호 를 찾아서 [ 입력 취소 ] 버튼을 누르면 됩니다."
+    };
+
+    const state = {
+      app: null,
+      db: null,
+      isFirebaseReady: false,
+      isSubscribed: false,
+      canWrite: false,
+      busType: "44",
+      seats: createEmptySeats("44"),
+      busInfo: { ...defaultBusInfo },
+      mode: "member",
+      memberName: "",
+      memberSeat: "",
+      adminSeat: "",
+      adminStatus: "paid",
+      editingSeat: null,
+      editName: "",
+      adminPassword: DEFAULT_ADMIN_PASSWORD,
+      isAdminAuthenticated: false,
+      clientId: crypto.randomUUID(),
+      projectLabel: "프로젝트 미설정",
+      pendingCancelSeat: null,
+      lastSavedSeat: null,
+      waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS
+    };
+
+    function byId(id) { return document.getElementById(id); }
+    function getCurrentLayout() { return BUS_LAYOUTS[state.busType] || BUS_LAYOUTS["44"]; }
+    function getCapacity() { return getCurrentLayout().capacity; }
+    function getLeftPairs() { return getCurrentLayout().leftPairs; }
+    function getRightPairs() { return getCurrentLayout().rightPairs; }
+    function getBlockedSeats() { return getCurrentLayout().blockedSeats || []; }
+    function isBlockedSeat(seatNumber) { return getBlockedSeats().includes(Number(seatNumber)); }
+
+    function getSeatDisplayNumber(seatNumber) {
+      const mapped = getCurrentLayout()?.seatNumberMap?.[Number(seatNumber)];
+      return mapped ?? Number(seatNumber);
+    }
+
+    function statusLabel(status) {
+      if (status === "paid") return "완납";
+      if (status === "waiting") return "입금대기";
+      if (status === "waiting_alt") return "미납";
+      return "";
+    }
+
+    function createEmptySeats(busType = "44") {
+      const capacity = BUS_LAYOUTS[busType]?.renderCapacity || 44;
+      return Array.from({ length: capacity }, (_, i) => ({
+        number: i + 1,
+        name: "",
+        status: "empty",
+        updatedAt: 0,
+        updatedBy: ""
+      }));
+    }
+
+    function buildInitialPayload(busType = state.busType || "44") {
+      const seats = {};
+      createEmptySeats(busType).forEach((seat) => {
+        seats[String(seat.number)] = {
+          name: "",
+          status: "empty",
+          updatedAt: Date.now(),
+          updatedBy: "system"
+        };
+      });
+      return {
+        busType,
+        seats,
+        busInfo: { ...defaultBusInfo },
+        adminPassword: DEFAULT_ADMIN_PASSWORD,
+        waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
+        meta: { createdAt: Date.now(), updatedAt: Date.now() }
+      };
+    }
+
+    function validateFirebaseConfig() {
+      const tests = [
+        { name: "apiKey exists", pass: typeof firebaseConfig.apiKey === "string" && firebaseConfig.apiKey.length > 0 },
+        { name: "authDomain exists", pass: typeof firebaseConfig.authDomain === "string" && firebaseConfig.authDomain.includes("firebaseapp.com") },
+        { name: "databaseURL valid", pass: typeof firebaseConfig.databaseURL === "string" && /^https:\/\//.test(firebaseConfig.databaseURL) },
+        { name: "projectId exists", pass: typeof firebaseConfig.projectId === "string" && firebaseConfig.projectId.length > 0 },
+        { name: "appId exists", pass: typeof firebaseConfig.appId === "string" && firebaseConfig.appId.length > 0 }
+      ];
+      const failed = tests.filter((t) => !t.pass);
+      return { ok: failed.length === 0, failed };
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function normalizeName(inputName) {
+      return String(inputName || "").replace(/\s+/g, "").trim();
+    }
+
+    function getDuplicateSeatRole(seat) {
+      if (!seat || !seat.name) return "normal";
+      const sameNameSeats = state.seats
+        .filter((s) => s.name === seat.name)
+        .sort((a, b) => ((a.updatedAt || 0) - (b.updatedAt || 0)) || (a.number - b.number));
+      if (sameNameSeats.length < 2) return "normal";
+      if (sameNameSeats[0].number === seat.number) return "old";
+      if (sameNameSeats[sameNameSeats.length - 1].number === seat.number) return "new";
+      return "normal";
+    }
+
+    async function copyTextRobust(text, targetTextarea = null) {
+      const normalized = String(text ?? "");
+
+      if (window.isSecureContext && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        try {
+          await navigator.clipboard.writeText(normalized);
+          return { ok: true, method: "clipboard" };
+        } catch (error) {
+          console.warn("navigator.clipboard.writeText failed", error);
+        }
+      }
+
+      try {
+        const temp = document.createElement("textarea");
+        temp.value = normalized;
+        temp.setAttribute("readonly", "readonly");
+        temp.style.position = "fixed";
+        temp.style.left = "-9999px";
+        temp.style.top = "0";
+        temp.style.opacity = "0";
+        document.body.appendChild(temp);
+        temp.focus();
+        temp.select();
+        temp.setSelectionRange(0, temp.value.length);
+        const copied = typeof document.execCommand === "function" ? document.execCommand("copy") : false;
+        document.body.removeChild(temp);
+        if (copied) return { ok: true, method: "execCommand" };
+      } catch (error) {
+        console.warn("document.execCommand copy failed", error);
+      }
+
+      if (targetTextarea) {
+        targetTextarea.focus();
+        targetTextarea.removeAttribute("readonly");
+        targetTextarea.select();
+        targetTextarea.setSelectionRange(0, targetTextarea.value.length);
+        targetTextarea.setAttribute("readonly", "readonly");
+      }
+
+      return { ok: false, method: "manual" };
+    }
+
+    const SeatNameBridge = {
+      buildRecords() {
+        return state.seats
+          .filter((seat) => String(seat.name || "").trim() !== "")
+          .map((seat) => ({ name: seat.name }));
+      },
+      toLine(records = this.buildRecords()) {
+        return records.map((item) => item.name).join("\n");
+      },
+      toCsv(records = this.buildRecords()) {
+        const header = ["name"];
+        const rows = records.map((item) => `"${String(item.name).replaceAll('"', '""')}"`);
+        return [header.join(","), ...rows].join("\n");
+      },
+      toJson(records = this.buildRecords()) {
+        return JSON.stringify({ names: records.map((r) => r.name) }, null, 2);
+      },
+      getPayload(type = "line") {
+        const records = this.buildRecords();
+        if (type === "csv") return this.toCsv(records);
+        if (type === "json") return this.toJson(records);
+        return this.toLine(records);
+      },
+      sync(type) {
+        const exportTypeEl = byId("adminNameExportType");
+        const textEl = byId("adminNameExportText");
+        const selectedType = type || exportTypeEl?.value || "line";
+        const records = this.buildRecords();
+        const payload = {
+          busType: state.busType,
+          exportType: selectedType,
+          line: this.toLine(records),
+          csv: this.toCsv(records),
+          json: this.toJson(records),
+          names: records.map((r) => r.name),
+          records,
+          updatedAt: Date.now()
+        };
+        try {
+          localStorage.setItem(NAME_EXPORT_STORAGE_KEY, JSON.stringify(payload));
+        } catch (error) {
+          console.error("name export storage failed", error);
+        }
+        window.BusSeatNameBridge = {
+          storageKey: NAME_EXPORT_STORAGE_KEY,
+          getRecords: () => payload.records,
+          getNames: () => payload.names,
+          getLine: () => payload.line,
+          getCsv: () => payload.csv,
+          getJson: () => payload.json,
+          getSelected: () => payload[selectedType] || payload.line,
+          getAll: () => payload
+        };
+        window.dispatchEvent(new CustomEvent("bus-seat-name-export-updated", { detail: payload }));
+        if (textEl) {
+          textEl.value = payload[selectedType] || payload.line;
+          autoResizeNameExportText();
+        }
+      }
+    };
+
+    function isBlockedSeatFor(busType, seatNumber) {
+      return (BUS_LAYOUTS[busType]?.blockedSeats || []).includes(Number(seatNumber));
+    }
+
+    function getSeatDisplayNumberFor(busType, seatNumber) {
+      return BUS_LAYOUTS[busType]?.seatNumberMap?.[Number(seatNumber)] ?? Number(seatNumber);
+    }
+
+    function runRuntimeChecks() {
+      const checks = [
+        { name: "44 좌석 수", pass: createEmptySeats("44").length === 44 },
+        { name: "31 표시용 좌석 수", pass: createEmptySeats("31").length === 44 },
+        { name: "44인승 막힘 좌석 4번", pass: isBlockedSeatFor("44", 4) === true },
+        { name: "31인승 막힘 좌석 3번", pass: isBlockedSeatFor("31", 3) === true },
+        { name: "31인승 4번 표시번호는 3", pass: getSeatDisplayNumberFor("31", 4) === 3 },
+        { name: "HTML escape 동작", pass: escapeHtml("<a>") === "&lt;a&gt;" },
+        { name: "이름 정규화", pass: normalizeName(" 김 철 수 ") === "김철수" },
+        { name: "line export 이름만", pass: SeatNameBridge.toLine([{ name: "홍길동" }, { name: "김철수" }]) === "홍길동\n김철수" },
+        { name: "csv export 헤더 name", pass: SeatNameBridge.toCsv([{ name: "홍길동" }]).startsWith("name") },
+        { name: "json export names 배열", pass: SeatNameBridge.toJson([{ name: "홍길동" }]).includes('"names"') },
+        { name: "clipboard fallback 함수 존재", pass: typeof copyTextRobust === "function" },
+        { name: "firebaseConfig 유효성", pass: validateFirebaseConfig().ok },
+        { name: "초기 payload 44 좌석", pass: Object.keys(buildInitialPayload("44").seats).length === 44 },
+        { name: "SeatNameBridge 존재", pass: typeof SeatNameBridge.sync === "function" }
+      ];
+      const failed = checks.filter((c) => !c.pass);
+      if (failed.length) console.error("Runtime checks failed:", failed);
+    }
+
+    function isFirebaseConfigured() {
+      return Object.values(firebaseConfig).every((value) => typeof value === "string" && value.trim() !== "") && validateFirebaseConfig().ok;
+    }
+
+    function getSeatOptionLabel(seat) {
+      const blocked = isBlockedSeat(seat.number);
+      const displayNo = getSeatDisplayNumber(seat.number);
+      if (blocked) return `${seat.number}번 - 사용불가`;
+      return `${displayNo}번 ${seat.name ? `- ${seat.name}` : "- 빈자리"}`;
+    }
+
+    function seatLocked(seat) {
+      return isBlockedSeat(seat.number)
+        || (state.mode === "member" && seat.number <= 3)
+        || (state.mode === "member" && (seat.status === "paid" || (seat.name && seat.status !== "waiting_alt")));
+    }
+
+    function setStatusMessage(left, right = state.projectLabel) {
+      const leftEl = byId("connectionText");
+      const rightEl = byId("projectText");
+      if (leftEl) leftEl.textContent = left;
+      if (rightEl) rightEl.textContent = right;
+    }
+
+    function flashSaveVisuals(seatNumber, buttonId) {
+      state.lastSavedSeat = seatNumber ?? null;
+      renderAll();
+      window.setTimeout(() => {
+        state.lastSavedSeat = null;
+        renderAll();
+      }, 900);
+      if (!buttonId) return;
+      const btn = byId(buttonId);
+      if (!btn) return;
+      const originalText = btn.dataset.originalText || btn.textContent;
+      btn.dataset.originalText = originalText;
+      btn.classList.add("btn-success-flash");
+      btn.textContent = "저장완료";
+      window.setTimeout(() => {
+        const currentBtn = byId(buttonId);
+        if (!currentBtn) return;
+        currentBtn.classList.remove("btn-success-flash");
+        currentBtn.textContent = originalText;
+      }, 900);
+    }
+
+    function flashButton(buttonId) {
+      const btn = byId(buttonId);
+      if (!btn) return;
+      btn.classList.add("btn-press-flash");
+      window.setTimeout(() => {
+        const currentBtn = byId(buttonId);
+        if (!currentBtn) return;
+        currentBtn.classList.remove("btn-press-flash");
+      }, 700);
+    }
+
+    function findNextAvailableSeat(startSeatNumber) {
+      const capacity = getCapacity();
+      for (let i = Number(startSeatNumber || 0) + 1; i <= capacity; i += 1) {
+        if (!isBlockedSeat(i)) return i;
+      }
+      return Number(startSeatNumber || 0);
+    }
+
+    function getSeatOptionsHtml() {
+      const options = ['<option value="">좌석 선택</option>'];
+      state.seats.forEach((seat) => {
+        const blocked = isBlockedSeat(seat.number);
+        const duplicateRole = getDuplicateSeatRole(seat);
+        let disabled = false;
+        if (state.mode === "member") {
+          const selectableNamedSeat = !!seat.name && duplicateRole !== "normal";
+          disabled = blocked || seat.number <= 3 || (!!seat.name && !selectableNamedSeat);
+        } else if (!(state.mode === "admin" && state.isAdminAuthenticated)) {
+          disabled = blocked;
+        }
+        options.push(`<option value="${seat.number}" ${disabled ? "disabled" : ""}>${getSeatOptionLabel(seat)}</option>`);
+      });
+      return options.join("");
+    }
+
+    function isWaitingBlinkTarget(seat) {
+      if (!seat || seat.status !== "waiting" || !seat.name || !seat.updatedAt) return false;
+      const expireHours = Math.max(1, Number(state.waitingExpireHours || DEFAULT_WAITING_EXPIRE_HOURS));
+      const expireMs = expireHours * 60 * 60 * 1000;
+      const warningMs = Math.min(5 * 60 * 60 * 1000, expireMs);
+      const elapsedMs = Date.now() - Number(seat.updatedAt || 0);
+      const remainingMs = expireMs - elapsedMs;
+      return remainingMs > 0 && remainingMs <= warningMs;
+    }
+
+    function renderSeatButton(seat, side) {
+      if (!seat) return "";
+      const occupied = Boolean(seat.name);
+      const locked = seatLocked(seat);
+      const offsetClass = seat.number % 2 === 1 ? "offset-left" : "offset-right";
+      const isEditing = state.editingSeat === seat.number && !locked;
+      const isJustSaved = state.lastSavedSeat === seat.number;
+      const blocked = isBlockedSeat(seat.number);
+      const duplicateRole = getDuplicateSeatRole(seat);
+      const nameColorClass = duplicateRole === "old" ? "duplicate-old" : (duplicateRole === "new" ? "duplicate-new" : "");
+      const waitingWarning = isWaitingBlinkTarget(seat);
+      const status = occupied && seat.status !== "reserved" && seat.status !== "empty" && seat.status !== "paid"
+        ? `<div class="status-pill status-${seat.status}">${statusLabel(seat.status)}</div>`
+        : "";
+      return `
+        <button id="seat-btn-${seat.number}" class="seat ${seat.number <= 4 ? "light" : ""} ${occupied ? "occupied" : ""} ${locked ? "locked" : ""} ${blocked ? "unavailable" : ""} ${isJustSaved ? "seat-save-flash" : ""} ${waitingWarning ? "waiting-warning" : ""}" data-seat="${seat.number}" type="button" title="${blocked ? "사용할 수 없는 좌석입니다." : (locked ? "회원모드에서는 수정할 수 없는 좌석입니다." : "")}">
+          <div class="seat-number ${side}">${getSeatDisplayNumber(seat.number)}</div>
+          <div class="seat-inner">
+            ${isEditing
+              ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" />`
+              : `<div class="seat-name ${offsetClass} ${nameColorClass}">${escapeHtml(seat.name)}</div>`}
+            ${!isEditing ? status : ""}
+          </div>
+        </button>`;
+    }
+
+    function bindSeatEvents() {
+      document.querySelectorAll(".seat").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const seatNo = Number(btn.dataset.seat);
+          const seat = state.seats.find((s) => s.number === seatNo);
+          handleSeatClick(seat);
+        });
+      });
+    }
+
+    function renderBoard() {
+      const titleMain = byId("titleMain");
+      const feeLabel = byId("feeLabel");
+      const accountNumber = byId("accountNumber");
+      const bankName = byId("bankName");
+      const accountOwner = byId("accountOwner");
+      const leftGrid = byId("leftGrid");
+      const rightGrid = byId("rightGrid");
+      const occupiedCountEl = byId("occupiedCount");
+      const emptyCountEl = byId("emptyCount");
+
+      if (titleMain) titleMain.textContent = state.busInfo.titleMain;
+      if (feeLabel) feeLabel.textContent = `${state.busInfo.feeLabel} `;
+      if (accountNumber) accountNumber.textContent = state.busInfo.accountNumber;
+      if (bankName) bankName.textContent = state.busInfo.bankName;
+      if (accountOwner) accountOwner.textContent = state.busInfo.accountOwner;
+
+      if (leftGrid) {
+        leftGrid.innerHTML =
+          '<div class="driver-box-wrap"><div class="driver-box">운전석</div></div>' +
+          getLeftPairs().map(([a, b]) => renderSeatButton(state.seats[a - 1], "left") + renderSeatButton(state.seats[b - 1], "right")).join("");
+      }
+      if (rightGrid) {
+        rightGrid.innerHTML =
+          '<div class="door-cell"><div class="header-box no-border">출 입 문&lt;-</div></div>' +
+          `<div class="goods-cell">${getCurrentLayout().goodsText || "---"}</div>` +
+          getRightPairs().map(([a, b]) => renderSeatButton(state.seats[a - 1], "left") + renderSeatButton(state.seats[b - 1], "right")).join("");
+      }
+
+      const occupiedCount = state.seats.filter((s) => s.name).length;
+      const emptyCount = state.seats.filter((s) => !isBlockedSeat(s.number) && !s.name).length;
+      if (occupiedCountEl) occupiedCountEl.textContent = String(occupiedCount);
+      if (emptyCountEl) emptyCountEl.textContent = String(emptyCount);
+
+      bindSeatEvents();
+
+      if (state.editingSeat) {
+        const inline = byId("inlineSeatInput");
+        if (!inline) return;
+        inline.focus();
+        inline.select();
+        inline.addEventListener("click", (e) => e.stopPropagation());
+        inline.addEventListener("input", (e) => {
+          state.editName = e.target.value;
+          state.memberName = e.target.value;
+          state.memberSeat = String(state.editingSeat);
+          const memberNameInput = byId("memberName");
+          const memberSeatSelect = byId("memberSeat");
+          const adminNameInput = byId("adminMemberName");
+          if (memberNameInput && memberNameInput.value !== e.target.value) memberNameInput.value = e.target.value;
+          if (memberSeatSelect && memberSeatSelect.value !== String(state.editingSeat)) memberSeatSelect.value = String(state.editingSeat);
+          if (adminNameInput && adminNameInput.value !== e.target.value) adminNameInput.value = e.target.value;
+        });
+        inline.addEventListener("blur", () => handleInlineSave(state.editingSeat));
+        inline.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            handleInlineSave(state.editingSeat);
+          }
+          if (e.key === "Escape") {
+            state.editingSeat = null;
+            state.editName = "";
+            renderAll();
+          }
+        });
+      }
+    }
+
+    function toggleHidden(id, hidden) {
+      const el = byId(id);
+      if (el) el.classList.toggle("hidden", hidden);
+    }
+
+    function renderPanels() {
+      const memberTab = byId("memberTab");
+      const adminTab = byId("adminTab");
+      const memberName = byId("memberName");
+      const memberSeat = byId("memberSeat");
+      const adminSeat = byId("adminSeat");
+      const adminMemberName = byId("adminMemberName");
+      const adminStatus = byId("adminStatus");
+      const waitingExpireHoursInput = byId("waitingExpireHoursInput");
+      const infoTitleMain = byId("infoTitleMain");
+      const infoFeeLabel = byId("infoFeeLabel");
+      const infoAccountNumber = byId("infoAccountNumber");
+      const infoBankName = byId("infoBankName");
+      const infoAccountOwner = byId("infoAccountOwner");
+      const infoSeatGuideText = byId("infoSeatGuideText");
+      const busTypeSelect = byId("busTypeSelect");
+
+      if (memberTab) memberTab.classList.toggle("active", state.mode === "member");
+      if (adminTab) adminTab.classList.toggle("active", state.mode === "admin");
+
+      toggleHidden("memberPanel", state.mode !== "member");
+      toggleHidden("adminLoginPanel", !(state.mode === "admin" && !state.isAdminAuthenticated));
+      toggleHidden("adminPanel", !(state.mode === "admin" && state.isAdminAuthenticated));
+      toggleHidden("busInfoEditor", !state.isAdminAuthenticated);
+
+      const infoBox = byId("busInfoLocked");
+      if (infoBox) {
+        infoBox.style.display = state.mode === "admin" ? "none" : "block";
+        infoBox.textContent = state.busInfo.seatGuideText || "좌석을 선택 후 이름을 입력하고 저장 버튼을 눌러주세요.";
+      }
+      const helpText = document.querySelector(".help-text");
+      if (helpText) helpText.style.display = state.mode === "admin" ? "none" : "block";
+
+      const boardingPointBtn = byId("boardingPointBtn");
+      if (boardingPointBtn) boardingPointBtn.classList.toggle("hidden", state.mode === "member");
+
+      if (memberName) memberName.value = state.memberName;
+      if (memberSeat) {
+        memberSeat.innerHTML = getSeatOptionsHtml();
+        memberSeat.value = state.memberSeat;
+      }
+      if (adminSeat) {
+        adminSeat.innerHTML = getSeatOptionsHtml();
+        adminSeat.value = state.adminSeat;
+      }
+      if (adminMemberName) adminMemberName.value = state.memberName;
+      if (adminStatus) adminStatus.value = state.adminStatus;
+      if (waitingExpireHoursInput) waitingExpireHoursInput.value = String(state.waitingExpireHours || DEFAULT_WAITING_EXPIRE_HOURS);
+      if (infoTitleMain) infoTitleMain.value = state.busInfo.titleMain;
+      if (infoFeeLabel) infoFeeLabel.value = state.busInfo.feeLabel;
+      if (infoAccountNumber) infoAccountNumber.value = state.busInfo.accountNumber;
+      if (infoBankName) infoBankName.value = state.busInfo.bankName;
+      if (infoAccountOwner) infoAccountOwner.value = state.busInfo.accountOwner;
+      if (infoSeatGuideText) infoSeatGuideText.value = state.busInfo.seatGuideText || "";
+      if (busTypeSelect) busTypeSelect.value = state.busType;
+
+      setStatusMessage(state.isFirebaseReady ? (state.canWrite ? " 실시간 연결됨" : "읽기 전용 연결") : "설정 대기중", state.projectLabel);
+    }
+
+    function renderAll() {
+      renderBoard();
+      renderPanels();
+      SeatNameBridge.sync();
+    }
+
+    function autoResizeNameExportText() {
+      const textEl = byId("adminNameExportText");
+      const panelEl = byId("adminNameExportPanel");
+      if (!textEl) return;
+      textEl.style.height = "auto";
+      const nextHeight = Math.max(48, Math.min(textEl.scrollHeight + 2, 420));
+      textEl.style.height = `${nextHeight}px`;
+      if (panelEl) panelEl.style.height = "auto";
+    }
+
+    function isPermissionError(error) {
+      return error?.code === "PERMISSION_DENIED" || String(error?.message || "").toLowerCase().includes("permission");
+    }
+
+    async function safeSet(targetRef, value, options = {}) {
+      try {
+        await set(targetRef, value);
+        state.canWrite = true;
+        return true;
+      } catch (error) {
+        console.error("set failed", options.label || "", error);
+        state.canWrite = false;
+        if (options.permissionMessage && isPermissionError(error)) setStatusMessage(options.permissionMessage, state.projectLabel);
+        else if (options.genericMessage) setStatusMessage(options.genericMessage, state.projectLabel);
+        return false;
+      }
+    }
+
+    async function safeUpdate(targetRef, value, options = {}) {
+      try {
+        await update(targetRef, value);
+        state.canWrite = true;
+        return true;
+      } catch (error) {
+        console.error("update failed", options.label || "", error);
+        state.canWrite = false;
+        if (options.permissionMessage && isPermissionError(error)) setStatusMessage(options.permissionMessage, state.projectLabel);
+        else if (options.genericMessage) setStatusMessage(options.genericMessage, state.projectLabel);
+        return false;
+      }
+    }
+
+    async function ensureInitialData() {
+      if (!state.db) return false;
+      const rootRef = ref(state.db, ROOT_PATH);
+      const snapshot = await get(rootRef);
+      if (snapshot.exists()) {
+        state.canWrite = true;
+        return true;
+      }
+      return safeSet(rootRef, buildInitialPayload(state.busType), {
+        label: "bootstrap",
+        permissionMessage: "초기 데이터 쓰기 권한이 없습니다.",
+        genericMessage: "초기 데이터 생성 실패"
+      });
+    }
+
+    function applySnapshotData(payload) {
+      const nextBusType = payload?.busType || state.busType || "44";
+      state.busType = BUS_LAYOUTS[nextBusType] ? nextBusType : "44";
+      const seatsData = payload?.seats || {};
+      const now = Date.now();
+      const expireHours = Number(payload?.waitingExpireHours ?? DEFAULT_WAITING_EXPIRE_HOURS) || DEFAULT_WAITING_EXPIRE_HOURS;
+      const expireMs = Math.max(1, expireHours) * 60 * 60 * 1000;
+      const expiredSeatNumbers = [];
+      const capacity = BUS_LAYOUTS[state.busType]?.renderCapacity || 44;
+
+      state.seats = Array.from({ length: capacity }, (_, i) => {
+        const raw = seatsData[String(i + 1)] || {};
+        const rawName = raw.name || "";
+        let nextName = rawName;
+        let nextStatus = rawName ? (raw.status || "waiting") : "empty";
+        if (rawName && nextStatus === "waiting" && raw.updatedAt && now - raw.updatedAt >= expireMs) {
+          nextName = "";
+          nextStatus = "empty";
+          expiredSeatNumbers.push(i + 1);
+        }
+        return {
+          number: i + 1,
+          name: nextName,
+          status: nextName ? nextStatus : "empty",
+          updatedAt: raw.updatedAt || 0,
+          updatedBy: raw.updatedBy || ""
+        };
+      });
+
+      state.busInfo = { ...defaultBusInfo, ...(payload?.busInfo || {}) };
+      state.adminPassword = payload?.adminPassword || DEFAULT_ADMIN_PASSWORD;
+      state.waitingExpireHours = expireHours;
+
+      if (state.editingSeat && !state.seats.find((s) => s.number === state.editingSeat)) {
+        state.editingSeat = null;
+        state.editName = "";
+      }
+      if (state.memberSeat && !state.seats.find((s) => String(s.number) === String(state.memberSeat))) {
+        state.memberSeat = "";
+        state.memberName = "";
+      }
+      if (state.adminSeat && !state.seats.find((s) => String(s.number) === String(state.adminSeat))) {
+        state.adminSeat = "";
+      }
+
+      renderAll();
+      if (expiredSeatNumbers.length > 0) syncExpiredWaitingSeats(expiredSeatNumbers);
+    }
+
+    function subscribeRealtime() {
+      if (!state.db || state.isSubscribed) return;
+      const rootRef = ref(state.db, ROOT_PATH);
+      onValue(rootRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+        applySnapshotData(data);
+      }, (error) => {
+        console.error("onValue failed", error);
+        if (isPermissionError(error)) setStatusMessage("Realtime Database 읽기 권한이 없습니다.", state.projectLabel);
+      });
+      window.setInterval(async () => {
+        if (!state.db || !state.isFirebaseReady) return;
+        const snapshot = await get(rootRef);
+        const data = snapshot.val();
+        if (!data) return;
+        applySnapshotData(data);
+      }, 60000);
+      state.isSubscribed = true;
+    }
+
+    async function saveBusInfoRemote() {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        busInfo: { ...state.busInfo },
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveBusInfoRemote",
+        permissionMessage: "하단 정보 저장 권한이 없습니다.",
+        genericMessage: "하단 정보 저장 실패"
+      });
+    }
+
+    async function readSeatRemote(seatNo) {
+      if (!state.db) return null;
+      const snapshot = await get(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`));
+      return snapshot.exists() ? snapshot.val() : null;
+    }
+
+    async function saveMemberSeatRemote(seatNo, name) {
+      if (!state.db) return false;
+      try {
+        const currentSeat = await readSeatRemote(seatNo);
+        const currentName = currentSeat?.name || "";
+        const currentStatus = currentSeat?.status || "empty";
+        const occupiedByOther = currentName && currentName !== name && currentStatus !== "waiting_alt";
+        if (currentStatus === "paid" || occupiedByOther) {
+          setStatusMessage("좌석 저장 권한 또는 좌석 상태를 확인하세요.", state.projectLabel);
+          return false;
+        }
+        return safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
+          name,
+          status: name ? "waiting" : "empty",
+          updatedAt: Date.now(),
+          updatedBy: state.clientId
+        }, {
+          label: "saveMemberSeatRemote",
+          permissionMessage: "회원 좌석 저장 권한이 없습니다.",
+          genericMessage: "좌석 저장 실패"
+        });
+      } catch (error) {
+        console.error("member seat save failed", error);
+        setStatusMessage("좌석 저장 실패", state.projectLabel);
+        return false;
+      }
+    }
+
+    async function clearMemberSeatRemote(seatNo) {
+      if (!state.db) return false;
+      try {
+        const currentSeat = await readSeatRemote(seatNo);
+        if ((currentSeat?.status || "empty") === "paid") {
+          setStatusMessage("완납 좌석은 삭제할 수 없습니다.", state.projectLabel);
+          return false;
+        }
+        return safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
+          name: "",
+          status: "empty",
+          updatedAt: Date.now(),
+          updatedBy: state.clientId
+        }, {
+          label: "clearMemberSeatRemote",
+          permissionMessage: "좌석 삭제 권한이 없습니다.",
+          genericMessage: "좌석 삭제 실패"
+        });
+      } catch (error) {
+        console.error("member seat clear failed", error);
+        setStatusMessage("좌석 삭제 실패", state.projectLabel);
+        return false;
+      }
+    }
+
+    async function saveSeatAdmin(seatNo, name, status) {
+      if (!state.db) return false;
+      const ok = await safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
+        name,
+        status: name ? status : "empty",
+        updatedAt: Date.now(),
+        updatedBy: state.clientId
+      }, {
+        label: "saveSeatAdmin",
+        permissionMessage: "관리자 좌석 저장 권한이 없습니다.",
+        genericMessage: "관리자 좌석 저장 실패"
+      });
+      if (!ok) return false;
+      await safeUpdate(ref(state.db, `${ROOT_PATH}/meta`), { updatedAt: Date.now() });
+      return true;
+    }
+
+    async function resetAllSeatsRemote() {
+      if (!state.db) return false;
+      const seatsObject = {};
+      for (let i = 1; i <= getCapacity(); i += 1) {
+        seatsObject[String(i)] = { name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId };
+      }
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        busType: state.busType,
+        seats: seatsObject,
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "resetAllSeatsRemote",
+        permissionMessage: "전체 초기화 권한이 없습니다.",
+        genericMessage: "전체 초기화 실패"
+      });
+    }
+
+    async function saveAdminPasswordRemote(nextPassword) {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        adminPassword: nextPassword,
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveAdminPasswordRemote",
+        permissionMessage: "관리자 비밀번호 저장 권한이 없습니다.",
+        genericMessage: "관리자 비밀번호 저장 실패"
+      });
+    }
+
+    async function saveWaitingExpireHoursRemote(nextHours) {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        waitingExpireHours: nextHours,
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveWaitingExpireHoursRemote",
+        permissionMessage: "자동삭제 시간 저장 권한이 없습니다.",
+        genericMessage: "자동삭제 시간 저장 실패"
+      });
+    }
+
+    async function syncExpiredWaitingSeats(seatNumbers) {
+      if (!state.db || !state.isFirebaseReady || !Array.isArray(seatNumbers) || seatNumbers.length === 0) return;
+      const updates = {};
+      const now = Date.now();
+      seatNumbers.forEach((seatNo) => {
+        updates[`seats/${seatNo}/name`] = "";
+        updates[`seats/${seatNo}/status`] = "empty";
+        updates[`seats/${seatNo}/updatedAt`] = now;
+        updates[`seats/${seatNo}/updatedBy`] = "system-expired";
+      });
+      updates["meta/updatedAt"] = now;
+      await safeUpdate(ref(state.db, ROOT_PATH), updates, {
+        label: "syncExpiredWaitingSeats",
+        permissionMessage: "만료 좌석 자동 삭제 권한이 없습니다.",
+        genericMessage: "만료 좌석 자동 삭제 실패"
+      });
+    }
+
+    async function saveBusTypeRemote(nextBusType) {
+      if (!state.db) return false;
+      const currentSnapshot = await get(ref(state.db, ROOT_PATH));
+      const currentData = currentSnapshot.exists() ? currentSnapshot.val() : {};
+      const payload = buildInitialPayload(nextBusType);
+      const nextPayload = {
+        busType: nextBusType,
+        seats: payload.seats,
+        busInfo: { ...defaultBusInfo, ...(currentData.busInfo || state.busInfo || {}) },
+        adminPassword: currentData.adminPassword || state.adminPassword || DEFAULT_ADMIN_PASSWORD,
+        waitingExpireHours: Number(currentData.waitingExpireHours ?? state.waitingExpireHours ?? DEFAULT_WAITING_EXPIRE_HOURS) || DEFAULT_WAITING_EXPIRE_HOURS,
+        meta: { createdAt: currentData?.meta?.createdAt || Date.now(), updatedAt: Date.now() }
+      };
+      return safeSet(ref(state.db, ROOT_PATH), nextPayload, {
+        label: "saveBusTypeRemote",
+        permissionMessage: "버스 모드 저장 권한이 없습니다.",
+        genericMessage: "버스 모드 저장 실패"
+      });
+    }
+
+    function handleSeatClick(seat) {
+      if (!seat) return;
+      if (isBlockedSeat(seat.number) || (state.mode === "member" && seat.number <= 3)) return;
+      if (state.mode === "member") {
+        if (seat.status === "paid") {
+          alert("완납 처리된 좌석은 회원 모드에서 접근할 수 없습니다.");
+          return;
+        }
+        if (seat.name && seat.status !== "waiting_alt") return;
+        state.memberSeat = String(seat.number);
+        state.memberName = seat.name || "";
+        state.editingSeat = seat.number;
+        state.editName = seat.name || "";
+        renderAll();
+        return;
+      }
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 로그인 후 수정할 수 있습니다.");
+        return;
+      }
+      state.adminSeat = String(seat.number);
+      state.adminStatus = seat.name
+        ? ((seat.status === "paid" || seat.status === "reserved") ? "paid" : (seat.status === "empty" ? "reserved" : seat.status))
+        : "reserved";
+      state.memberSeat = String(seat.number);
+      state.memberName = seat.name || "";
+      state.editingSeat = seat.number;
+      state.editName = seat.name || "";
+      renderAll();
+    }
+
+    async function handleInlineSave(seatNumber) {
+      if (state.pendingCancelSeat && Number(state.pendingCancelSeat) === Number(seatNumber)) return;
+      if (isBlockedSeat(seatNumber)) return;
+      const name = normalizeName(state.editName);
+      const prevSeat = state.seats.find((s) => s.number === seatNumber);
+      const prevName = prevSeat?.name || "";
+      const prevStatus = prevSeat?.status || "empty";
+      state.seats = state.seats.map((seat) => seat.number === seatNumber ? {
+        ...seat,
+        name,
+        status: name ? (state.mode === "member" ? "waiting" : (seat.status === "empty" ? "reserved" : seat.status)) : "empty",
+        updatedAt: Date.now(),
+        updatedBy: state.clientId
+      } : seat);
+      state.memberSeat = String(seatNumber);
+      state.memberName = name;
+      state.editingSeat = null;
+      state.editName = "";
+      renderAll();
+      if (!state.isFirebaseReady) {
+        setStatusMessage("Firebase 미연결 - 화면에만 표시", state.projectLabel);
+        return;
+      }
+      if (state.mode === "member") {
+        const committed = await saveMemberSeatRemote(seatNumber, name);
+        if (!committed) {
+          state.seats = state.seats.map((seat) => seat.number === seatNumber ? { ...seat, name: prevName, status: prevStatus } : seat);
+          renderAll();
+          alert("다른 사용자가 먼저 좌석을 등록했거나 권한이 없거나 완납 좌석입니다.");
+        } else {
+          flashSaveVisuals(seatNumber, null);
+        }
+        return;
+      }
+      if (state.isAdminAuthenticated) {
+        const nextStatus = name ? (((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus)) : "empty";
+        const ok = await saveSeatAdmin(seatNumber, name, nextStatus);
+        if (!ok) {
+          state.seats = state.seats.map((seat) => seat.number === seatNumber ? { ...seat, name: prevName, status: prevStatus } : seat);
+          renderAll();
+          alert("관리자 저장 권한이 없습니다.");
+        } else {
+          flashSaveVisuals(seatNumber, null);
+        }
+      }
+    }
+
+    async function handleMemberSave() {
+      const seatNo = Number(state.memberSeat);
+      if (isBlockedSeat(seatNo) || (state.mode === "member" && seatNo <= 3)) {
+        alert("1~3번, 사용불가 칸은 회원 입력이 불가능합니다.");
+        return;
+      }
+      const name = normalizeName(state.memberName);
+      if (!seatNo || !name) {
+        alert("이름과 좌석번호를 입력하세요.");
+        return;
+      }
+      const prevSeat = state.seats.find((s) => s.number === seatNo);
+      const prevName = prevSeat?.name || "";
+      const prevStatus = prevSeat?.status || "empty";
+      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name, status: "waiting", updatedAt: Date.now(), updatedBy: state.clientId } : seat);
+      state.editingSeat = null;
+      state.editName = "";
+      renderAll();
+      if (!state.isFirebaseReady) {
+        flashSaveVisuals(seatNo, "memberSaveBtn");
+        setStatusMessage("Firebase 미연결 - 화면에만 저장", state.projectLabel);
+        return;
+      }
+      const committed = await saveMemberSeatRemote(seatNo, name);
+      if (!committed) {
+        state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: prevName, status: prevStatus } : seat);
+        renderAll();
+        alert("이미 다른 사용자가 해당 좌석을 선점했거나 권한이 없거나 완납 좌석입니다.");
+        return;
+      }
+      flashSaveVisuals(seatNo, "memberSaveBtn");
+    }
+
+    async function executeMemberCancel() {
+      const targetSeatNo = Number(state.pendingCancelSeat || state.editingSeat || state.memberSeat);
+      const prevSeat = state.seats.find((s) => s.number === targetSeatNo);
+      const duplicateRole = prevSeat ? getDuplicateSeatRole(prevSeat) : "normal";
+      if (prevSeat && prevSeat.name && duplicateRole === "normal") {
+        alert("중복된 좌석만 입력취소할 수 있습니다.");
+        state.pendingCancelSeat = null;
+        return;
+      }
+      const prevName = prevSeat?.name || "";
+      const prevStatus = prevSeat?.status || "empty";
+      state.memberName = "";
+      state.memberSeat = "";
+      state.editingSeat = null;
+      state.editName = "";
+      if (!targetSeatNo) {
+        state.pendingCancelSeat = null;
+        renderAll();
+        return;
+      }
+      state.seats = state.seats.map((seat) => seat.number === targetSeatNo ? { ...seat, name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId } : seat);
+      state.pendingCancelSeat = null;
+      renderAll();
+      if (!state.isFirebaseReady) {
+        setStatusMessage("Firebase 미연결 - 화면에서만 입력취소", state.projectLabel);
+        flashSaveVisuals(targetSeatNo, "memberCancelBtn");
+        return;
+      }
+      const committed = await clearMemberSeatRemote(targetSeatNo);
+      if (!committed) {
+        state.seats = state.seats.map((seat) => seat.number === targetSeatNo ? { ...seat, name: prevName, status: prevStatus } : seat);
+        renderAll();
+        alert("현재 좌석을 비울 수 없습니다.");
+        return;
+      }
+      flashSaveVisuals(targetSeatNo, "memberCancelBtn");
+    }
+
+    function handleAdminLogin() {
+      const input = byId("adminPasswordInput")?.value || "";
+      if (input !== state.adminPassword) {
+        alert("관리자 비밀번호가 올바르지 않습니다.");
+        return;
+      }
+      state.isAdminAuthenticated = true;
+      const pwInput = byId("adminPasswordInput");
+      if (pwInput) pwInput.value = "";
+      renderAll();
+    }
+
+    function handleAdminLogout() {
+      state.isAdminAuthenticated = false;
+      state.mode = "member";
+      state.adminSeat = "";
+      state.editingSeat = null;
+      state.editName = "";
+      renderAll();
+    }
+
+    async function handleChangeAdminPassword() {
+      const input = byId("newAdminPassword");
+      const next = input?.value.trim() || "";
+      if (!next) {
+        alert("새 관리자 비밀번호를 입력하세요.");
+        return;
+      }
+      const previousPassword = state.adminPassword;
+      state.adminPassword = next;
+      if (input) input.value = "";
+      flashSaveVisuals(null, "changePasswordBtn");
+      renderPanels();
+      if (!state.isFirebaseReady || !state.db) {
+        setStatusMessage("Firebase 미연결 - 현재 화면에서만 비밀번호 변경", state.projectLabel);
+        alert("관리자 비밀번호가 변경되었습니다.");
+        return;
+      }
+      const ok = await saveAdminPasswordRemote(next);
+      if (!ok) {
+        state.adminPassword = previousPassword;
+        renderPanels();
+        alert("관리자 비밀번호 저장 권한이 없거나 저장에 실패했습니다.");
+        return;
+      }
+      alert("관리자 비밀번호가 변경되었습니다.");
+    }
+
+    async function handleResetAdminPassword() {
+      const adminPasswordInput = byId("adminPasswordInput");
+      const typedMasterPassword = adminPasswordInput?.value.trim() || "";
+      if (!typedMasterPassword) {
+        alert("관리자 비밀번호 칸에 마스터 비밀번호를 입력하세요.");
+        return;
+      }
+      if (typedMasterPassword !== INTERNAL_KEY) {
+        alert("마스터 비밀번호가 올바르지 않습니다.");
+        return;
+      }
+      const previousPassword = state.adminPassword;
+      state.adminPassword = DEFAULT_ADMIN_PASSWORD;
+      if (adminPasswordInput) adminPasswordInput.value = "";
+      flashSaveVisuals(null, "preLoginResetPasswordBtn");
+      renderPanels();
+      if (!state.isFirebaseReady || !state.db) {
+        setStatusMessage("Firebase 미연결 - 현재 화면에서만 비밀번호 초기화", state.projectLabel);
+        alert("관리자 비밀번호가 1234로 초기화되었습니다.");
+        return;
+      }
+      const ok = await saveAdminPasswordRemote(DEFAULT_ADMIN_PASSWORD);
+      if (!ok) {
+        state.adminPassword = previousPassword;
+        renderPanels();
+        alert("비밀번호 초기화 권한이 없거나 저장에 실패했습니다.");
+        return;
+      }
+      alert("관리자 비밀번호가 1234로 초기화되었습니다.");
+    }
+
+    async function handleSaveWaitingExpireHours() {
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      const input = byId("waitingExpireHoursInput");
+      const nextHours = Number(input?.value || 0);
+      if (!Number.isFinite(nextHours) || nextHours < 1) {
+        alert("자동삭제 시간은 1시간 이상으로 입력하세요.");
+        return;
+      }
+      const previousHours = state.waitingExpireHours;
+      state.waitingExpireHours = Math.floor(nextHours);
+      renderPanels();
+      if (!state.isFirebaseReady || !state.db) {
+        flashSaveVisuals(null, "saveWaitingExpireBtn");
+        setStatusMessage("Firebase 미연결 - 현재 화면에서만 자동삭제 시간 변경", state.projectLabel);
+        return;
+      }
+      const ok = await saveWaitingExpireHoursRemote(state.waitingExpireHours);
+      if (!ok) {
+        state.waitingExpireHours = previousHours;
+        renderPanels();
+        alert("자동삭제 시간 저장 권한이 없거나 저장에 실패했습니다.");
+        return;
+      }
+      flashSaveVisuals(null, "saveWaitingExpireBtn");
+    }
+
+    async function handleSaveBusType() {
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      const nextBusType = byId("busTypeSelect")?.value || "44";
+      if (!BUS_LAYOUTS[nextBusType]) {
+        alert("올바른 버스 모드를 선택하세요.");
+        return;
+      }
+      if (nextBusType === state.busType) {
+        flashSaveVisuals(null, "saveBusTypeBtn");
+        return;
+      }
+      const confirmed = confirm(`${nextBusType}인승 모드로 변경하면 현재 좌석 정보가 초기화됩니다. 진행할까요?`);
+      if (!confirmed) {
+        renderPanels();
+        return;
+      }
+      const previous = {
+        busType: state.busType,
+        seats: state.seats.map((seat) => ({ ...seat })),
+        memberSeat: state.memberSeat,
+        memberName: state.memberName,
+        adminSeat: state.adminSeat,
+        adminStatus: state.adminStatus,
+        editingSeat: state.editingSeat,
+        editName: state.editName
+      };
+      state.busType = nextBusType;
+      state.seats = createEmptySeats(nextBusType);
+      state.memberSeat = "";
+      state.memberName = "";
+      state.adminSeat = "";
+      state.adminStatus = "paid";
+      state.editingSeat = null;
+      state.editName = "";
+      renderAll();
+      if (!state.isFirebaseReady || !state.db) {
+        flashSaveVisuals(null, "saveBusTypeBtn");
+        setStatusMessage("Firebase 미연결 - 현재 화면에서만 버스 모드 변경", state.projectLabel);
+        return;
+      }
+      const ok = await saveBusTypeRemote(nextBusType);
+      if (!ok) {
+        Object.assign(state, previous);
+        renderAll();
+        alert("버스 모드 변경 저장에 실패했습니다.");
+        return;
+      }
+      flashSaveVisuals(null, "saveBusTypeBtn");
+    }
+
+    async function handleAdminSave() {
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      const seatNo = Number(state.adminSeat);
+      if (isBlockedSeat(seatNo)) {
+        alert("사용불가 칸은 입력할 수 없습니다.");
+        return;
+      }
+      if (!seatNo) {
+        alert("좌석번호를 선택하세요.");
+        return;
+      }
+      const trimmedName = normalizeName(state.memberName);
+      const prevSeat = state.seats.find((s) => s.number === seatNo);
+      const prevName = prevSeat?.name || "";
+      const prevStatus = prevSeat?.status || "empty";
+      const nextStatus = trimmedName ? state.adminStatus : "empty";
+      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: trimmedName, status: nextStatus, updatedAt: Date.now(), updatedBy: state.clientId } : seat);
+      state.editingSeat = null;
+      state.editName = "";
+      renderAll();
+      if (!state.isFirebaseReady) {
+        flashSaveVisuals(seatNo, "adminSaveBtn");
+        setStatusMessage("Firebase 미연결 - 화면에만 저장", state.projectLabel);
+        return;
+      }
+      const ok = await saveSeatAdmin(seatNo, trimmedName, nextStatus);
+      if (!ok) {
+        state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: prevName, status: prevStatus } : seat);
+        renderAll();
+        alert("관리 상태 저장 권한이 없습니다.");
+        return;
+      }
+      flashSaveVisuals(seatNo, "adminSaveBtn");
+    }
+
+    async function handleAdminClearSeat() {
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      const seatNo = Number(state.adminSeat);
+      if (!seatNo) {
+        alert("좌석번호를 선택하세요.");
+        return;
+      }
+      const prevSeat = state.seats.find((s) => s.number === seatNo);
+      const prevName = prevSeat?.name || "";
+      const prevStatus = prevSeat?.status || "empty";
+      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId } : seat);
+      state.memberName = "";
+      state.editName = "";
+      state.adminStatus = "reserved";
+      renderAll();
+      if (!state.isFirebaseReady || !state.db) {
+        flashSaveVisuals(seatNo, "adminClearSeatBtn");
+        setStatusMessage("Firebase 미연결 - 선택 좌석 내용이 화면에서 삭제됨", state.projectLabel);
+        return;
+      }
+      const ok = await saveSeatAdmin(seatNo, "", "empty");
+      if (!ok) {
+        state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: prevName, status: prevStatus } : seat);
+        state.memberName = prevName;
+        state.editName = prevName;
+        state.adminStatus = prevStatus === "empty" ? "paid" : prevStatus;
+        renderAll();
+        alert("선택 좌석 내용을 삭제하지 못했습니다.");
+        return;
+      }
+      flashSaveVisuals(seatNo, "adminClearSeatBtn");
+    }
+
+    async function handleAdminMarkNamedPaid() {
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      const namedSeats = state.seats.filter((seat) => String(seat.name || "").trim() !== "");
+      if (namedSeats.length === 0) {
+        alert("이름이 입력된 좌석이 없습니다.");
+        return;
+      }
+      const previousSeats = state.seats.map((seat) => ({ ...seat }));
+      state.seats = state.seats.map((seat) => !String(seat.name || "").trim() ? seat : { ...seat, status: "reserved", updatedAt: Date.now(), updatedBy: state.clientId });
+      state.adminStatus = "paid";
+      renderAll();
+      if (!state.isFirebaseReady || !state.db) {
+        flashButton("adminMarkNamedPaidBtn");
+        setStatusMessage("Firebase 미연결 - 이름 있는 좌석의 상태를 지움", state.projectLabel);
+        return;
+      }
+      const updates = {};
+      const now = Date.now();
+      namedSeats.forEach((seat) => {
+        updates[`seats/${seat.number}/status`] = "reserved";
+        updates[`seats/${seat.number}/updatedAt`] = now;
+        updates[`seats/${seat.number}/updatedBy`] = state.clientId;
+      });
+      updates["meta/updatedAt"] = now;
+      const ok = await safeUpdate(ref(state.db, ROOT_PATH), updates, {
+        label: "handleAdminMarkNamedPaid",
+        permissionMessage: "이름만 남기기 권한이 없습니다.",
+        genericMessage: "이름만 남기기 실패"
+      });
+      if (!ok) {
+        state.seats = previousSeats;
+        renderAll();
+        alert("이름이 입력된 좌석의 상태를 지우지 못했습니다.");
+        return;
+      }
+      flashButton("adminMarkNamedPaidBtn");
+    }
+
+    async function executeReset() {
+      if (!state.isFirebaseReady) {
+        alert("Firebase 설정값을 먼저 넣어주세요.");
+        return;
+      }
+      state.seats = state.seats.map((seat) => ({ ...seat, name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId }));
+      state.memberName = "";
+      state.memberSeat = "";
+      state.adminSeat = "";
+      state.adminStatus = "paid";
+      state.editingSeat = null;
+      state.editName = "";
+      renderAll();
+      const ok = await resetAllSeatsRemote();
+      if (!ok) alert("전체 초기화 권한이 없습니다.");
+    }
+
+    function bindIfPresent(id, event, handler) {
+      const el = byId(id);
+      if (el) el.addEventListener(event, handler);
+    }
+
+    async function captureBoardArea() {
+      const target = document.querySelector(".board-wrap");
+      if (!target || !window.html2canvas) return;
+      const canvas = await html2canvas(target, { backgroundColor: null, scale: 2, useCORS: true });
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/png");
+      link.download = "bus-seat-capture.png";
+      link.click();
+    }
+
+    function bindStaticEvents() {
+      bindIfPresent("memberTab", "click", () => { state.mode = "member"; state.editingSeat = null; state.editName = ""; renderAll(); });
+      bindIfPresent("adminTab", "click", () => { state.mode = "admin"; state.editingSeat = null; state.editName = ""; renderAll(); });
+      bindIfPresent("memberName", "input", (e) => {
+        state.memberName = e.target.value;
+        if (state.editingSeat && state.mode === "member") {
+          state.editName = e.target.value;
+          const inline = byId("inlineSeatInput");
+          if (inline && inline.value !== e.target.value) inline.value = e.target.value;
+        }
+      });
+      bindIfPresent("memberName", "keydown", async (e) => {
+        if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("memberSaveBtn"); await handleMemberSave(); }
+      });
+      bindIfPresent("memberSeat", "change", (e) => {
+        const seatNo = Number(e.target.value);
+        const seat = state.seats.find((s) => s.number === seatNo);
+        const duplicateRole = seat ? getDuplicateSeatRole(seat) : "normal";
+        if (seat && seat.name && duplicateRole === "normal") {
+          alert("중복된 좌석만 좌석번호 선택으로 변경할 수 있습니다.");
+          e.target.value = "";
+          state.memberSeat = "";
+          state.memberName = "";
+          renderPanels();
+          return;
+        }
+        state.memberSeat = e.target.value;
+        if (seat) { state.memberName = seat.name || ""; renderPanels(); }
+      });
+      bindIfPresent("memberSaveBtn", "click", handleMemberSave);
+      bindIfPresent("memberCancelBtn", "click", async () => {
+        const targetSeatNo = Number(state.editingSeat || state.memberSeat);
+        const hasTypedName = state.editName.trim() || state.memberName.trim();
+        if (!targetSeatNo && !hasTypedName) {
+          state.pendingCancelSeat = null;
+          state.memberName = "";
+          state.memberSeat = "";
+          state.editingSeat = null;
+          state.editName = "";
+          renderAll();
+          return;
+        }
+        state.pendingCancelSeat = targetSeatNo || null;
+        await executeMemberCancel();
+      });
+      bindIfPresent("adminLoginBtn", "click", handleAdminLogin);
+      bindIfPresent("adminPasswordInput", "keydown", async (e) => {
+        if (e.key === "Enter" && !e.isComposing) {
+          e.preventDefault();
+          const typedPassword = e.target.value.trim();
+          if (typedPassword === INTERNAL_KEY) {
+            flashButton("preLoginResetPasswordBtn");
+            await handleResetAdminPassword();
+          } else {
+            flashButton("adminLoginBtn");
+            handleAdminLogin();
+          }
+        }
+      });
+      bindIfPresent("adminLogoutBtn", "click", handleAdminLogout);
+      bindIfPresent("adminSeat", "change", (e) => {
+        state.adminSeat = e.target.value;
+        const seat = state.seats.find((s) => String(s.number) === e.target.value);
+        if (seat) {
+          state.memberSeat = e.target.value;
+          state.memberName = seat.name || "";
+          state.adminStatus = (seat.status === "paid" || seat.status === "reserved") ? "paid" : (seat.status || "paid");
+          state.editingSeat = null;
+          state.editName = "";
+          renderAll();
+        }
+      });
+      bindIfPresent("adminMemberName", "input", (e) => {
+        state.memberName = e.target.value;
+        state.editName = e.target.value;
+        const inline = byId("inlineSeatInput");
+        if (inline && inline.value !== e.target.value) inline.value = e.target.value;
+      });
+      bindIfPresent("adminMemberName", "keydown", async (e) => {
+        if (e.key === "Enter" && !e.isComposing) {
+          e.preventDefault();
+
+          const currentSeat = Number(state.adminSeat || 0);
+          if (!currentSeat || isBlockedSeat(currentSeat)) return;
+
+          const inputName = byId("adminMemberName")?.value ?? state.memberName ?? "";
+          const trimmedName = normalizeName(inputName);
+          const prevSeat = state.seats.find((s) => s.number === currentSeat);
+          const prevName = prevSeat?.name || "";
+          const prevStatus = prevSeat?.status || "empty";
+          const nextStatus = trimmedName ? state.adminStatus : prevStatus;
+
+          if (trimmedName !== prevName) {
+            state.seats = state.seats.map((seat) => seat.number === currentSeat
+              ? {
+                  ...seat,
+                  name: trimmedName,
+                  status: trimmedName ? nextStatus : seat.status,
+                  updatedAt: Date.now(),
+                  updatedBy: state.clientId
+                }
+              : seat);
+          }
+
+          const nextSeat = findNextAvailableSeat(currentSeat);
+          state.adminSeat = String(nextSeat);
+          state.memberSeat = String(nextSeat);
+
+          const nextSeatData = state.seats.find((s) => s.number === nextSeat);
+          state.memberName = nextSeatData?.name || "";
+          state.editName = "";
+          state.editingSeat = null;
+          if (nextSeatData) {
+            state.adminStatus = (nextSeatData.status === "empty" ? "paid" : nextSeatData.status) || "paid";
+          }
+
+          renderPanels();
+
+          if (state.isFirebaseReady && trimmedName !== prevName) {
+            const ok = await saveSeatAdmin(currentSeat, trimmedName, nextStatus);
+            if (!ok) {
+              state.seats = state.seats.map((seat) => seat.number === currentSeat
+                ? { ...seat, name: prevName, status: prevStatus }
+                : seat);
+              renderPanels();
+            }
+          }
+
+          const nameInput = byId("adminMemberName");
+          if (nameInput) {
+            nameInput.focus();
+            nameInput.select();
+          }
+        }
+      });
+      bindIfPresent("adminStatus", "change", (e) => { state.adminStatus = e.target.value; });
+      bindIfPresent("adminSaveBtn", "click", handleAdminSave);
+      bindIfPresent("adminClearSeatBtn", "click", handleAdminClearSeat);
+      bindIfPresent("adminMarkNamedPaidBtn", "click", handleAdminMarkNamedPaid);
+      bindIfPresent("saveBusTypeBtn", "click", handleSaveBusType);
+      bindIfPresent("resetBtn", "click", () => {
+        if (!state.isAdminAuthenticated) { alert("관리자 인증 후 사용할 수 있습니다."); return; }
+        const box = byId("resetInlineConfirm");
+        if (box) box.classList.remove("hidden");
+      });
+      bindIfPresent("changePasswordBtn", "click", handleChangeAdminPassword);
+      bindIfPresent("saveWaitingExpireBtn", "click", handleSaveWaitingExpireHours);
+      bindIfPresent("newAdminPassword", "keydown", async (e) => {
+        if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("changePasswordBtn"); await handleChangeAdminPassword(); }
+      });
+      bindIfPresent("waitingExpireHoursInput", "keydown", async (e) => {
+        if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("saveWaitingExpireBtn"); await handleSaveWaitingExpireHours(); }
+      });
+      bindIfPresent("preLoginResetPasswordBtn", "click", handleResetAdminPassword);
+      bindIfPresent("infoTitleMain", "input", async (e) => { state.busInfo.titleMain = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("infoFeeLabel", "input", async (e) => { state.busInfo.feeLabel = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("infoAccountNumber", "input", async (e) => { state.busInfo.accountNumber = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("infoBankName", "input", async (e) => { state.busInfo.bankName = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("infoAccountOwner", "input", async (e) => { state.busInfo.accountOwner = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("infoSeatGuideText", "input", async (e) => { state.busInfo.seatGuideText = e.target.value; renderPanels(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("resetInlineCancelBtn", "click", () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); });
+      bindIfPresent("resetInlineConfirmBtn", "click", async () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); await executeReset(); });
+      bindIfPresent("captureBoardBtn", "click", captureBoardArea);
+      // 👉 GitHub Pages에 있는 bus-route.html 열기 (주소를 실제 URL로 변경하세요)
+      bindIfPresent("boardingPointBtn", "click", () => {
+          window.location.href = "https://coretechms.github.io/bus-route/";
+      });
+      bindIfPresent("adminNameExportType", "change", () => { SeatNameBridge.sync(byId("adminNameExportType")?.value || "line"); });
+      bindIfPresent("copyNameExportBtn", "click", async () => {
+        const exportType = byId("adminNameExportType")?.value || "line";
+        const text = SeatNameBridge.getPayload(exportType);
+        const textarea = byId("adminNameExportText");
+        const result = await copyTextRobust(text, textarea);
+        if (result.ok) {
+          flashButton("copyNameExportBtn");
+          setStatusMessage(`이름 데이터 복사 완료 (${result.method})`, state.projectLabel);
+          return;
+        }
+        setStatusMessage("자동 복사 실패 - 아래 텍스트가 전체 선택됨", state.projectLabel);
+        alert("자동 복사가 지원되지 않아 아래 텍스트를 직접 복사하면 됩니다.");
+      });
+      document.querySelectorAll("button.btn[id]").forEach((btn) => btn.addEventListener("click", () => flashButton(btn.id)));
+      window.addEventListener("resize", autoResizeNameExportText);
+    }
+
+    async function initFirebase() {
+      const validation = validateFirebaseConfig();
+      if (!isFirebaseConfigured()) {
+        const message = validation.ok ? "Firebase 설정 대기중" : `Firebase 설정 확인: ${validation.failed.map((item) => item.name).join(", ")}`;
+        setStatusMessage(message, state.projectLabel);
+        renderAll();
+        return;
+      }
+      try {
+        state.app = initializeApp(firebaseConfig);
+        state.db = getDatabase(state.app);
+        state.isFirebaseReady = true;
+        state.projectLabel = firebaseConfig.projectId;
+      } catch (error) {
+        console.error("firebase init failed", error);
+        state.isFirebaseReady = false;
+        setStatusMessage("Firebase 초기화 실패", state.projectLabel);
+        return;
+      }
+      subscribeRealtime();
+      window.setInterval(() => { renderBoard(); }, 30000);
+      try {
+        const initialized = await ensureInitialData();
+        setStatusMessage(initialized ? "실시간 연결됨" : "읽기 전용 연결", state.projectLabel);
+      } catch (error) {
+        console.error("ensureInitialData failed", error);
+        state.canWrite = false;
+        setStatusMessage("초기 데이터 생성 실패", state.projectLabel);
+      }
+    }
+
+    async function init() {
+      window.BusSeatNameBridge = window.BusSeatNameBridge || {
+        storageKey: NAME_EXPORT_STORAGE_KEY,
+        getRecords: () => [],
+        getNames: () => [],
+        getLine: () => "",
+        getCsv: () => "",
+        getJson: () => "",
+        getSelected: () => "",
+        getAll: () => ({ busType: state.busType, records: [], names: [], updatedAt: 0 })
+      };
+      runRuntimeChecks();
+      bindStaticEvents();
+      renderAll();
+      autoResizeNameExportText();
+      await initFirebase();
+    }
+
+    init();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</body>
+</html>
