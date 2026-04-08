@@ -431,6 +431,44 @@
       #adminPanel > div:first-child > .status-box > span { display: none; }
       #adminLogoutBtn { width: 100% !important; min-width: 80px; margin-left: 0 !important; font-size: 11px; }
     }
+  
+    .yn-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+      display: flex; align-items: center; justify-content: center; z-index: 9999;
+    }
+    .yn-dialog {
+      width: min(420px, calc(100vw - 24px));
+      background: #fff; border-radius: 18px; box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+      padding: 18px 18px 16px;
+    }
+    .yn-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+    .yn-message { white-space: pre-line; line-height: 1.6; font-size: 14px; color: #222; }
+    .yn-actions { margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px; }
+    .yn-btn {
+      min-width: 72px; height: 40px; border-radius: 10px; border: 1px solid #d4d4d4;
+      background: #fff; font-size: 14px; cursor: pointer;
+    }
+    .yn-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+    
+  
+    .tri-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+      display: flex; align-items: center; justify-content: center; z-index: 9999;
+    }
+    .tri-dialog {
+      width: min(460px, calc(100vw - 24px));
+      background: #fff; border-radius: 18px; box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+      padding: 18px 18px 16px;
+    }
+    .tri-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+    .tri-message { white-space: pre-line; line-height: 1.6; font-size: 14px; color: #222; }
+    .tri-actions { margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+    .tri-btn {
+      min-width: 92px; height: 40px; border-radius: 10px; border: 1px solid #d4d4d4;
+      background: #fff; font-size: 14px; cursor: pointer;
+    }
+    .tri-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+    
   </style>
 </head>
 <body>
@@ -520,31 +558,27 @@
 
           <div id="adminPanel" class="hidden">
 
-            <div class="grid-3" style="margin-top:12px;">
-              
-              <div style="display:flex; gap:8px; flex-wrap:nowrap;">
-                <select id="adminSeat" style="flex:1; min-width:0;"></select>
-                <input id="adminMemberName" type="text" placeholder="이름 수정" style="flex:1;" />
-                <select id="adminStatus" style="flex:1;">
-                  <option value="paid">완납</option>
-                  <option value="waiting">입금대기</option>
-                  <option value="waiting_alt">미납</option>
-                  <option value="reserved">이름만 표시</option>
-                </select>
-              </div>
-            </div>
-
             <div style="display:flex; gap:8px; margin-top:10px;">
               <button class="btn btn-outline" id="adminClearSeatBtn" type="button" style="flex:1;">선택좌석 삭제</button>
               <button class="btn btn-outline" id="adminMarkNamedPaidBtn" type="button" style="flex:1;">이름만 남기기</button>
               <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="flex:1;">로그아웃</button>
             </div>
 
+            <div style="display:flex; gap:8px; margin-top:10px;">
+              <select id="adminSeat" style="flex:1; min-width:0;"></select>
+              <input id="adminMemberName" type="text" placeholder="이름 수정" style="flex:1;" />
+              <select id="adminStatus" style="flex:1;">
+                <option value="paid">완납</option>
+                <option value="waiting">입금대기</option>
+                <option value="reserved">이름만 표시</option>
+              </select>
+            </div>
+
             <div id="resetInlineConfirm" class="hidden" style="margin-bottom:6px; padding:8px; border:1px solid #d32f2f; border-radius:8px; background:#fff5f5;">
               <div style="font-size:12px; margin-bottom:6px; color:#b91c1c; font-weight:700;">전체 좌석을 모두 초기화하시겠습니까?</div>
               <div style="display:flex; gap:6px;">
-                <button class="btn btn-outline" id="resetInlineCancelBtn" type="button">취소</button>
-                <button class="btn btn-danger" id="resetInlineConfirmBtn" type="button">확인</button>
+                <button class="btn btn-outline" id="resetInlineCancelBtn" type="button">아니오</button>
+                <button class="btn btn-danger" id="resetInlineConfirmBtn" type="button">예</button>
               </div>
             </div>
 
@@ -727,8 +761,104 @@
     function statusLabel(status) {
       if (status === "paid") return "완납";
       if (status === "waiting") return "입금대기";
-      if (status === "waiting_alt") return "미납";
+      if (status === "waiting_alt") return "자리이동";
       return "";
+    }
+
+    function normalizeSeatStatus(status) {
+      if (status === "waiting_alt") return "reserved";
+      return status || "empty";
+    }
+
+    function getSameNameSeats(name, excludeSeatNumber = null) {
+      const normalizedName = normalizeName(name);
+      if (!normalizedName) return [];
+      return state.seats
+        .filter((seat) => seat.number !== Number(excludeSeatNumber) && normalizeName(seat.name) === normalizedName)
+        .sort((a, b) => ((a.updatedAt || 0) - (b.updatedAt || 0)) || (a.number - b.number));
+    }
+
+    function buildDuplicateName(baseName, excludeSeatNumber = null) {
+      const normalizedBase = normalizeName(baseName);
+      if (!normalizedBase) return "";
+      const taken = new Set(
+        state.seats
+          .filter((seat) => seat.number !== Number(excludeSeatNumber))
+          .map((seat) => normalizeName(seat.name))
+          .filter(Boolean)
+      );
+      if (!taken.has(normalizedBase)) return normalizedBase;
+      let index = 1;
+      while (taken.has(`${normalizedBase}${index}`)) index += 1;
+      return `${normalizedBase}${index}`;
+    }
+
+    
+    function showThreeOptionDialog(message, title = "이 페이지 내용:") {
+      return new Promise((resolve) => {
+        const existing = document.getElementById("threeOptionDialogOverlay");
+        if (existing) existing.remove();
+
+        const overlay = document.createElement("div");
+        overlay.className = "tri-overlay";
+        overlay.id = "threeOptionDialogOverlay";
+        overlay.innerHTML = `
+          <div class="tri-dialog" role="dialog" aria-modal="true" aria-labelledby="triDialogTitle">
+            <div class="tri-title" id="triDialogTitle">${escapeHtml(title)}</div>
+            <div class="tri-message">${escapeHtml(message)}</div>
+            <div class="tri-actions">
+              <button type="button" class="tri-btn primary" id="triDialogMove">자리이동</button>
+              <button type="button" class="tri-btn" id="triDialogCancel">변경없이 복귀</button>
+              <button type="button" class="tri-btn" id="triDialogDuplicate">동명이인등록</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const cleanup = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) cleanup("cancel");
+        });
+        overlay.querySelector("#triDialogMove").addEventListener("click", () => cleanup("move"));
+        overlay.querySelector("#triDialogCancel").addEventListener("click", () => cleanup("cancel"));
+        overlay.querySelector("#triDialogDuplicate").addEventListener("click", () => cleanup("duplicate"));
+      });
+    }
+
+    async function confirmDuplicateNameAction(name) {
+      const normalizedName = normalizeName(name);
+      const duplicateSeats = getSameNameSeats(normalizedName);
+      if (duplicateSeats.length === 0) {
+        return { type: "normal", name: normalizedName, sourceSeat: null };
+      }
+      const choice = await showThreeOptionDialog(`동일 이름 "${normalizedName}" 이(가) 있습니다.
+자리이동 인가요?`, "이 페이지 내용:");
+      if (choice === "move") {
+        return { type: "move", name: normalizedName, sourceSeat: duplicateSeats[0] };
+      }
+      if (choice === "duplicate") {
+        const uniqueName = buildDuplicateName(normalizedName);
+        return { type: "duplicate", name: uniqueName, sourceSeat: null, originalName: normalizedName };
+      }
+      return { type: "cancel", name: normalizedName, sourceSeat: null };
+    }
+
+    function applyNameAssignmentLocal(targetSeatNo, nextName, nextStatus, options = {}) {
+      const sourceSeatNo = Number(options.sourceSeatNo || 0);
+      const now = Date.now();
+      state.seats = state.seats.map((seat) => {
+        if (sourceSeatNo && seat.number === sourceSeatNo) {
+          return { ...seat, name: "", status: "empty", updatedAt: now, updatedBy: state.clientId };
+        }
+        if (seat.number === Number(targetSeatNo)) {
+          return { ...seat, name: nextName, status: nextName ? nextStatus : "empty", updatedAt: now, updatedBy: state.clientId };
+        }
+        return seat;
+      });
     }
 
     function createEmptySeats(busType = "44") {
@@ -790,7 +920,7 @@
     function getDuplicateSeatRole(seat) {
       if (!seat || !seat.name) return "normal";
       const sameNameSeats = state.seats
-        .filter((s) => s.name === seat.name)
+        .filter((s) => normalizeName(s.name) === normalizeName(seat.name))
         .sort((a, b) => ((a.updatedAt || 0) - (b.updatedAt || 0)) || (a.number - b.number));
       if (sameNameSeats.length < 2) return "normal";
       if (sameNameSeats[0].number === seat.number) return "old";
@@ -942,9 +1072,13 @@
     }
 
     function seatLocked(seat) {
-      return isBlockedSeat(seat.number)
-        || (state.mode === "member" && seat.number <= 3)
-        || (state.mode === "member" && (seat.status === "paid" || (seat.name && seat.status !== "waiting_alt")));
+      if (isBlockedSeat(seat.number)) return true;
+      if (state.mode !== "member") return false;
+      if (seat.number <= 3) return true;
+      if (seat.status === "paid") return true;
+      if (!seat.name) return false;
+      const duplicateRole = getDuplicateSeatRole(seat);
+      return duplicateRole === "normal";
     }
 
     function setStatusMessage(left, right = state.projectLabel) {
@@ -1161,6 +1295,7 @@
         infoBox.style.display = state.mode === "admin" ? "none" : "block";
         infoBox.textContent = state.busInfo.seatGuideText || "좌석을 선택 후 이름을 입력하고 저장 버튼을 눌러주세요.";
       }
+
       const helpText = document.querySelector(".help-text");
       if (helpText) helpText.style.display = state.mode === "admin" ? "none" : "block";
 
@@ -1193,6 +1328,11 @@
     function renderAll() {
       renderBoard();
       renderPanels();
+      const captureBtn = byId("captureBoardBtn");
+      if (captureBtn) {
+        const showCapture = (state.mode === "admin");
+        captureBtn.classList.toggle("hidden", !showCapture);
+      }
       SeatNameBridge.sync();
     }
 
@@ -1341,23 +1481,40 @@
       return snapshot.exists() ? snapshot.val() : null;
     }
 
-    async function saveMemberSeatRemote(seatNo, name) {
+    async function saveMemberSeatRemote(seatNo, name, options = {}) {
       if (!state.db) return false;
       try {
         const currentSeat = await readSeatRemote(seatNo);
         const currentName = currentSeat?.name || "";
-        const currentStatus = currentSeat?.status || "empty";
-        const occupiedByOther = currentName && currentName !== name && currentStatus !== "waiting_alt";
+        const currentStatus = normalizeSeatStatus(currentSeat?.status || "empty");
+        const occupiedByOther = currentName && normalizeName(currentName) !== normalizeName(name);
         if (currentStatus === "paid" || occupiedByOther) {
           setStatusMessage("좌석 저장 권한 또는 좌석 상태를 확인하세요.", state.projectLabel);
           return false;
         }
-        return safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
-          name,
-          status: name ? "waiting" : "empty",
-          updatedAt: Date.now(),
-          updatedBy: state.clientId
-        }, {
+
+        const updates = {
+          [`seats/${seatNo}/name`]: name,
+          [`seats/${seatNo}/status`]: name ? (options.status || "waiting") : "empty",
+          [`seats/${seatNo}/updatedAt`]: Date.now(),
+          [`seats/${seatNo}/updatedBy`]: state.clientId,
+          "meta/updatedAt": Date.now()
+        };
+
+        if (options.clearSourceSeatNo) {
+          const sourceSeatNo = Number(options.clearSourceSeatNo);
+          const sourceSeat = await readSeatRemote(sourceSeatNo);
+          if ((normalizeSeatStatus(sourceSeat?.status || "empty") === "paid")) {
+            setStatusMessage("완납 좌석은 자리이동으로 삭제할 수 없습니다.", state.projectLabel);
+            return false;
+          }
+          updates[`seats/${sourceSeatNo}/name`] = "";
+          updates[`seats/${sourceSeatNo}/status`] = "empty";
+          updates[`seats/${sourceSeatNo}/updatedAt`] = Date.now();
+          updates[`seats/${sourceSeatNo}/updatedBy`] = state.clientId;
+        }
+
+        return safeUpdate(ref(state.db, ROOT_PATH), updates, {
           label: "saveMemberSeatRemote",
           permissionMessage: "회원 좌석 저장 권한이 없습니다.",
           genericMessage: "좌석 저장 실패"
@@ -1498,7 +1655,8 @@
           alert("완납 처리된 좌석은 회원 모드에서 접근할 수 없습니다.");
           return;
         }
-        if (seat.name && seat.status !== "waiting_alt") return;
+        const duplicateRole = getDuplicateSeatRole(seat);
+        if (seat.name && duplicateRole === "normal") return;
         state.memberSeat = String(seat.number);
         state.memberName = seat.name || "";
         state.editingSeat = seat.number;
@@ -1512,7 +1670,7 @@
       }
       state.adminSeat = String(seat.number);
       state.adminStatus = seat.name
-        ? ((seat.status === "paid" || seat.status === "reserved") ? "paid" : (seat.status === "empty" ? "reserved" : seat.status))
+        ? normalizeSeatStatus(seat.status === "empty" ? "reserved" : seat.status)
         : "reserved";
       state.memberSeat = String(seat.number);
       state.memberName = seat.name || "";
@@ -1525,18 +1683,34 @@
       if (state.pendingCancelSeat && Number(state.pendingCancelSeat) === Number(seatNumber)) return;
       if (isBlockedSeat(seatNumber)) return;
       const name = normalizeName(state.editName);
-      const prevSeat = state.seats.find((s) => s.number === seatNumber);
+      const prevSeat = state.seats.find((s) => s.number === Number(seatNumber));
       const prevName = prevSeat?.name || "";
       const prevStatus = prevSeat?.status || "empty";
-      state.seats = state.seats.map((seat) => seat.number === seatNumber ? {
-        ...seat,
-        name,
-        status: name ? (state.mode === "member" ? "waiting" : (seat.status === "empty" ? "reserved" : seat.status)) : "empty",
-        updatedAt: Date.now(),
-        updatedBy: state.clientId
-      } : seat);
+      const prevSeats = state.seats.map((seat) => ({ ...seat }));
+      let finalName = name;
+      let finalStatus = name ? (state.mode === "member" ? "waiting" : normalizeSeatStatus(prevStatus === "empty" ? "reserved" : prevStatus)) : "empty";
+      let sourceSeatNo = null;
+
+      if (state.mode === "member" && name) {
+        const duplicateDecision = await confirmDuplicateNameAction(name);
+        if (duplicateDecision.type === "cancel") {
+          state.editingSeat = null;
+          state.editName = "";
+          renderAll();
+          return;
+        }
+        finalName = duplicateDecision.name;
+        if (duplicateDecision.type === "move") {
+          sourceSeatNo = duplicateDecision.sourceSeat?.number || null;
+          finalStatus = "waiting_alt";
+        } else {
+          finalStatus = "waiting";
+        }
+      }
+
+      applyNameAssignmentLocal(seatNumber, finalName, finalStatus, { sourceSeatNo });
       state.memberSeat = String(seatNumber);
-      state.memberName = name;
+      state.memberName = finalName;
       state.editingSeat = null;
       state.editName = "";
       renderAll();
@@ -1545,9 +1719,9 @@
         return;
       }
       if (state.mode === "member") {
-        const committed = await saveMemberSeatRemote(seatNumber, name);
+        const committed = await saveMemberSeatRemote(seatNumber, finalName, { status: finalStatus, clearSourceSeatNo: sourceSeatNo });
         if (!committed) {
-          state.seats = state.seats.map((seat) => seat.number === seatNumber ? { ...seat, name: prevName, status: prevStatus } : seat);
+          state.seats = prevSeats;
           renderAll();
           alert("다른 사용자가 먼저 좌석을 등록했거나 권한이 없거나 완납 좌석입니다.");
         } else {
@@ -1556,10 +1730,10 @@
         return;
       }
       if (state.isAdminAuthenticated) {
-        const nextStatus = name ? (((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus)) : "empty";
-        const ok = await saveSeatAdmin(seatNumber, name, nextStatus);
+        const nextStatus = finalName ? normalizeSeatStatus((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus) : "empty";
+        const ok = await saveSeatAdmin(seatNumber, finalName, nextStatus);
         if (!ok) {
-          state.seats = state.seats.map((seat) => seat.number === seatNumber ? { ...seat, name: prevName, status: prevStatus } : seat);
+          state.seats = prevSeats;
           renderAll();
           alert("관리자 저장 권한이 없습니다.");
         } else {
@@ -1579,10 +1753,16 @@
         alert("이름과 좌석번호를 입력하세요.");
         return;
       }
-      const prevSeat = state.seats.find((s) => s.number === seatNo);
-      const prevName = prevSeat?.name || "";
-      const prevStatus = prevSeat?.status || "empty";
-      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name, status: "waiting", updatedAt: Date.now(), updatedBy: state.clientId } : seat);
+      const prevSeats = state.seats.map((seat) => ({ ...seat }));
+      const duplicateDecision = await confirmDuplicateNameAction(name);
+      if (duplicateDecision.type === "cancel") {
+        return;
+      }
+      const finalName = duplicateDecision.name;
+      const sourceSeatNo = duplicateDecision.type === "move" ? (duplicateDecision.sourceSeat?.number || null) : null;
+      const finalStatus = finalName ? (duplicateDecision.type === "move" ? "waiting_alt" : "waiting") : "empty";
+      applyNameAssignmentLocal(seatNo, finalName, finalStatus, { sourceSeatNo });
+      state.memberName = finalName;
       state.editingSeat = null;
       state.editName = "";
       renderAll();
@@ -1591,9 +1771,9 @@
         setStatusMessage("Firebase 미연결 - 화면에만 저장", state.projectLabel);
         return;
       }
-      const committed = await saveMemberSeatRemote(seatNo, name);
+      const committed = await saveMemberSeatRemote(seatNo, finalName, { status: finalStatus, clearSourceSeatNo: sourceSeatNo });
       if (!committed) {
-        state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: prevName, status: prevStatus } : seat);
+        state.seats = prevSeats;
         renderAll();
         alert("이미 다른 사용자가 해당 좌석을 선점했거나 권한이 없거나 완납 좌석입니다.");
         return;
@@ -1781,7 +1961,7 @@
       state.memberSeat = "";
       state.memberName = "";
       state.adminSeat = "";
-      state.adminStatus = "paid";
+      state.adminStatus = "reserved";
       state.editingSeat = null;
       state.editName = "";
       renderAll();
@@ -1818,7 +1998,7 @@
       const prevSeat = state.seats.find((s) => s.number === seatNo);
       const prevName = prevSeat?.name || "";
       const prevStatus = prevSeat?.status || "empty";
-      const nextStatus = trimmedName ? state.adminStatus : "empty";
+      const nextStatus = trimmedName ? normalizeSeatStatus(state.adminStatus) : "empty";
       state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: trimmedName, status: nextStatus, updatedAt: Date.now(), updatedBy: state.clientId } : seat);
       state.editingSeat = null;
       state.editName = "";
@@ -1866,7 +2046,7 @@
         state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: prevName, status: prevStatus } : seat);
         state.memberName = prevName;
         state.editName = prevName;
-        state.adminStatus = prevStatus === "empty" ? "paid" : prevStatus;
+        state.adminStatus = normalizeSeatStatus(prevStatus === "empty" ? "reserved" : prevStatus);
         renderAll();
         alert("선택 좌석 내용을 삭제하지 못했습니다.");
         return;
@@ -1886,7 +2066,7 @@
       }
       const previousSeats = state.seats.map((seat) => ({ ...seat }));
       state.seats = state.seats.map((seat) => !String(seat.name || "").trim() ? seat : { ...seat, status: "reserved", updatedAt: Date.now(), updatedBy: state.clientId });
-      state.adminStatus = "paid";
+      state.adminStatus = "reserved";
       renderAll();
       if (!state.isFirebaseReady || !state.db) {
         flashButton("adminMarkNamedPaidBtn");
@@ -1924,7 +2104,7 @@
       state.memberName = "";
       state.memberSeat = "";
       state.adminSeat = "";
-      state.adminStatus = "paid";
+      state.adminStatus = "reserved";
       state.editingSeat = null;
       state.editName = "";
       renderAll();
@@ -1966,7 +2146,7 @@
         const seat = state.seats.find((s) => s.number === seatNo);
         const duplicateRole = seat ? getDuplicateSeatRole(seat) : "normal";
         if (seat && seat.name && duplicateRole === "normal") {
-          alert("중복된 좌석만 좌석번호 선택으로 변경할 수 있습니다.");
+          alert("이미 사용중인 좌석입니다. 빈 좌석 또는 중복표시 좌석만 선택할 수 있습니다.");
           e.target.value = "";
           state.memberSeat = "";
           state.memberName = "";
@@ -2013,7 +2193,7 @@
         if (seat) {
           state.memberSeat = e.target.value;
           state.memberName = seat.name || "";
-          state.adminStatus = (seat.status === "paid" || seat.status === "reserved") ? "paid" : (seat.status || "paid");
+          state.adminStatus = normalizeSeatStatus(seat.status === "empty" ? "reserved" : seat.status);
           state.editingSeat = null;
           state.editName = "";
           renderAll();
@@ -2037,7 +2217,7 @@
           const prevSeat = state.seats.find((s) => s.number === currentSeat);
           const prevName = prevSeat?.name || "";
           const prevStatus = prevSeat?.status || "empty";
-          const nextStatus = trimmedName ? state.adminStatus : prevStatus;
+          const nextStatus = trimmedName ? normalizeSeatStatus(state.adminStatus) : normalizeSeatStatus(prevStatus);
 
           if (trimmedName !== prevName) {
             state.seats = state.seats.map((seat) => seat.number === currentSeat
@@ -2060,7 +2240,7 @@
           state.editName = "";
           state.editingSeat = null;
           if (nextSeatData) {
-            state.adminStatus = (nextSeatData.status === "empty" ? "paid" : nextSeatData.status) || "paid";
+            state.adminStatus = normalizeSeatStatus(nextSeatData.status === "empty" ? "reserved" : nextSeatData.status) || "reserved";
           }
 
           renderPanels();
