@@ -1681,33 +1681,37 @@ function renderAll() {
     async function saveMemberSeatRemote(seatNo, name, options = {}) {
       if (!state.db) return false;
       try {
+        const normalizedTargetName = normalizeName(name);
+        const sourceSeatNo = Number(options.clearSourceSeatNo || 0);
+        const isMoveRequest = sourceSeatNo > 0 && sourceSeatNo !== Number(seatNo);
         const currentSeat = await readSeatRemote(seatNo);
         const currentName = currentSeat?.name || "";
         const currentStatus = normalizeSeatStatus(currentSeat?.status || "empty");
-        const occupiedByOther = currentName && normalizeName(currentName) !== normalizeName(name);
+        const occupiedByOther = currentName && normalizeName(currentName) !== normalizedTargetName;
         if (currentStatus === "paid" || occupiedByOther) {
           setStatusMessage("좌석 저장 권한 또는 좌석 상태를 확인하세요.", state.projectLabel);
           return false;
         }
 
+        const now = Date.now();
         const updates = {
           [`seats/${seatNo}/name`]: name,
           [`seats/${seatNo}/status`]: name ? (options.status || "waiting") : "empty",
-          [`seats/${seatNo}/updatedAt`]: Date.now(),
+          [`seats/${seatNo}/updatedAt`]: now,
           [`seats/${seatNo}/updatedBy`]: state.clientId,
-          "meta/updatedAt": Date.now()
+          "meta/updatedAt": now
         };
 
-        if (options.clearSourceSeatNo) {
-          const sourceSeatNo = Number(options.clearSourceSeatNo);
+        if (isMoveRequest) {
           const sourceSeat = await readSeatRemote(sourceSeatNo);
-          if ((normalizeSeatStatus(sourceSeat?.status || "empty") === "paid")) {
-            setStatusMessage("완납 좌석은 자리이동으로 삭제할 수 없습니다.", state.projectLabel);
+          const sourceName = normalizeName(sourceSeat?.name || "");
+          if (!sourceName || sourceName !== normalizedTargetName) {
+            setStatusMessage("자리이동 대상 원본 좌석을 확인하세요.", state.projectLabel);
             return false;
           }
           updates[`seats/${sourceSeatNo}/name`] = "";
           updates[`seats/${sourceSeatNo}/status`] = "empty";
-          updates[`seats/${sourceSeatNo}/updatedAt`] = Date.now();
+          updates[`seats/${sourceSeatNo}/updatedAt`] = now;
           updates[`seats/${sourceSeatNo}/updatedBy`] = state.clientId;
         }
 
