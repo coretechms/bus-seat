@@ -469,6 +469,25 @@
     }
     .tri-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
     
+  
+    .recovery-confirm-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+      display: flex; align-items: center; justify-content: center; z-index: 10000;
+    }
+    .recovery-confirm-dialog {
+      width: min(420px, calc(100vw - 24px));
+      background: #fff; border-radius: 18px; box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+      padding: 18px 18px 16px;
+    }
+    .recovery-confirm-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+    .recovery-confirm-message { white-space: pre-line; line-height: 1.6; font-size: 14px; color: #222; }
+    .recovery-confirm-actions { margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px; }
+    .recovery-confirm-btn {
+      min-width: 72px; height: 40px; border-radius: 10px; border: 1px solid #d4d4d4;
+      background: #fff; font-size: 14px; cursor: pointer;
+    }
+    .recovery-confirm-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+    
   </style>
 </head>
 <body>
@@ -607,7 +626,7 @@
 
             <div id="adminRecoveryInline" style="margin-top:12px;">
               <div style="display:flex; gap:8px; align-items:center;">
-                <button class="btn btn-outline" id="generateRecoveryCodeBtn" type="button" style="width:100%;">복구코드 생성</button>
+                <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button" style="width:100%;">복구코드 생성</button>
               </div>
             </div>
 
@@ -1333,7 +1352,41 @@
     }
 
     
-    async function sha256Hex(value) {
+    
+    function showRecoveryConfirmDialog(message, title = "이 페이지 내용:") {
+      return new Promise((resolve) => {
+        const existing = document.getElementById("recoveryConfirmOverlay");
+        if (existing) existing.remove();
+
+        const overlay = document.createElement("div");
+        overlay.className = "recovery-confirm-overlay";
+        overlay.id = "recoveryConfirmOverlay";
+        overlay.innerHTML = `
+          <div class="recovery-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="recoveryConfirmTitle">
+            <div class="recovery-confirm-title" id="recoveryConfirmTitle">${escapeHtml(title)}</div>
+            <div class="recovery-confirm-message">${escapeHtml(message)}</div>
+            <div class="recovery-confirm-actions">
+              <button type="button" class="recovery-confirm-btn primary" id="recoveryConfirmYes">예</button>
+              <button type="button" class="recovery-confirm-btn" id="recoveryConfirmNo">아니오</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const cleanup = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) cleanup(false);
+        });
+        overlay.querySelector("#recoveryConfirmYes").addEventListener("click", () => cleanup(true));
+        overlay.querySelector("#recoveryConfirmNo").addEventListener("click", () => cleanup(false));
+      });
+    }
+
+async function sha256Hex(value) {
       const data = new TextEncoder().encode(String(value || ""));
       const hashBuffer = await crypto.subtle.digest("SHA-256", data);
       return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -1393,6 +1446,12 @@
         alert("관리자 인증 후 사용할 수 있습니다.");
         return;
       }
+
+      const confirmed = await showRecoveryConfirmDialog("복구코드 를 생성 할까요?", "이 페이지 내용:");
+      if (!confirmed) {
+        return;
+      }
+
       const newCode = generateRecoveryCode();
       const newHash = await sha256Hex(newCode);
       const previousHash = state.recoveryCodeHash;
