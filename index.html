@@ -605,6 +605,12 @@
               </div>
             </div>
 
+            <div id="adminRecoveryInline" style="margin-top:12px;">
+              <div style="display:flex; gap:8px; align-items:center;">
+                <button class="btn btn-outline" id="generateRecoveryCodeBtn" type="button" style="width:100%;">복구코드 생성</button>
+              </div>
+            </div>
+
             <div id="adminExpireInline" style="margin-top:12px;">
               <div style="display:flex; gap:8px; align-items:center;">
                 <input id="waitingExpireHoursInput" type="number" min="1" step="1" placeholder="자동삭제 시간(시간)" style="flex:1;" />
@@ -681,7 +687,7 @@
     };
 
     const DEFAULT_ADMIN_PASSWORD = "1234";
-    const INTERNAL_KEY = atob("OTk5OTk5OTk5");
+    const RECOVERY_CODE_STORAGE_KEY = "bus-seat-recovery-code-hash-v1";
     const ROOT_PATH = "busSeatApp";
     const DEFAULT_WAITING_EXPIRE_HOURS = 48;
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
@@ -737,6 +743,7 @@
       editingSeat: null,
       editName: "",
       adminPassword: DEFAULT_ADMIN_PASSWORD,
+      recoveryCodeHash: "",
       isAdminAuthenticated: false,
       clientId: crypto.randomUUID(),
       projectLabel: "프로젝트 미설정",
@@ -1325,7 +1332,91 @@
       setStatusMessage(state.isFirebaseReady ? (state.canWrite ? " 실시간 연결됨" : "읽기 전용 연결") : "설정 대기중", state.projectLabel);
     }
 
-    function renderAll() {
+    
+    async function sha256Hex(value) {
+      const data = new TextEncoder().encode(String(value || ""));
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    function generateRecoveryCode() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      const parts = [];
+      for (let p = 0; p < 4; p += 1) {
+        let part = "";
+        for (let i = 0; i < 4; i += 1) {
+          part += chars[Math.floor(Math.random() * chars.length)];
+        }
+        parts.push(part);
+      }
+      return parts.join("-");
+    }
+
+    function getLocalRecoveryCodeHash() {
+      try {
+        return localStorage.getItem(RECOVERY_CODE_STORAGE_KEY) || "";
+      } catch (error) {
+        console.warn("recovery code local read failed", error);
+        return "";
+      }
+    }
+
+    function saveLocalRecoveryCodeHash(nextHash) {
+      try {
+        if (!nextHash) localStorage.removeItem(RECOVERY_CODE_STORAGE_KEY);
+        else localStorage.setItem(RECOVERY_CODE_STORAGE_KEY, nextHash);
+        return true;
+      } catch (error) {
+        console.warn("recovery code local save failed", error);
+        return false;
+      }
+    }
+
+    function getEffectiveRecoveryCodeHash() {
+      return state.recoveryCodeHash || getLocalRecoveryCodeHash() || "";
+    }
+
+    async function saveRecoveryCodeRemote(nextHash) {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        recoveryCodeHash: nextHash,
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveRecoveryCodeRemote",
+        permissionMessage: "복구코드 저장 권한이 없습니다.",
+        genericMessage: "복구코드 저장 실패"
+      });
+    }
+
+    async function handleGenerateRecoveryCode() {
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      const newCode = generateRecoveryCode();
+      const newHash = await sha256Hex(newCode);
+      const previousHash = state.recoveryCodeHash;
+
+      state.recoveryCodeHash = newHash;
+      saveLocalRecoveryCodeHash(newHash);
+
+      if (state.isFirebaseReady && state.db) {
+        const ok = await saveRecoveryCodeRemote(newHash);
+        if (!ok) {
+          state.recoveryCodeHash = previousHash;
+          saveLocalRecoveryCodeHash(previousHash);
+          alert("복구코드 저장 권한이 없거나 저장에 실패했습니다.");
+          return;
+        }
+      } else {
+        setStatusMessage("Firebase 미연결 - 현재 기기에만 복구코드 저장", state.projectLabel);
+      }
+
+      flashSaveVisuals(null, "generateRecoveryCodeBtn");
+      alert(`새 복구코드가 생성되었습니다.\n\n${newCode}\n\n이 코드는 지금 한 번만 표시됩니다. 반드시 별도로 안전하게 보관하세요.`);
+    }
+
+function renderAll() {
       renderBoard();
       renderPanels();
       const captureBtn = byId("captureBoardBtn");
@@ -1424,6 +1515,8 @@
 
       state.busInfo = { ...defaultBusInfo, ...(payload?.busInfo || {}) };
       state.adminPassword = payload?.adminPassword || DEFAULT_ADMIN_PASSWORD;
+      state.recoveryCodeHash = payload?.recoveryCodeHash || getLocalRecoveryCodeHash() || "";
+      if (state.recoveryCodeHash) saveLocalRecoveryCodeHash(state.recoveryCodeHash);
       state.waitingExpireHours = expireHours;
 
       if (state.editingSeat && !state.seats.find((s) => s.number === state.editingSeat)) {
@@ -1637,6 +1730,7 @@
         seats: payload.seats,
         busInfo: { ...defaultBusInfo, ...(currentData.busInfo || state.busInfo || {}) },
         adminPassword: currentData.adminPassword || state.adminPassword || DEFAULT_ADMIN_PASSWORD,
+        recoveryCodeHash: currentData.recoveryCodeHash || state.recoveryCodeHash || getLocalRecoveryCodeHash() || "",
         waitingExpireHours: Number(currentData.waitingExpireHours ?? state.waitingExpireHours ?? DEFAULT_WAITING_EXPIRE_HOURS) || DEFAULT_WAITING_EXPIRE_HOURS,
         meta: { createdAt: currentData?.meta?.createdAt || Date.now(), updatedAt: Date.now() }
       };
@@ -1869,25 +1963,36 @@
 
     async function handleResetAdminPassword() {
       const adminPasswordInput = byId("adminPasswordInput");
-      const typedMasterPassword = adminPasswordInput?.value.trim() || "";
-      if (!typedMasterPassword) {
-        alert("관리자 비밀번호 칸에 마스터 비밀번호를 입력하세요.");
+      const typedRecoveryCode = adminPasswordInput?.value.trim().toUpperCase() || "";
+      if (!typedRecoveryCode) {
+        alert("관리자 비밀번호 칸에 복구코드를 입력하세요.");
         return;
       }
-      if (typedMasterPassword !== INTERNAL_KEY) {
-        alert("마스터 비밀번호가 올바르지 않습니다.");
+
+      const savedRecoveryHash = getEffectiveRecoveryCodeHash();
+      if (!savedRecoveryHash) {
+        alert("등록된 복구코드가 없습니다. 관리자 로그인 후 [복구코드 생성] 버튼으로 먼저 복구코드를 만들어 주세요.");
         return;
       }
+
+      const typedRecoveryHash = await sha256Hex(typedRecoveryCode);
+      if (typedRecoveryHash !== savedRecoveryHash) {
+        alert("복구코드가 올바르지 않습니다.");
+        return;
+      }
+
       const previousPassword = state.adminPassword;
       state.adminPassword = DEFAULT_ADMIN_PASSWORD;
       if (adminPasswordInput) adminPasswordInput.value = "";
       flashSaveVisuals(null, "preLoginResetPasswordBtn");
       renderPanels();
+
       if (!state.isFirebaseReady || !state.db) {
-        setStatusMessage("Firebase 미연결 - 현재 화면에서만 비밀번호 초기화", state.projectLabel);
-        alert("관리자 비밀번호가 1234로 초기화되었습니다.");
+        setStatusMessage("Firebase 미연결 - 현재 기기 기준으로 비밀번호 초기화", state.projectLabel);
+        alert("복구코드 확인 완료. 관리자 비밀번호가 1234로 초기화되었습니다.");
         return;
       }
+
       const ok = await saveAdminPasswordRemote(DEFAULT_ADMIN_PASSWORD);
       if (!ok) {
         state.adminPassword = previousPassword;
@@ -1895,7 +2000,8 @@
         alert("비밀번호 초기화 권한이 없거나 저장에 실패했습니다.");
         return;
       }
-      alert("관리자 비밀번호가 1234로 초기화되었습니다.");
+
+      alert("복구코드 확인 완료. 관리자 비밀번호가 1234로 초기화되었습니다.");
     }
 
     async function handleSaveWaitingExpireHours() {
@@ -2176,14 +2282,8 @@
       bindIfPresent("adminPasswordInput", "keydown", async (e) => {
         if (e.key === "Enter" && !e.isComposing) {
           e.preventDefault();
-          const typedPassword = e.target.value.trim();
-          if (typedPassword === INTERNAL_KEY) {
-            flashButton("preLoginResetPasswordBtn");
-            await handleResetAdminPassword();
-          } else {
-            flashButton("adminLoginBtn");
-            handleAdminLogin();
-          }
+          flashButton("adminLoginBtn");
+          handleAdminLogin();
         }
       });
       bindIfPresent("adminLogoutBtn", "click", handleAdminLogout);
@@ -2273,6 +2373,7 @@
         if (box) box.classList.remove("hidden");
       });
       bindIfPresent("changePasswordBtn", "click", handleChangeAdminPassword);
+      bindIfPresent("generateRecoveryCodeBtn", "click", handleGenerateRecoveryCode);
       bindIfPresent("saveWaitingExpireBtn", "click", handleSaveWaitingExpireHours);
       bindIfPresent("newAdminPassword", "keydown", async (e) => {
         if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("changePasswordBtn"); await handleChangeAdminPassword(); }
