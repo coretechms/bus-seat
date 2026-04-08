@@ -707,6 +707,7 @@
 
     const DEFAULT_ADMIN_PASSWORD = "1234";
     const RECOVERY_CODE_STORAGE_KEY = "bus-seat-recovery-code-hash-v1";
+    const ADMIN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-admin-password-hash-v1";
     const ROOT_PATH = "busSeatApp";
     const DEFAULT_WAITING_EXPIRE_HOURS = 48;
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
@@ -762,6 +763,7 @@
       editingSeat: null,
       editName: "",
       adminPassword: DEFAULT_ADMIN_PASSWORD,
+      adminPasswordHash: "",
       recoveryCodeHash: "",
       isAdminAuthenticated: false,
       clientId: crypto.randomUUID(),
@@ -1386,6 +1388,34 @@
       });
     }
 
+
+    function getLocalAdminPasswordHash() {
+      try {
+        return localStorage.getItem(ADMIN_PASSWORD_HASH_STORAGE_KEY) || "";
+      } catch (error) {
+        console.warn("admin password local read failed", error);
+        return "";
+      }
+    }
+
+    function saveLocalAdminPasswordHash(nextHash) {
+      try {
+        if (!nextHash) localStorage.removeItem(ADMIN_PASSWORD_HASH_STORAGE_KEY);
+        else localStorage.setItem(ADMIN_PASSWORD_HASH_STORAGE_KEY, nextHash);
+        return true;
+      } catch (error) {
+        console.warn("admin password local save failed", error);
+        return false;
+      }
+    }
+
+    async function getEffectiveAdminPasswordHash() {
+      if (state.adminPasswordHash) return state.adminPasswordHash;
+      const localHash = getLocalAdminPasswordHash();
+      if (localHash) return localHash;
+      return await sha256Hex(state.adminPassword || DEFAULT_ADMIN_PASSWORD);
+    }
+
 async function sha256Hex(value) {
       const data = new TextEncoder().encode(String(value || ""));
       const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -1440,6 +1470,19 @@ async function sha256Hex(value) {
         genericMessage: "복구코드 저장 실패"
       });
     }
+
+    async function saveAdminPasswordHashRemote(nextHash) {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        adminPasswordHash: nextHash,
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveAdminPasswordHashRemote",
+        permissionMessage: "비밀번호 해시 저장 권한이 없습니다.",
+        genericMessage: "비밀번호 해시 저장 실패"
+      });
+    }
+
 
     async function handleGenerateRecoveryCode() {
       if (!state.isAdminAuthenticated) {
@@ -1574,6 +1617,8 @@ function renderAll() {
 
       state.busInfo = { ...defaultBusInfo, ...(payload?.busInfo || {}) };
       state.adminPassword = payload?.adminPassword || DEFAULT_ADMIN_PASSWORD;
+      state.adminPasswordHash = payload?.adminPasswordHash || getLocalAdminPasswordHash() || "";
+      if (state.adminPasswordHash) saveLocalAdminPasswordHash(state.adminPasswordHash);
       state.recoveryCodeHash = payload?.recoveryCodeHash || getLocalRecoveryCodeHash() || "";
       if (state.recoveryCodeHash) saveLocalRecoveryCodeHash(state.recoveryCodeHash);
       state.waitingExpireHours = expireHours;
@@ -1789,6 +1834,7 @@ function renderAll() {
         seats: payload.seats,
         busInfo: { ...defaultBusInfo, ...(currentData.busInfo || state.busInfo || {}) },
         adminPassword: currentData.adminPassword || state.adminPassword || DEFAULT_ADMIN_PASSWORD,
+        adminPasswordHash: currentData.adminPasswordHash || state.adminPasswordHash || getLocalAdminPasswordHash() || "",
         recoveryCodeHash: currentData.recoveryCodeHash || state.recoveryCodeHash || getLocalRecoveryCodeHash() || "",
         waitingExpireHours: Number(currentData.waitingExpireHours ?? state.waitingExpireHours ?? DEFAULT_WAITING_EXPIRE_HOURS) || DEFAULT_WAITING_EXPIRE_HOURS,
         meta: { createdAt: currentData?.meta?.createdAt || Date.now(), updatedAt: Date.now() }
@@ -1972,12 +2018,38 @@ function renderAll() {
       flashSaveVisuals(targetSeatNo, "memberCancelBtn");
     }
 
-    function handleAdminLogin() {
+    async function handleAdminLogin() {
       const input = byId("adminPasswordInput")?.value || "";
-      if (input !== state.adminPassword) {
+      const normalizedInput = input.trim();
+      if (!normalizedInput) {
+        alert("관리자 비밀번호를 입력하세요.");
+        return;
+      }
+
+      const typedHash = await sha256Hex(normalizedInput);
+      let loginOk = false;
+
+      if (state.isFirebaseReady && state.db) {
+        const serverHash = state.adminPasswordHash || "";
+        if (serverHash) {
+          loginOk = (typedHash === serverHash);
+        } else {
+          loginOk = (normalizedInput === (state.adminPassword || DEFAULT_ADMIN_PASSWORD));
+        }
+      } else {
+        const localHash = getLocalAdminPasswordHash();
+        if (localHash) {
+          loginOk = (typedHash === localHash);
+        } else {
+          loginOk = (normalizedInput === (state.adminPassword || DEFAULT_ADMIN_PASSWORD));
+        }
+      }
+
+      if (!loginOk) {
         alert("관리자 비밀번호가 올바르지 않습니다.");
         return;
       }
+
       state.isAdminAuthenticated = true;
       const pwInput = byId("adminPasswordInput");
       if (pwInput) pwInput.value = "";
@@ -1994,29 +2066,45 @@ function renderAll() {
     }
 
     async function handleChangeAdminPassword() {
-      const input = byId("newAdminPassword");
-      const next = input?.value.trim() || "";
-      if (!next) {
-        alert("새 관리자 비밀번호를 입력하세요.");
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
         return;
       }
+
+      const input = byId("newAdminPassword");
+      const nextPassword = input?.value.trim() || "";
+      if (!nextPassword) {
+        alert("새 비밀번호를 입력하세요.");
+        return;
+      }
+
+      const nextHash = await sha256Hex(nextPassword);
       const previousPassword = state.adminPassword;
-      state.adminPassword = next;
+      const previousHash = state.adminPasswordHash || getLocalAdminPasswordHash() || "";
+
+      state.adminPassword = nextPassword;
+      state.adminPasswordHash = nextHash;
+      saveLocalAdminPasswordHash(nextHash);
+
       if (input) input.value = "";
       flashSaveVisuals(null, "changePasswordBtn");
       renderPanels();
-      if (!state.isFirebaseReady || !state.db) {
-        setStatusMessage("Firebase 미연결 - 현재 화면에서만 비밀번호 변경", state.projectLabel);
-        alert("관리자 비밀번호가 변경되었습니다.");
-        return;
+
+      if (state.isFirebaseReady && state.db) {
+        const okPassword = await saveAdminPasswordRemote(nextPassword);
+        const okHash = await saveAdminPasswordHashRemote(nextHash);
+        if (!okPassword || !okHash) {
+          state.adminPassword = previousPassword;
+          state.adminPasswordHash = previousHash;
+          saveLocalAdminPasswordHash(previousHash);
+          renderPanels();
+          alert("비밀번호 변경 권한이 없거나 저장에 실패했습니다.");
+          return;
+        }
+      } else {
+        setStatusMessage("Firebase 미연결 - 현재 기기 localStorage 기준으로 비밀번호 저장", state.projectLabel);
       }
-      const ok = await saveAdminPasswordRemote(next);
-      if (!ok) {
-        state.adminPassword = previousPassword;
-        renderPanels();
-        alert("관리자 비밀번호 저장 권한이 없거나 저장에 실패했습니다.");
-        return;
-      }
+
       alert("관리자 비밀번호가 변경되었습니다.");
     }
 
@@ -2040,21 +2128,31 @@ function renderAll() {
         return;
       }
 
+      const nextPassword = DEFAULT_ADMIN_PASSWORD;
+      const nextHash = await sha256Hex(nextPassword);
       const previousPassword = state.adminPassword;
-      state.adminPassword = DEFAULT_ADMIN_PASSWORD;
+      const previousHash = state.adminPasswordHash || getLocalAdminPasswordHash() || "";
+
+      state.adminPassword = nextPassword;
+      state.adminPasswordHash = nextHash;
+      saveLocalAdminPasswordHash(nextHash);
+
       if (adminPasswordInput) adminPasswordInput.value = "";
       flashSaveVisuals(null, "preLoginResetPasswordBtn");
       renderPanels();
 
       if (!state.isFirebaseReady || !state.db) {
-        setStatusMessage("Firebase 미연결 - 현재 기기 기준으로 비밀번호 초기화", state.projectLabel);
+        setStatusMessage("Firebase 미연결 - 현재 기기 localStorage 기준으로 비밀번호 초기화", state.projectLabel);
         alert("복구코드 확인 완료. 관리자 비밀번호가 1234로 초기화되었습니다.");
         return;
       }
 
-      const ok = await saveAdminPasswordRemote(DEFAULT_ADMIN_PASSWORD);
-      if (!ok) {
+      const okPassword = await saveAdminPasswordRemote(nextPassword);
+      const okHash = await saveAdminPasswordHashRemote(nextHash);
+      if (!okPassword || !okHash) {
         state.adminPassword = previousPassword;
+        state.adminPasswordHash = previousHash;
+        saveLocalAdminPasswordHash(previousHash);
         renderPanels();
         alert("비밀번호 초기화 권한이 없거나 저장에 실패했습니다.");
         return;
@@ -2504,6 +2602,11 @@ function renderAll() {
     }
 
     async function init() {
+      if (!getLocalAdminPasswordHash()) {
+        const defaultHash = await sha256Hex(DEFAULT_ADMIN_PASSWORD);
+        saveLocalAdminPasswordHash(defaultHash);
+        state.adminPasswordHash = defaultHash;
+      }
       window.BusSeatNameBridge = window.BusSeatNameBridge || {
         storageKey: NAME_EXPORT_STORAGE_KEY,
         getRecords: () => [],
