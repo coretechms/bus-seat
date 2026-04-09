@@ -535,11 +535,11 @@
           <div id="memberPanel">
             <div class="grid-2">
               <div>
-                <label for="memberSeat">좌석번호</label>
+                
                 <select id="memberSeat"></select>
               </div>
               <div>
-                <label for="memberName">이름</label>
+                
                 <input id="memberName" type="text" placeholder="회원 이름" />
               </div>
             </div>
@@ -553,7 +553,7 @@
             <button class="btn btn-primary" id="memberSaveBtn" type="button" style="display:none;">저장</button>
           </div>
 
-          <div class="help-text" style="margin-top:8px;">본인이 직접 좌석을 선택 합니다.</div>
+          <div class="help-text" style="margin-top:8px;">본인의 좌석을 직접 선택 하세요~.</div>
 
           <div id="adminLoginPanel" class="hidden">
             <div style="display:flex; gap:12px; align-items:end; margin-top:12px;">
@@ -604,6 +604,14 @@
               <button class="btn btn-primary" id="adminSaveBtn" type="button">상태저장</button>
               <button class="btn btn-danger" id="resetBtn" type="button">전체초기화</button>
               <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button">복구코드 생성</button>
+            </div>
+
+
+            <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
+              <button class="btn btn-outline" id="toggleNameEntryLockBtn" type="button" style="flex:1;">전체 이름입력 제한</button>
+              <div id="nameEntryLockStatus" class="status-box" style="margin-top:0; flex:1; min-width:0; justify-content:center;">
+                <strong>이름 입력 가능</strong>
+              </div>
             </div>
 
             <div style="margin-top:12px;">
@@ -765,7 +773,8 @@
       projectLabel: "프로젝트 미설정",
       pendingCancelSeat: null,
       lastSavedSeat: null,
-      waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS
+      waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
+      nameEntryLocked: false
     };
 
     function byId(id) { return document.getElementById(id); }
@@ -911,6 +920,7 @@
         busInfo: { ...defaultBusInfo },
         adminPassword: DEFAULT_ADMIN_PASSWORD,
         waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
+        nameEntryLocked: false,
         meta: { createdAt: Date.now(), updatedAt: Date.now() }
       };
     }
@@ -1304,6 +1314,10 @@
       const infoAccountOwner = byId("infoAccountOwner");
       const infoSeatGuideText = byId("infoSeatGuideText");
       const busTypeSelect = byId("busTypeSelect");
+      const memberSaveBtn = byId("memberSaveBtn");
+      const memberCancelBtn = byId("memberCancelBtn");
+      const toggleNameEntryLockBtn = byId("toggleNameEntryLockBtn");
+      const nameEntryLockStatus = byId("nameEntryLockStatus");
 
       if (memberTab) memberTab.classList.toggle("active", state.mode === "member");
       if (adminTab) adminTab.classList.toggle("active", state.mode === "admin");
@@ -1316,7 +1330,9 @@
       const infoBox = byId("busInfoLocked");
       if (infoBox) {
         infoBox.style.display = state.mode === "admin" ? "none" : "block";
-        infoBox.textContent = state.busInfo.seatGuideText || "좌석을 선택 후 이름을 입력하고 저장 버튼을 눌러주세요.";
+        infoBox.textContent = state.nameEntryLocked
+          ? "현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다."
+          : (state.busInfo.seatGuideText || "좌석을 선택 후 이름을 입력하고 저장 버튼을 눌러주세요.");
       }
 
       const helpText = document.querySelector(".help-text");
@@ -1325,10 +1341,34 @@
       const boardingPointBtn = byId("boardingPointBtn");
       if (boardingPointBtn) boardingPointBtn.classList.toggle("hidden", state.mode === "member");
 
-      if (memberName) memberName.value = state.memberName;
+      const isMemberLocked = state.nameEntryLocked && !state.isAdminAuthenticated;
+      if (memberName) {
+        memberName.value = state.memberName;
+        memberName.disabled = isMemberLocked;
+        memberName.placeholder = isMemberLocked ? "관리자가 이름 입력을 제한했습니다" : "회원 이름";
+      }
+      if (memberSaveBtn) {
+        memberSaveBtn.disabled = isMemberLocked;
+        memberSaveBtn.style.opacity = isMemberLocked ? "0.55" : "1";
+        memberSaveBtn.title = isMemberLocked ? "관리자가 전체 이름 입력을 제한했습니다." : "";
+      }
+      if (memberCancelBtn) {
+        memberCancelBtn.disabled = isMemberLocked;
+        memberCancelBtn.style.opacity = isMemberLocked ? "0.55" : "1";
+        memberCancelBtn.title = isMemberLocked ? "관리자가 전체 이름 입력을 제한했습니다." : "";
+      }
+      if (toggleNameEntryLockBtn) {
+        toggleNameEntryLockBtn.textContent = state.nameEntryLocked ? "전체 이름입력 해제" : "전체 이름입력 제한";
+      }
+      if (nameEntryLockStatus) {
+        nameEntryLockStatus.innerHTML = `<strong>${state.nameEntryLocked ? "이름 입력 제한됨" : "이름 입력 가능"}</strong>`;
+      }
+
       if (memberSeat) {
         memberSeat.innerHTML = getSeatOptionsHtml();
         memberSeat.value = state.memberSeat;
+        memberSeat.disabled = isMemberLocked;
+        memberSeat.title = isMemberLocked ? "관리자가 전체 이름 입력을 제한했습니다." : "";
       }
       if (adminSeat) {
         adminSeat.innerHTML = getSeatOptionsHtml();
@@ -1617,6 +1657,7 @@ function renderAll() {
       state.recoveryCodeHash = payload?.recoveryCodeHash || getLocalRecoveryCodeHash() || "";
       if (state.recoveryCodeHash) saveLocalRecoveryCodeHash(state.recoveryCodeHash);
       state.waitingExpireHours = expireHours;
+      state.nameEntryLocked = Boolean(payload?.nameEntryLocked);
 
       if (state.editingSeat && !state.seats.find((s) => s.number === state.editingSeat)) {
         state.editingSeat = null;
@@ -1805,6 +1846,18 @@ function renderAll() {
       });
     }
 
+    async function saveNameEntryLockRemote(isLocked) {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        nameEntryLocked: Boolean(isLocked),
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveNameEntryLockRemote",
+        permissionMessage: "이름 입력 제한 저장 권한이 없습니다.",
+        genericMessage: "이름 입력 제한 저장 실패"
+      });
+    }
+
     async function syncExpiredWaitingSeats(seatNumbers) {
       if (!state.db || !state.isFirebaseReady || !Array.isArray(seatNumbers) || seatNumbers.length === 0) return;
       const updates = {};
@@ -1836,6 +1889,7 @@ function renderAll() {
         adminPasswordHash: currentData.adminPasswordHash || state.adminPasswordHash || getLocalAdminPasswordHash() || "",
         recoveryCodeHash: currentData.recoveryCodeHash || state.recoveryCodeHash || getLocalRecoveryCodeHash() || "",
         waitingExpireHours: Number(currentData.waitingExpireHours ?? state.waitingExpireHours ?? DEFAULT_WAITING_EXPIRE_HOURS) || DEFAULT_WAITING_EXPIRE_HOURS,
+        nameEntryLocked: Boolean(currentData.nameEntryLocked ?? state.nameEntryLocked),
         meta: { createdAt: currentData?.meta?.createdAt || Date.now(), updatedAt: Date.now() }
       };
       return safeSet(ref(state.db, ROOT_PATH), nextPayload, {
@@ -1849,6 +1903,10 @@ function renderAll() {
       if (!seat) return;
       if (isBlockedSeat(seat.number) || (state.mode === "member" && seat.number <= 3)) return;
       if (state.mode === "member") {
+        if (state.nameEntryLocked) {
+          alert("현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다.");
+          return;
+        }
         if (seat.status === "paid") {
           alert("완납 처리된 좌석은 회원 모드에서 접근할 수 없습니다.");
           return;
@@ -1880,6 +1938,13 @@ function renderAll() {
     async function handleInlineSave(seatNumber) {
       if (state.pendingCancelSeat && Number(state.pendingCancelSeat) === Number(seatNumber)) return;
       if (isBlockedSeat(seatNumber)) return;
+      if (state.mode === "member" && state.nameEntryLocked && !state.isAdminAuthenticated) {
+        alert("현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다.");
+        state.editingSeat = null;
+        state.editName = "";
+        renderAll();
+        return;
+      }
       const name = normalizeName(state.editName);
       const prevSeat = state.seats.find((s) => s.number === Number(seatNumber));
       const prevName = prevSeat?.name || "";
@@ -1941,6 +2006,10 @@ function renderAll() {
     }
 
     async function handleMemberSave() {
+      if (state.nameEntryLocked && !state.isAdminAuthenticated) {
+        alert("현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다.");
+        return;
+      }
       const seatNo = Number(state.memberSeat);
       if (isBlockedSeat(seatNo) || (state.mode === "member" && seatNo <= 3)) {
         alert("1~3번, 사용불가 칸은 회원 입력이 불가능합니다.");
@@ -1980,6 +2049,11 @@ function renderAll() {
     }
 
     async function executeMemberCancel() {
+      if (state.nameEntryLocked && !state.isAdminAuthenticated) {
+        alert("현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다.");
+        state.pendingCancelSeat = null;
+        return;
+      }
       const targetSeatNo = Number(state.pendingCancelSeat || state.editingSeat || state.memberSeat);
       const prevSeat = state.seats.find((s) => s.number === targetSeatNo);
       const duplicateRole = prevSeat ? getDuplicateSeatRole(prevSeat) : "normal";
@@ -2189,6 +2263,30 @@ function renderAll() {
       flashSaveVisuals(null, "saveWaitingExpireBtn");
     }
 
+    async function handleToggleNameEntryLock() {
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      const previous = Boolean(state.nameEntryLocked);
+      state.nameEntryLocked = !previous;
+      renderPanels();
+      if (!state.isFirebaseReady || !state.db) {
+        flashSaveVisuals(null, "toggleNameEntryLockBtn");
+        setStatusMessage(`Firebase 미연결 - 현재 화면에서만 이름 입력 ${state.nameEntryLocked ? "제한" : "해제"}`, state.projectLabel);
+        return;
+      }
+      const ok = await saveNameEntryLockRemote(state.nameEntryLocked);
+      if (!ok) {
+        state.nameEntryLocked = previous;
+        renderPanels();
+        alert("이름 입력 제한 상태 저장 권한이 없거나 저장에 실패했습니다.");
+        return;
+      }
+      flashSaveVisuals(null, "toggleNameEntryLockBtn");
+      alert(state.nameEntryLocked ? "전체 좌석 이름 입력이 제한되었습니다." : "전체 좌석 이름 입력 제한이 해제되었습니다.");
+    }
+
     async function handleSaveBusType() {
       if (!state.isAdminAuthenticated) {
         alert("관리자 인증 후 사용할 수 있습니다.");
@@ -2393,6 +2491,7 @@ function renderAll() {
       bindIfPresent("memberTab", "click", () => { state.mode = "member"; state.editingSeat = null; state.editName = ""; renderAll(); });
       bindIfPresent("adminTab", "click", () => { state.mode = "admin"; state.editingSeat = null; state.editName = ""; renderAll(); });
       bindIfPresent("memberName", "input", (e) => {
+        if (state.nameEntryLocked && !state.isAdminAuthenticated) return;
         state.memberName = e.target.value;
         if (state.editingSeat && state.mode === "member") {
           state.editName = e.target.value;
@@ -2404,6 +2503,11 @@ function renderAll() {
         if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("memberSaveBtn"); await handleMemberSave(); }
       });
       bindIfPresent("memberSeat", "change", (e) => {
+        if (state.nameEntryLocked && !state.isAdminAuthenticated) {
+          alert("현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다.");
+          e.target.value = state.memberSeat || "";
+          return;
+        }
         const seatNo = Number(e.target.value);
         const seat = state.seats.find((s) => s.number === seatNo);
         const duplicateRole = seat ? getDuplicateSeatRole(seat) : "normal";
@@ -2523,6 +2627,7 @@ function renderAll() {
       bindIfPresent("adminClearSeatBtn", "click", handleAdminClearSeat);
       bindIfPresent("adminMarkNamedPaidBtn", "click", handleAdminMarkNamedPaid);
       bindIfPresent("saveBusTypeBtn", "click", handleSaveBusType);
+      bindIfPresent("toggleNameEntryLockBtn", "click", handleToggleNameEntryLock);
       bindIfPresent("resetBtn", "click", () => {
         if (!state.isAdminAuthenticated) { alert("관리자 인증 후 사용할 수 있습니다."); return; }
         const box = byId("resetInlineConfirm");
