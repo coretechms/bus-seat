@@ -526,10 +526,6 @@
         <div class="card">
           <div class="card-title-row">
             <div class="card-title">좌석 등록</div>
-            <div style="display:flex; gap:6px; align-items:center;">
-              <button class="btn btn-outline" id="captureBoardBtn" type="button" style="height:18px;font-size:10px">캡쳐</button>
-              <button class="btn btn-outline" id="boardingPointBtn" type="button" style="height:18px;font-size:10px">탑승지</button>
-            </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
               <button class="tab" id="adminTab" type="button">관리자</button>
@@ -547,14 +543,14 @@
                 <input id="memberName" type="text" placeholder="회원 이름" />
               </div>
             </div>
-            <div class="btn-row" style="margin-top:8px;">
-              <button class="btn btn-primary" id="memberSaveBtn" type="button">저장</button>
-              <button class="btn btn-outline" id="memberCancelBtn" type="button">입력취소</button>
+            <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+              <button class="btn btn-outline" id="memberCancelBtn" type="button" style="flex:0 0 34%;">입력취소</button>
+              <div class="status-box" style="margin-top:0; flex:1; min-width:0;">
+                <span><span class="online-dot"></span><strong id="connectionText">연결 준비중</strong></span>
+                <span class="muted" id="projectText">프로젝트 미설정</span>
+              </div>
             </div>
-            <div class="status-box" style="margin-top:8px;">
-              <span><span class="online-dot"></span><strong id="connectionText">연결 준비중</strong></span>
-              <span class="muted" id="projectText">프로젝트 미설정</span>
-            </div>
+            <button class="btn btn-primary" id="memberSaveBtn" type="button" style="display:none;">저장</button>
           </div>
 
           <div class="help-text" style="margin-top:8px;">본인이 직접 좌석을 선택 합니다.</div>
@@ -567,11 +563,14 @@
               </div>
               <button class="btn btn-primary" id="adminLoginBtn" type="button" style="width:38%; height:28px;">관리자 로그인</button>
             </div>
-            <div style="display:flex; gap:12px; margin-top:8px;">
+            <div style="display:flex; gap:12px; margin-top:8px; align-items:center;">
               <div style="flex:1;">
                 <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:100%; height:28px;">비밀번호 초기화</button>
               </div>
-              <div style="width:38%;"></div>
+              <div style="display:flex; gap:6px; width:38%;">
+                <button class="btn btn-outline" id="captureBoardBtn" type="button" style="flex:1; height:28px; font-size:10px;">캡쳐</button>
+                <button class="btn btn-outline" id="boardingPointBtn" type="button" style="flex:1; height:28px; font-size:10px;">탑승지</button>
+              </div>
             </div>
           </div>
 
@@ -601,9 +600,10 @@
               </div>
             </div>
 
-            <div class="btn-row" style="margin-top:10px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:10px;">
               <button class="btn btn-primary" id="adminSaveBtn" type="button">상태저장</button>
               <button class="btn btn-danger" id="resetBtn" type="button">전체초기화</button>
+              <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button">복구코드 생성</button>
             </div>
 
             <div style="margin-top:12px;">
@@ -624,11 +624,6 @@
               </div>
             </div>
 
-            <div id="adminRecoveryInline" style="margin-top:12px;">
-              <div style="display:flex; gap:8px; align-items:center;">
-                <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button" style="width:100%;">복구코드 생성</button>
-              </div>
-            </div>
 
             <div id="adminExpireInline" style="margin-top:12px;">
               <div style="display:flex; gap:8px; align-items:center;">
