@@ -1070,6 +1070,10 @@
       if (!/[가-힣]/.test(compact)) {
         return { ok: false, alert: "오타알림: 이름은 한글로 입력하세요.", normalized };
       }
+      const koreanOnly = compact.replace(/[^가-힣]/g, "");
+      if (koreanOnly.length < 2) {
+        return { ok: false, alert: "오타알림: 한 글자 이름은 입력할 수 없습니다.", normalized };
+      }
       if (!/^[가-힣]+\d*$/.test(compact)) {
         return { ok: false, alert: "오타알림: 이름 형식을 확인하세요.", normalized };
       }
