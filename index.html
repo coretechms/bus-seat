@@ -120,7 +120,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 24px;
+      height: 40px;
       font-size: 15px;
       font-weight: 700;
       letter-spacing: 0.25em;
@@ -186,14 +186,13 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      width: 84%;
-      margin: 0 auto;
+      width: 86%;
       font-weight: 400;
     }
     .seat-name.duplicate-old { color: #ea580c; }
     .seat-name.duplicate-new { color: #2563eb; }
-    .offset-left { transform: translateX(8%); }
-    .offset-right { transform: translateX(-8%); }
+    .offset-left { margin-left: 16%; }
+    .offset-right { margin-left: -16%; }
     .inline-input {
       height: 18px;
       border-radius: 10px;
@@ -431,14 +430,11 @@
       .seat-layout { grid-template-columns: 1fr 20px 1fr; }
       .driver-box-wrap { padding: 6px 8px 0; }
       .driver-box, .header-box { height: 24px; font-size: 12px; letter-spacing: 0.1em; }
-      .goods-cell { height: 18px; font-size: 12px; letter-spacing: 0.08em; }
+      .goods-cell { height: 30px; font-size: 12px; letter-spacing: 0.08em; }
       .seat { min-height: 38px; height: 38px; }
       .seat-number { top: 3px; font-size: 10px; }
       .seat-inner { padding: 7px 2px 1px; }
-      .seat-name { width: 84%; font-size: 12px; }
-      .alt-seat-layout .seat-number { top: 2px; }
-      .alt-seat-layout .seat-inner { padding-top: 11px; }
-      .alt-seat-layout .seat-name { margin-top: 2px; }
+      .seat-name { width: 80%; font-size: 12px; }
       .inline-input { width: 92%; height: 22px; font-size: 11px; }
       .summary > div, .account, .account-number { font-size: 10px; }
       .account > div { padding: 4px 4px; }
@@ -560,7 +556,7 @@
             <div>
               <div class="side-grid" id="rightGrid">
                 <div class="door-cell"><div class="header-box no-border">출 입 문&lt;-</div></div>
-                <div class="goods-cell"></div>
+                <div class="goods-cell">---</div>
               </div>
             </div>
           </div>
@@ -579,10 +575,7 @@
       <div class="controls">
         <div class="card">
           <div class="card-title-row">
-            <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-              <div class="card-title" style="margin:0;">좌석 등록</div>
-              <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 14px; white-space:nowrap;">이미지반전</button>
-            </div>
+            <div class="card-title">좌석 등록</div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
               <button class="tab" id="adminTab" type="button">관리자</button>
@@ -611,6 +604,9 @@
           </div>
 
           <div class="help-text" style="margin-top:8px;">본인의 좌석을 직접 선택 하세요~.</div>
+          <div style="margin-top:8px; display:flex; justify-content:flex-end;">
+            <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="width:38%;">이미지반전</button>
+          </div>
 
           <div id="adminLoginPanel" class="hidden">
             <div style="display:flex; gap:12px; align-items:end; margin-top:6px;">
@@ -633,7 +629,7 @@
           <div id="adminPanel" class="hidden">
 
             <div style="display:flex; gap:8px; margin-top:10px;">
-              <button class="btn btn-primary" id="adminSaveBtnTop" type="button" style="flex:1;">상태저장</button>
+              <button class="btn btn-outline" id="adminClearSeatBtn" type="button" style="flex:1;">선택좌석 삭제</button>
               <button class="btn btn-outline" id="adminMarkNamedPaidBtn" type="button" style="flex:1;">이름만 남기기</button>
               <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="flex:1;">로그아웃</button>
             </div>
@@ -657,7 +653,8 @@
               </div>
             </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:10px;">
+              <button class="btn btn-primary" id="adminSaveBtn" type="button">상태저장</button>
               <button class="btn btn-danger" id="resetBtn" type="button">전체초기화</button>
               <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button">복구코드 생성</button>
             </div>
@@ -779,7 +776,7 @@
         leftPairs: [[1,2],[5,6],[9,10],[13,14],[17,18],[21,22],[25,26],[29,30],[33,34],[37,38],[41,42]],
         rightPairs: [[3,4],[7,8],[11,12],[15,16],[19,20],[23,24],[27,28],[31,32],[35,36],[39,40],[43,44]],
         blockedSeats: [4],
-        goodsText: "",
+        goodsText: "---",
         seatNumberMap: Object.fromEntries(Array.from({ length: 44 }, (_, i) => [i + 1, i + 1]))
       },
       "31": {
@@ -788,7 +785,7 @@
         leftPairs: [[1,2],[5,6],[9,10],[13,14],[17,18],[21,22],[25,26],[29,30],[33,34],[37,38],[41,42]],
         rightPairs: [[3,4],[7,8],[11,12],[15,16],[19,20],[23,24],[27,28],[31,32],[35,36],[39,40],[43,44]],
         blockedSeats: [3,7,11,15,19,23,27,31,35,41,42,43,44],
-        goodsText: "",
+        goodsText: "---",
         seatNumberMap: {
           1:1,2:2,4:3,5:4,6:5,8:6,9:7,10:8,12:9,13:10,14:11,16:12,17:13,18:14,
           20:15,21:16,22:17,24:18,25:19,26:20,28:21,29:22,30:23,32:24,33:25,
@@ -1332,10 +1329,10 @@
         <button id="seat-btn-${seat.number}" class="seat ${seat.number <= 4 ? "light" : ""} ${occupied ? "occupied" : ""} ${locked ? "locked" : ""} ${blocked ? "unavailable" : ""} ${isJustSaved ? "seat-save-flash" : ""} ${waitingWarning ? "waiting-warning" : ""}" data-seat="${seat.number}" type="button" title="${blocked ? "사용할 수 없는 좌석입니다." : (locked ? "회원모드에서는 수정할 수 없는 좌석입니다." : "")}">
           <div class="seat-number ${side} ${isPaidNew ? "paid-new" : ""}">${getSeatDisplayNumber(seat.number)}</div>
           <div class="seat-inner">
-            ${!isEditing ? status : ""}
             ${isEditing
               ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" />`
               : `<div class="seat-name ${offsetClass} ${nameColorClass}">${escapeHtml(seat.name)}</div>`}
+            ${!isEditing ? status : ""}
           </div>
         </button>`;
     }
@@ -1376,7 +1373,7 @@
           const bodyPairs = reversedRightPairs.slice(0, -1);
           leftGrid.innerHTML =
             bodyPairs.map(([a, b]) => renderSeatButton(state.seats[b - 1], "left") + renderSeatButton(state.seats[a - 1], "right")).join("") +
-            '<div class="alt-arrow-cell"></div>' +
+            '<div class="alt-arrow-cell">--&gt;</div>' +
             renderSeatButton(state.seats[2], "right") +
             '<div class="alt-wide-cell">출입문</div>';
         }
@@ -1393,8 +1390,8 @@
         }
         if (rightGrid) {
           rightGrid.innerHTML =
-            '<div class="door-cell"><div class="header-box no-border">출 입 문</div></div>' +
-            `<div class="goods-cell">${getCurrentLayout().goodsText || ""}</div>` +
+            '<div class="door-cell"><div class="header-box no-border">출 입 문&lt;-</div></div>' +
+            `<div class="goods-cell">${getCurrentLayout().goodsText || "---"}</div>` +
             getRightPairs().map(([a, b]) => renderSeatButton(state.seats[a - 1], "left") + renderSeatButton(state.seats[b - 1], "right")).join("");
         }
       }
@@ -2967,17 +2964,5 @@ function renderAll() {
     init();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  var topBtn = document.getElementById('adminSaveBtnTop');
-  var saveBtn = document.getElementById('adminSaveBtn');
-  if (topBtn && saveBtn) {
-    topBtn.addEventListener('click', function () {
-      saveBtn.click();
-    });
-  }
-});
-</script>
 </body>
 </html>
