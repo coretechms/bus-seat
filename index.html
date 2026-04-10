@@ -120,7 +120,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 40px;
+      height: 24px;
       font-size: 15px;
       font-weight: 700;
       letter-spacing: 0.25em;
@@ -186,13 +186,14 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      width: 86%;
+      width: 84%;
+      margin: 0 auto;
       font-weight: 400;
     }
     .seat-name.duplicate-old { color: #ea580c; }
     .seat-name.duplicate-new { color: #2563eb; }
-    .offset-left { margin-left: 16%; }
-    .offset-right { margin-left: -16%; }
+    .offset-left { transform: translateX(8%); }
+    .offset-right { transform: translateX(-8%); }
     .inline-input {
       height: 18px;
       border-radius: 10px;
@@ -430,11 +431,11 @@
       .seat-layout { grid-template-columns: 1fr 20px 1fr; }
       .driver-box-wrap { padding: 6px 8px 0; }
       .driver-box, .header-box { height: 24px; font-size: 12px; letter-spacing: 0.1em; }
-      .goods-cell { height: 30px; font-size: 12px; letter-spacing: 0.08em; }
+      .goods-cell { height: 18px; font-size: 12px; letter-spacing: 0.08em; }
       .seat { min-height: 38px; height: 38px; }
       .seat-number { top: 3px; font-size: 10px; }
       .seat-inner { padding: 7px 2px 1px; }
-      .seat-name { width: 80%; font-size: 12px; }
+      .seat-name { width: 84%; font-size: 12px; }
       .alt-seat-layout .seat-number { top: 2px; }
       .alt-seat-layout .seat-inner { padding-top: 11px; }
       .alt-seat-layout .seat-name { margin-top: 2px; }
