@@ -976,10 +976,10 @@
         return { ok: false, alert: "이름과 좌석번호를 입력하세요.", normalized };
       }
       if (hasInvalidKoreanJamo(trimmed)) {
-        return { ok: false, alert: "오타알림: 자음/모음만 입력할 수 없습니다.", normalized };
+        return { ok: false, alert: "오타알림: 이름을 확인하세요.", normalized };
       }
       if (/[^가-힣0-9\s]/.test(trimmed)) {
-        return { ok: false, alert: "오타알림: 특수문자는 입력할 수 없습니다.", normalized };
+        return { ok: false, alert: "오타알림: 특수문자는 입력이 안됩니다.", normalized };
       }
       if (!/^[가-힣0-9\s]+$/.test(trimmed)) {
         return { ok: false, alert: "오타알림: 이름은 한글과 숫자만 입력할 수 있습니다.", normalized };
@@ -2015,7 +2015,7 @@ function renderAll() {
         return;
       }
       if (!state.isAdminAuthenticated) {
-        alert("관리자 로그인 후 수정할 수 있습니다.");
+        alert("변경은 관리자 에게 문의 하세요.");
         return;
       }
       state.adminSeat = String(seat.number);
