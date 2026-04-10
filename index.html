@@ -161,6 +161,7 @@
       line-height: 1;
       color: var(--blue);
     }
+    .seat-number.paid-new { color: #d32f2f; font-weight: 700; }
     .seat.unavailable .seat-number,
     .seat.unavailable .seat-name,
     .seat.unavailable .status-pill {
@@ -607,6 +608,7 @@
                 <option value="paid">완납</option>
                 <option value="waiting">입금대기</option>
                 <option value="reserved">이름만 표시</option>
+                <option value="paid_new">완납/신입</option>
               </select>
             </div>
 
@@ -812,11 +814,15 @@
       if (status === "paid") return "완납";
       if (status === "waiting") return "입금대기";
       if (status === "waiting_alt") return "자리이동";
+      if (status === "paid_new") return "완납/신입";
+      if (status === "paid_new_move") return "자리이동";
       return "";
     }
 
     function normalizeSeatStatus(status) {
       if (status === "waiting_alt") return "reserved";
+      if (status === "paid_new") return "paid_new";
+      if (status === "paid_new_move") return "paid_new";
       return status || "empty";
     }
 
@@ -890,7 +896,7 @@
       if (choice === "move") {
         const sourceSeat = duplicateSeats[0];
         const sourceStatus = normalizeSeatStatus(sourceSeat?.status || "empty");
-        const moveStatus = sourceStatus === "waiting" ? "waiting" : "waiting_alt";
+        const moveStatus = sourceStatus === "waiting" ? "waiting" : (sourceStatus === "paid_new" ? "paid_new_move" : "waiting_alt");
         return { type: "move", name: normalizedName, sourceSeat, moveStatus };
       }
       if (choice === "duplicate") {
@@ -1170,7 +1176,7 @@
       if (isBlockedSeat(seat.number)) return true;
       if (state.mode !== "member") return false;
       if (seat.number <= 3) return true;
-      if (seat.status === "paid") return true;
+      if (seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_new_move") return true;
       if (!seat.name) return false;
       const duplicateRole = getDuplicateSeatRole(seat);
       return duplicateRole === "normal";
@@ -1262,12 +1268,13 @@
       const duplicateRole = getDuplicateSeatRole(seat);
       const nameColorClass = duplicateRole === "old" ? "duplicate-old" : (duplicateRole === "new" ? "duplicate-new" : "");
       const waitingWarning = isWaitingBlinkTarget(seat);
-      const status = occupied && seat.status !== "reserved" && seat.status !== "empty" && seat.status !== "paid"
+      const isPaidNew = seat.status === "paid_new" || seat.status === "paid_new_move";
+      const status = occupied && seat.status !== "reserved" && seat.status !== "empty" && seat.status !== "paid" && seat.status !== "paid_new"
         ? `<div class="status-pill status-${seat.status}">${statusLabel(seat.status)}</div>`
         : "";
       return `
         <button id="seat-btn-${seat.number}" class="seat ${seat.number <= 4 ? "light" : ""} ${occupied ? "occupied" : ""} ${locked ? "locked" : ""} ${blocked ? "unavailable" : ""} ${isJustSaved ? "seat-save-flash" : ""} ${waitingWarning ? "waiting-warning" : ""}" data-seat="${seat.number}" type="button" title="${blocked ? "사용할 수 없는 좌석입니다." : (locked ? "회원모드에서는 수정할 수 없는 좌석입니다." : "")}">
-          <div class="seat-number ${side}">${getSeatDisplayNumber(seat.number)}</div>
+          <div class="seat-number ${side} ${isPaidNew ? "paid-new" : ""}">${getSeatDisplayNumber(seat.number)}</div>
           <div class="seat-inner">
             ${isEditing
               ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" />`
@@ -2020,7 +2027,7 @@ function renderAll() {
           alert("현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다.");
           return;
         }
-        if (seat.status === "paid") {
+        if (seat.status === "paid" || seat.status === "paid_new") {
           alert("완납 처리된 좌석은 회원 모드에서 접근할 수 없습니다.");
           return;
         }
