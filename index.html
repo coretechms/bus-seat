@@ -130,11 +130,11 @@
       border-radius: 8px;
       min-height: 48px;
       height: 48px;
-      border-right: 1px dotted #8a8a8a;
-      border-bottom: 1px dotted #8a8a8a;
+      border: 0.5px solid rgba(90, 90, 90, 0.45);
       padding: 0;
       text-align: center;
       background: var(--green);
+      box-shadow: 1px 1px 0 rgba(255,255,255,0.45), 2px 2px 4px rgba(0,0,0,0.16);
       cursor: pointer;
       user-select: none;
     }
@@ -145,8 +145,8 @@
       background: #d9d9d9 !important;
       cursor: not-allowed;
       opacity: 1;
-      border-right: 1px dotted #cfcfcf !important;
-      border-bottom: 1px dotted #cfcfcf !important;
+      border: 0.5px solid rgba(185, 185, 185, 0.65) !important;
+      box-shadow: 1px 1px 0 rgba(255,255,255,0.35), 2px 2px 4px rgba(0,0,0,0.08) !important;
     }
     .seat-save-flash { background: #86efac !important; transition: background 0.2s ease; }
     .seat.waiting-warning { animation: waiting-warning-blink 8s steps(2, start) infinite; }
