@@ -869,7 +869,10 @@
       const choice = await showThreeOptionDialog(`동일 이름 "${normalizedName}" 이(가) 있습니다.
 자리이동 인가요?`, "이 페이지 내용:");
       if (choice === "move") {
-        return { type: "move", name: normalizedName, sourceSeat: duplicateSeats[0] };
+        const sourceSeat = duplicateSeats[0];
+        const sourceStatus = normalizeSeatStatus(sourceSeat?.status || "empty");
+        const moveStatus = sourceStatus === "waiting" ? "waiting" : "waiting_alt";
+        return { type: "move", name: normalizedName, sourceSeat, moveStatus };
       }
       if (choice === "duplicate") {
         const uniqueName = buildDuplicateName(normalizedName);
@@ -1964,7 +1967,7 @@ function renderAll() {
         finalName = duplicateDecision.name;
         if (duplicateDecision.type === "move") {
           sourceSeatNo = duplicateDecision.sourceSeat?.number || null;
-          finalStatus = "waiting_alt";
+          finalStatus = duplicateDecision.moveStatus || "waiting_alt";
         } else {
           finalStatus = "waiting";
         }
@@ -2026,7 +2029,9 @@ function renderAll() {
       }
       const finalName = duplicateDecision.name;
       const sourceSeatNo = duplicateDecision.type === "move" ? (duplicateDecision.sourceSeat?.number || null) : null;
-      const finalStatus = finalName ? (duplicateDecision.type === "move" ? "waiting_alt" : "waiting") : "empty";
+      const finalStatus = finalName
+        ? (duplicateDecision.type === "move" ? (duplicateDecision.moveStatus || "waiting_alt") : "waiting")
+        : "empty";
       applyNameAssignmentLocal(seatNo, finalName, finalStatus, { sourceSeatNo });
       state.memberName = finalName;
       state.editingSeat = null;
