@@ -423,13 +423,14 @@
     }
     @media (max-width: 760px) {
       .app { padding: 12px; }
+      .alt-arrow-cell { height: 22px; }
       .shell { width: 100%; max-width: 100%; height: calc(100vh - 20px); gap: 0; }
       .board-wrap { top: 0; padding: 4px; }
       .board { padding: 6px; }
       .title { font-size: 12px; letter-spacing: 0.18em; }
       .seat-layout { grid-template-columns: 1fr 20px 1fr; }
       .driver-box-wrap { padding: 6px 8px 0; }
-      .driver-box, .header-box { height: 30px; font-size: 12px; letter-spacing: 0.1em; }
+      .driver-box, .header-box { height: 24px; font-size: 12px; letter-spacing: 0.1em; }
       .goods-cell { height: 30px; font-size: 12px; letter-spacing: 0.08em; }
       .seat { min-height: 38px; height: 38px; }
       .seat-number { top: 3px; font-size: 10px; }
@@ -558,7 +559,7 @@
             <div class="middle-aisle"></div>
             <div>
               <div class="side-grid" id="rightGrid">
-                <div class="door-cell"><div class="header-box no-border">출 입 문&lt;-</div></div>
+                <div class="door-cell"><div class="header-box no-border">출입문</div></div>
                 <div class="goods-cell"></div>
               </div>
             </div>
@@ -1392,7 +1393,7 @@
         }
         if (rightGrid) {
           rightGrid.innerHTML =
-            '<div class="door-cell"><div class="header-box no-border">출 입 문</div></div>' +
+            '<div class="door-cell"><div class="header-box no-border">출입문</div></div>' +
             `<div class="goods-cell">${getCurrentLayout().goodsText || ""}</div>` +
             getRightPairs().map(([a, b]) => renderSeatButton(state.seats[a - 1], "left") + renderSeatButton(state.seats[b - 1], "right")).join("");
         }
