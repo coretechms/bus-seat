@@ -612,7 +612,7 @@
             <button class="btn btn-primary" id="memberSaveBtn" type="button" style="display:none;">저장</button>
           </div>
 
-          <div class="help-text" style="margin-top:8px;">본인의 좌석을 직접 선택 하세요~.</div>
+          <div class="help-text" style="margin-top:8px;"></div>
 
           <div id="adminLoginPanel" class="hidden">
             <div style="display:flex; gap:12px; align-items:end; margin-top:6px;">
@@ -908,7 +908,7 @@
     }
 
     
-    function showThreeOptionDialog(message, title = "이 페이지 내용:") {
+    function showThreeOptionDialog(message, title = " ") {
       return new Promise((resolve) => {
         const existing = document.getElementById("threeOptionDialogOverlay");
         if (existing) existing.remove();
@@ -950,7 +950,7 @@
         return { type: "normal", name: normalizedName, sourceSeat: null };
       }
       const choice = await showThreeOptionDialog(`동일 이름 "${normalizedName}" 이(가) 있습니다.
-자리이동 인가요?`, "이 페이지 내용:");
+자리이동 인가요?`, " ");
       if (choice === "move") {
         const sourceSeat = duplicateSeats[0];
         const sourceStatus = normalizeSeatStatus(sourceSeat?.status || "empty");
