@@ -79,7 +79,6 @@
       border-radius: 12px;
       overflow: hidden;
       grid-template-columns: 1fr 30px 1fr;
-      border: 1px solid var(--line);
       background: var(--panel);
     }
     .side-grid {
@@ -106,20 +105,8 @@
     .middle-aisle {
       background: #d9d9d9;
     }
-    .door-cell { }
-    .goods-cell {
-      border-bottom: 1px solid var(--line);
-      border-radius: 0 0 12px 12px;
-      border-left: 1px solid var(--line);
-      background: #d9d9d9;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 40px;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 0.25em;
-    }
+    
+    
     .seat {
       position: relative;
       border-radius: 8px;
@@ -428,7 +415,7 @@
       .seat-layout { grid-template-columns: 1fr 20px 1fr; }
       .driver-box-wrap { padding: 6px 8px 0; }
       .driver-box, .header-box { height: 24px; font-size: 12px; letter-spacing: 0.1em; }
-      .goods-cell { height: 30px; font-size: 12px; letter-spacing: 0.08em; }
+      
       .seat { min-height: 38px; height: 38px; }
       .seat-number { top: 3px; font-size: 10px; }
       .seat-inner { padding: 7px 2px 1px; }
@@ -538,100 +525,217 @@
       background: #fff; font-size: 14px; cursor: pointer;
     }
     .recovery-confirm-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
-    
-  
-    .seat-layout > div:last-child {
-      border-top-right-radius: 0 !important;
-      border-bottom-right-radius: 0 !important;
-      overflow: visible !important;
-      background: var(--bg) !important;
+
+    /* ===== UI consolidated overrides ===== */
+
+    /* panel/background */
+    .board {
+      background: #dff4ff !important;
     }
-    .door-cell {
-      background: var(--bg) !important;
-      border: 0 !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
+    .seat-layout {
+      background: transparent !important;
+      border: 1px solid var(--line) !important;
     }
-    .door-cell + div,
-    .goods-cell {
-      background: var(--bg) !important;
-      border: 0 !important;
-      border-left: 0 !important;
-      border-right: 0 !important;
-      border-bottom: 0 !important;
-      border-radius: 0 !important;
+    .middle-aisle {
+      background: transparent !important;
+    }
+    .seat-layout > div:last-child,
+    #leftGrid,
+    #rightGrid {
+      background: transparent !important;
+    }
+
+    /* seats */
+    .seat,
+    .seat.unavailable,
+    .seat-save-flash {
       box-shadow: none !important;
     }
 
-  
-    .seat-layout > div:last-child {
-      background: var(--panel) !important;
+    /* driver box */
+    .driver-box-wrap {
+      grid-column: span 2;
+      padding: 8px 16px 0;
+      background: transparent !important;
+      box-shadow: none !important;
+      border: 0 !important;
     }
-    .door-cell {
-      background: var(--panel) !important;
-    }
-    .door-cell + div,
-    .goods-cell {
-      background: var(--panel) !important;
+    .driver-box {
+      height: 32px !important;
+      min-height: 32px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: var(--lightGreen) !important;
+      border: 1px solid var(--line) !important;
+      border-radius: 12px 12px 0 0 !important;
+      box-sizing: border-box !important;
+      font-size: 18px !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.25em !important;
+      line-height: 1 !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      opacity: 1 !important;
     }
 
-  
+    /* door replacement structure only */
+    .door-box-wrap {
+      grid-column: 1 / span 2 !important;
+      padding: 8px 16px 0 !important;
+      min-width: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      border: 0 !important;
+      align-self: start !important;
+    }
+    .door-box {
+      width: 100% !important;
+      height: 32px !important;
+      min-height: 32px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: var(--lightGreen) !important;
+      border: 1px solid var(--line) !important;
+      border-radius: 12px 12px 0 0 !important;
+      box-sizing: border-box !important;
+      font-size: 18px !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.25em !important;
+      line-height: 1 !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      text-align: center !important;
+    }
+
+    /* hide old door structures if any remain */
     .door-cell,
-    .door-cell .header-box,
-    .door-cell .header-box.no-border {
-      border-top: 0 !important;
-      border-bottom: 0 !important;
-      box-shadow: none !important;
+    .goods-cell,
+    .door-replacement-wrap,
+    .door-replacement-box {
+      display: none !important;
     }
 
-  
-    #rightGrid > .seat:nth-child(3),
-    #rightGrid > .seat:nth-child(4) {
-      border-top: 0 !important;
-    }
-
-  
-    /* 출입문 아래 첫 줄(3번/4번 줄)의 상단 테두리 제거 */
-    #rightGrid > .seat:nth-child(3),
-    #rightGrid > .seat:nth-child(4) {
-      border-top: 0 !important;
-    }
-
-  
-    /* 이미지반전 모드에서 출입문 위에 생기는 잔선 제거 */
-    .alt-seat-layout #leftGrid {
+    /* inverted image layout */
+    .alt-seat-layout #leftGrid,
+    .alt-seat-layout #rightGrid {
       position: relative;
+      background: transparent !important;
+      overflow: visible !important;
     }
     .alt-seat-layout .alt-arrow-cell {
-      border-bottom: 0 !important;
+      background: transparent !important;
+      border: 0 !important;
       box-shadow: none !important;
-    }
-    .alt-seat-layout #leftGrid > .seat:nth-last-child(2) {
-      border-bottom-color: transparent !important;
-      box-shadow: 1px 0 0 rgba(255,255,255,0.45), 2px 1px 2px rgba(0,0,0,0.08) !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      height: 48px !important;
+      overflow: visible !important;
     }
     .alt-seat-layout .alt-wide-cell {
-      position: relative;
-      border-top: 0 !important;
-      border-bottom: 0 !important;
+      grid-column: 1 / span 2 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 32px !important;
+      min-height: 32px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: var(--lightGreen) !important;
+      color: #111 !important;
+      border: 1px solid var(--line) !important;
+      border-radius: 0 0 12px 12px !important;
       box-shadow: none !important;
-      overflow: hidden;
+      text-align: center !important;
+      font-size: 18px !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.1em !important;
+      line-height: 1 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      transform: none !important;
+      left: auto !important;
+      right: auto !important;
+      overflow: hidden !important;
     }
     .alt-seat-layout .alt-wide-cell::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      height: 4px;
-      background: var(--lightGreen);
-      z-index: 5;
-      pointer-events: none;
+      content: none !important;
+      display: none !important;
+    }
+
+    /* upper seam near right first row */
+    #rightGrid > .seat:nth-child(3),
+    #rightGrid > .seat:nth-child(4) {
+      border-top: 0 !important;
+    }
+
+    @media (min-width: 1024px) {
+      .driver-box-wrap,
+      .door-box-wrap {
+        padding: 8px 24px 0 !important;
+      }
+      .driver-box,
+      .door-box {
+        height: 30px !important;
+        min-height: 30px !important;
+      }
     }
 
     @media (max-width: 760px) {
-      .alt-seat-layout .alt-wide-cell::before {
-        height: 3px;
+      .driver-box-wrap,
+      .door-box-wrap {
+        padding: 6px 8px 0 !important;
+      }
+      .driver-box,
+      .door-box,
+      .alt-seat-layout .alt-wide-cell {
+        height: 24px !important;
+        min-height: 24px !important;
+        font-size: 18px !important;
+      }
+      .alt-seat-layout .alt-arrow-cell {
+        height: 38px !important;
+      }
+    }
+
+  
+    /* 이미지반전에서 4번 자리칸(.alt-arrow-cell) 다시 표시 */
+    .alt-seat-layout .alt-arrow-cell {
+      background: #d9d9d9 !important;
+      border: 0.5px solid rgba(185, 185, 185, 0.65) !important;
+      border-radius: 8px !important;
+      box-sizing: border-box !important;
+      box-shadow: none !important;
+      color: transparent !important;
+    }
+
+  
+    /* 빈 자리/참석인원(summary)와 회비 계좌(account) 사이 간격 조금 증가 */
+    .summary {
+      margin-bottom: 6px !important;
+    }
+
+  
+    /* 3번째 실선과 운전석/출입문 박스 간격을 더 붙임 */
+    .driver-box-wrap,
+    .door-box-wrap {
+      padding-top: 2px !important;
+    }
+
+    @media (min-width: 1024px) {
+      .driver-box-wrap,
+      .door-box-wrap {
+        padding-top: 2px !important;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .driver-box-wrap,
+      .door-box-wrap {
+        padding-top: 1px !important;
       }
     }
 
@@ -652,8 +756,7 @@
             <div class="middle-aisle"></div>
             <div>
               <div class="side-grid" id="rightGrid">
-                <div class="door-cell"><div class="header-box no-border">출입문</div></div>
-                <div class="goods-cell"></div>
+                <div class="door-box-wrap"><div class="door-box">출입문</div></div>
               </div>
             </div>
           </div>
@@ -750,19 +853,6 @@
               </div>
             </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px;">
-              <button class="btn btn-danger" id="resetBtn" type="button">전체초기화</button>
-              <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button">복구코드 생성</button>
-            </div>
-
-
-            <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
-              <button class="btn btn-outline" id="toggleNameEntryLockBtn" type="button" style="flex:1;">전체 이름입력 제한</button>
-              <div id="nameEntryLockStatus" class="status-box" style="margin-top:0; flex:1; min-width:0; justify-content:center;">
-                <strong>이름 입력 가능</strong>
-              </div>
-            </div>
-
             <div style="margin-top:12px;">
               <div style="display:flex; gap:8px; align-items:center;">
                 <label for="busTypeSelect" style="width:80px; margin-bottom:0;">버스선택</label>
@@ -774,6 +864,20 @@
               </div>
             </div>
 
+            <div id="adminExpireInline" style="margin-top:12px;">
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input id="waitingExpireHoursInput" type="number" min="1" step="1" placeholder="자동삭제 시간(시간)" style="flex:1;" />
+                <button class="btn btn-outline" id="saveWaitingExpireBtn" type="button" style="width:38%;">시간저장</button>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
+              <button class="btn btn-outline" id="toggleNameEntryLockBtn" type="button" style="flex:1;">전체 이름입력 제한</button>
+              <div id="nameEntryLockStatus" class="status-box" style="margin-top:0; flex:1; min-width:0; justify-content:center;">
+                <strong>이름 입력 가능</strong>
+              </div>
+            </div>
+
             <div id="adminPasswordInline" style="margin-top:12px;">
               <div style="display:flex; gap:8px; align-items:center;">
                 <input id="newAdminPassword" type="password" placeholder="비밀번호 입력" style="flex:1;" />
@@ -781,13 +885,20 @@
               </div>
             </div>
 
-
-            <div id="adminExpireInline" style="margin-top:12px;">
-              <div style="display:flex; gap:8px; align-items:center;">
-                <input id="waitingExpireHoursInput" type="number" min="1" step="1" placeholder="자동삭제 시간(시간)" style="flex:1;" />
-                <button class="btn btn-outline" id="saveWaitingExpireBtn" type="button" style="width:38%;">시간저장</button>
-              </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px;">
+              <button class="btn btn-danger" id="resetBtn" type="button">전체초기화</button>
+              <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button">복구코드 생성</button>
             </div>
+
+
+            
+
+            
+
+            
+
+
+            
 
             <div id="adminNameExportPanel" style="margin-top:12px; border:1px solid #d4d4d4; border-radius:16px; padding:10px; background:#fafafa;">
               <div style="font-size:13px; font-weight:700; margin-bottom:8px;">좌석 이름 데이터</div>
@@ -1490,8 +1601,7 @@
         }
         if (rightGrid) {
           rightGrid.innerHTML =
-            '<div class="door-cell"><div class="header-box no-border">출입문</div></div>' +
-            `<div class="goods-cell">${getCurrentLayout().goodsText || ""}</div>` +
+            '<div class="door-box-wrap"><div class="door-box">출입문</div></div>' +
             getRightPairs().map(([a, b]) => renderSeatButton(state.seats[a - 1], "left") + renderSeatButton(state.seats[b - 1], "right")).join("");
         }
       }
