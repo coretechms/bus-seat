@@ -1699,8 +1699,7 @@
 
       const helpText = document.querySelector(".help-text");
       if (helpText) helpText.style.display = state.mode === "admin" ? "none" : "block";
-
-      const boardingPointBtn = byId("boardingPointBtn");
+const boardingPointBtn = byId("boardingPointBtn");
       if (boardingPointBtn) boardingPointBtn.classList.toggle("hidden", state.mode === "member");
 
       const isMemberLocked = state.nameEntryLocked && !state.isAdminAuthenticated;
@@ -2554,6 +2553,53 @@ function renderAll() {
       renderAll();
     }
 
+
+    async function openTripPlanWithAdminPassword() {
+      const pwInput = byId("adminPasswordInput");
+      const normalizedInput = pwInput?.value.trim() || "";
+      if (!normalizedInput) {
+        alert("관리자 비밀번호를 입력하세요.");
+        if (pwInput) pwInput.focus();
+        return;
+      }
+
+      const typedHash = await sha256Hex(normalizedInput);
+      let loginOk = false;
+
+      if (state.isFirebaseReady && state.db) {
+        const serverHash = state.adminPasswordHash || "";
+        if (serverHash) {
+          loginOk = (typedHash === serverHash);
+        } else {
+          loginOk = (normalizedInput === (state.adminPassword || DEFAULT_ADMIN_PASSWORD));
+        }
+      } else {
+        const localHash = getLocalAdminPasswordHash();
+        if (localHash) {
+          loginOk = (typedHash === localHash);
+        } else {
+          loginOk = (normalizedInput === (state.adminPassword || DEFAULT_ADMIN_PASSWORD));
+        }
+      }
+
+      if (!loginOk) {
+        alert("관리자 비밀번호가 올바르지 않습니다.");
+        if (pwInput) {
+          pwInput.focus();
+          pwInput.select();
+        }
+        return;
+      }
+
+      try {
+        sessionStorage.setItem("tripPlanAdminVerifiedPassword", normalizedInput);
+      } catch (error) {
+        console.warn("tripPlanAdminVerifiedPassword session save failed", error);
+      }
+
+      window.location.href = "https://coretechms.github.io/trip-schedule/";
+    }
+
     function handleAdminLogout() {
       state.isAdminAuthenticated = false;
       state.mode = "member";
@@ -3102,9 +3148,7 @@ function renderAll() {
       bindIfPresent("resetInlineCancelBtn", "click", () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); });
       bindIfPresent("resetInlineConfirmBtn", "click", async () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); await executeReset(); });
       bindIfPresent("captureBoardBtn", "click", captureBoardArea);
-      bindIfPresent("tripScheduleBtn", "click", () => {
-          window.location.href = "https://coretechms.github.io/trip-schedule/";
-      });
+      bindIfPresent("tripScheduleBtn", "click", openTripPlanWithAdminPassword);
       // 👉 GitHub Pages에 있는 bus-route.html 열기 (주소를 실제 URL로 변경하세요)
       bindIfPresent("boardingPointBtn", "click", () => {
           window.location.href = "https://coretechms.github.io/bus-route/";
