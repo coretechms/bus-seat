@@ -146,7 +146,7 @@
     .seat-number.paid-new { color: #d32f2f; font-weight: 700; }
     .seat.unavailable .seat-number,
     .seat.unavailable .seat-name,
-    .seat.unavailable . {
+    .seat.unavailable .status-pill {
       color: #d9d9d9 !important;
     }
     .seat-number.left { left: 2px; }
@@ -227,7 +227,7 @@
       color: var(--blue);
     }
     .account > div {
-      padding: 5px 9px;
+      padding: 4px 8px;
       white-space: nowrap;
     }
     .account-number {
@@ -893,6 +893,13 @@
               </div>
             </div>
 
+            <div id="tripPlanPasswordInline" style="margin-top:12px;">
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input id="newTripPlanPassword" type="password" placeholder="산행계획 비밀번호 입력" style="flex:1;" />
+                <button class="btn btn-outline" id="changeTripPlanPasswordBtn" type="button" style="width:38%;">산행계획비번변경</button>
+              </div>
+            </div>
+
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px;">
               <button class="btn btn-danger" id="resetBtn" type="button">전체초기화</button>
               <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button">복구코드 생성</button>
@@ -979,6 +986,7 @@
     const DEFAULT_ADMIN_PASSWORD = "1234";
     const RECOVERY_CODE_STORAGE_KEY = "bus-seat-recovery-code-hash-v1";
     const ADMIN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-admin-password-hash-v1";
+    const TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-trip-plan-password-hash-v1";
     const ROOT_PATH = "busSeatApp";
     const DEFAULT_WAITING_EXPIRE_HOURS = 48;
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
@@ -1035,7 +1043,9 @@
       editingSeat: null,
       editName: "",
       adminPassword: DEFAULT_ADMIN_PASSWORD,
+      tripPlanPassword: DEFAULT_ADMIN_PASSWORD,
       adminPasswordHash: "",
+      tripPlanPasswordHash: "",
       recoveryCodeHash: "",
       isAdminAuthenticated: false,
       clientId: crypto.randomUUID(),
@@ -1214,6 +1224,7 @@
         seats,
         busInfo: { ...defaultBusInfo },
         adminPassword: DEFAULT_ADMIN_PASSWORD,
+        tripPlanPassword: DEFAULT_ADMIN_PASSWORD,
         waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
         nameEntryLocked: false,
         meta: { createdAt: Date.now(), updatedAt: Date.now() }
@@ -1855,6 +1866,26 @@ const boardingPointBtn = byId("boardingPointBtn");
       }
     }
 
+    function getLocalTripPlanPasswordHash() {
+      try {
+        return localStorage.getItem(TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY) || "";
+      } catch (error) {
+        console.warn("trip plan password local read failed", error);
+        return "";
+      }
+    }
+
+    function saveLocalTripPlanPasswordHash(nextHash) {
+      try {
+        if (!nextHash) localStorage.removeItem(TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY);
+        else localStorage.setItem(TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY, nextHash);
+        return true;
+      } catch (error) {
+        console.warn("trip plan password local save failed", error);
+        return false;
+      }
+    }
+
     async function getEffectiveAdminPasswordHash() {
       if (state.adminPasswordHash) return state.adminPasswordHash;
       const localHash = getLocalAdminPasswordHash();
@@ -2063,8 +2094,11 @@ function renderAll() {
 
       state.busInfo = { ...defaultBusInfo, ...(payload?.busInfo || {}) };
       state.adminPassword = payload?.adminPassword || DEFAULT_ADMIN_PASSWORD;
+      state.tripPlanPassword = payload?.tripPlanPassword || DEFAULT_ADMIN_PASSWORD;
       state.adminPasswordHash = payload?.adminPasswordHash || getLocalAdminPasswordHash() || "";
       if (state.adminPasswordHash) saveLocalAdminPasswordHash(state.adminPasswordHash);
+      state.tripPlanPasswordHash = payload?.tripPlanPasswordHash || getLocalTripPlanPasswordHash() || "";
+      if (state.tripPlanPasswordHash) saveLocalTripPlanPasswordHash(state.tripPlanPasswordHash);
       state.recoveryCodeHash = payload?.recoveryCodeHash || getLocalRecoveryCodeHash() || "";
       if (state.recoveryCodeHash) saveLocalRecoveryCodeHash(state.recoveryCodeHash);
       state.waitingExpireHours = expireHours;
@@ -2245,6 +2279,30 @@ function renderAll() {
       });
     }
 
+    async function saveTripPlanPasswordRemote(nextPassword) {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        tripPlanPassword: nextPassword,
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveTripPlanPasswordRemote",
+        permissionMessage: "산행계획 비밀번호 저장 권한이 없습니다.",
+        genericMessage: "산행계획 비밀번호 저장 실패"
+      });
+    }
+
+    async function saveTripPlanPasswordHashRemote(nextHash) {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        tripPlanPasswordHash: nextHash,
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveTripPlanPasswordHashRemote",
+        permissionMessage: "산행계획 비밀번호 해시 저장 권한이 없습니다.",
+        genericMessage: "산행계획 비밀번호 해시 저장 실패"
+      });
+    }
+
     async function saveWaitingExpireHoursRemote(nextHours) {
       if (!state.db) return false;
       return safeUpdate(ref(state.db, ROOT_PATH), {
@@ -2297,7 +2355,9 @@ function renderAll() {
         seats: payload.seats,
         busInfo: { ...defaultBusInfo, ...(currentData.busInfo || state.busInfo || {}) },
         adminPassword: currentData.adminPassword || state.adminPassword || DEFAULT_ADMIN_PASSWORD,
+        tripPlanPassword: currentData.tripPlanPassword || state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD,
         adminPasswordHash: currentData.adminPasswordHash || state.adminPasswordHash || getLocalAdminPasswordHash() || "",
+        tripPlanPasswordHash: currentData.tripPlanPasswordHash || state.tripPlanPasswordHash || getLocalTripPlanPasswordHash() || "",
         recoveryCodeHash: currentData.recoveryCodeHash || state.recoveryCodeHash || getLocalRecoveryCodeHash() || "",
         waitingExpireHours: Number(currentData.waitingExpireHours ?? state.waitingExpireHours ?? DEFAULT_WAITING_EXPIRE_HOURS) || DEFAULT_WAITING_EXPIRE_HOURS,
         nameEntryLocked: Boolean(currentData.nameEntryLocked ?? state.nameEntryLocked),
@@ -2554,11 +2614,11 @@ function renderAll() {
     }
 
 
-    async function openTripPlanWithAdminPassword() {
+    async function openTripPlanWithIndependentPassword() {
       const pwInput = byId("adminPasswordInput");
       const normalizedInput = pwInput?.value.trim() || "";
       if (!normalizedInput) {
-        alert("관리자 비밀번호를 입력하세요.");
+        alert("산행계획 비밀번호를 입력하세요.");
         if (pwInput) pwInput.focus();
         return;
       }
@@ -2567,23 +2627,23 @@ function renderAll() {
       let loginOk = false;
 
       if (state.isFirebaseReady && state.db) {
-        const serverHash = state.adminPasswordHash || "";
+        const serverHash = state.tripPlanPasswordHash || "";
         if (serverHash) {
           loginOk = (typedHash === serverHash);
         } else {
-          loginOk = (normalizedInput === (state.adminPassword || DEFAULT_ADMIN_PASSWORD));
+          loginOk = (normalizedInput === (state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD));
         }
       } else {
-        const localHash = getLocalAdminPasswordHash();
+        const localHash = getLocalTripPlanPasswordHash();
         if (localHash) {
           loginOk = (typedHash === localHash);
         } else {
-          loginOk = (normalizedInput === (state.adminPassword || DEFAULT_ADMIN_PASSWORD));
+          loginOk = (normalizedInput === (state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD));
         }
       }
 
       if (!loginOk) {
-        alert("관리자 비밀번호가 올바르지 않습니다.");
+        alert("산행계획 비밀번호가 올바르지 않습니다.");
         if (pwInput) {
           pwInput.focus();
           pwInput.select();
@@ -2650,6 +2710,49 @@ function renderAll() {
       }
 
       alert("관리자 비밀번호가 변경되었습니다.");
+    }
+
+    async function handleChangeTripPlanPassword() {
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+
+      const input = byId("newTripPlanPassword");
+      const nextPassword = input?.value.trim() || "";
+      if (!nextPassword) {
+        alert("새 산행계획 비밀번호를 입력하세요.");
+        return;
+      }
+
+      const nextHash = await sha256Hex(nextPassword);
+      const previousPassword = state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD;
+      const previousHash = state.tripPlanPasswordHash || getLocalTripPlanPasswordHash() || "";
+
+      state.tripPlanPassword = nextPassword;
+      state.tripPlanPasswordHash = nextHash;
+      saveLocalTripPlanPasswordHash(nextHash);
+
+      if (input) input.value = "";
+      flashSaveVisuals(null, "changeTripPlanPasswordBtn");
+      renderPanels();
+
+      if (state.isFirebaseReady && state.db) {
+        const okPassword = await saveTripPlanPasswordRemote(nextPassword);
+        const okHash = await saveTripPlanPasswordHashRemote(nextHash);
+        if (!okPassword || !okHash) {
+          state.tripPlanPassword = previousPassword;
+          state.tripPlanPasswordHash = previousHash;
+          saveLocalTripPlanPasswordHash(previousHash);
+          renderPanels();
+          alert("산행계획 비밀번호 변경 권한이 없거나 저장에 실패했습니다.");
+          return;
+        }
+      } else {
+        setStatusMessage("Firebase 미연결 - 현재 기기 localStorage 기준으로 산행계획 비밀번호 저장", state.projectLabel);
+      }
+
+      alert("산행계획 비밀번호가 변경되었습니다.");
     }
 
     async function handleResetAdminPassword() {
@@ -3130,10 +3233,14 @@ function renderAll() {
         if (box) box.classList.remove("hidden");
       });
       bindIfPresent("changePasswordBtn", "click", handleChangeAdminPassword);
+      bindIfPresent("changeTripPlanPasswordBtn", "click", handleChangeTripPlanPassword);
       bindIfPresent("generateRecoveryCodeBtn", "click", handleGenerateRecoveryCode);
       bindIfPresent("saveWaitingExpireBtn", "click", handleSaveWaitingExpireHours);
       bindIfPresent("newAdminPassword", "keydown", async (e) => {
         if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("changePasswordBtn"); await handleChangeAdminPassword(); }
+      });
+      bindIfPresent("newTripPlanPassword", "keydown", async (e) => {
+        if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("changeTripPlanPasswordBtn"); await handleChangeTripPlanPassword(); }
       });
       bindIfPresent("waitingExpireHoursInput", "keydown", async (e) => {
         if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("saveWaitingExpireBtn"); await handleSaveWaitingExpireHours(); }
@@ -3148,7 +3255,7 @@ function renderAll() {
       bindIfPresent("resetInlineCancelBtn", "click", () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); });
       bindIfPresent("resetInlineConfirmBtn", "click", async () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); await executeReset(); });
       bindIfPresent("captureBoardBtn", "click", captureBoardArea);
-      bindIfPresent("tripScheduleBtn", "click", openTripPlanWithAdminPassword);
+      bindIfPresent("tripScheduleBtn", "click", openTripPlanWithIndependentPassword);
       // 👉 GitHub Pages에 있는 bus-route.html 열기 (주소를 실제 URL로 변경하세요)
       bindIfPresent("boardingPointBtn", "click", () => {
           window.location.href = "https://coretechms.github.io/bus-route/";
@@ -3207,6 +3314,11 @@ function renderAll() {
         const defaultHash = await sha256Hex(DEFAULT_ADMIN_PASSWORD);
         saveLocalAdminPasswordHash(defaultHash);
         state.adminPasswordHash = defaultHash;
+      }
+      if (!getLocalTripPlanPasswordHash()) {
+        const defaultTripHash = await sha256Hex(DEFAULT_ADMIN_PASSWORD);
+        saveLocalTripPlanPasswordHash(defaultTripHash);
+        state.tripPlanPasswordHash = defaultTripHash;
       }
       window.BusSeatNameBridge = window.BusSeatNameBridge || {
         storageKey: NAME_EXPORT_STORAGE_KEY,
