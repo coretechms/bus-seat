@@ -991,6 +991,8 @@
     const DEFAULT_WAITING_EXPIRE_HOURS = 48;
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
     const BOARD_IMAGE_MODE_STORAGE_KEY = "bus-seat-board-image-mode-v1";
+    const TRIP_PLAN_ACCESS_TICKET_KEY = "trip-plan-access-ticket-v1";
+    const TRIP_PLAN_ACCESS_TTL_MS = 500;
 
     const BUS_LAYOUTS = {
       "44": {
@@ -2614,6 +2616,18 @@ function renderAll() {
     }
 
 
+    function issueTripPlanAccessTicket() {
+      const payload = {
+        issuedAt: Date.now(),
+        expiresAt: Date.now() + TRIP_PLAN_ACCESS_TTL_MS,
+        source: "bus-seat",
+        version: 1,
+        nonce: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+      };
+      sessionStorage.setItem(TRIP_PLAN_ACCESS_TICKET_KEY, JSON.stringify(payload));
+      return payload;
+    }
+
     async function openTripPlanWithIndependentPassword() {
       const pwInput = byId("adminPasswordInput");
       const normalizedInput = pwInput?.value.trim() || "";
@@ -2652,9 +2666,11 @@ function renderAll() {
       }
 
       try {
-        sessionStorage.setItem("tripPlanAdminVerifiedPassword", normalizedInput);
+        issueTripPlanAccessTicket();
       } catch (error) {
-        console.warn("tripPlanAdminVerifiedPassword session save failed", error);
+        console.warn("trip plan access ticket session save failed", error);
+        alert("산행계획 입장권 생성에 실패했습니다. 다시 시도하세요.");
+        return;
       }
 
       window.location.href = "https://coretechms.github.io/trip-schedule/";
