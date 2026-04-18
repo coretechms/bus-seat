@@ -345,12 +345,6 @@
     .hidden { display: none !important; }
     .muted { color: #666; font-size: 12px; }
 
-    /* 회원 입력 모드에서 좌석선택/회원이름/입력취소 숨김 */
-    #memberPanel .member-input-row,
-    #memberPanel .member-cancel-row {
-      display: none !important;
-    }
-
     #memberPanel,
     #adminLoginPanel,
     #adminPanel,
@@ -752,6 +746,41 @@
       background-color: #EEECE0 !important;
     }
 
+
+    /* consolidated UI fixes */
+    #adminNameExportText {
+      min-height: 88px !important;
+      white-space: pre-wrap !important;
+      overflow-wrap: anywhere !important;
+      word-break: keep-all !important;
+      line-height: 1.6 !important;
+    }
+
+    #busInfoLocked {
+      white-space: pre-wrap !important;
+      overflow-wrap: anywhere !important;
+      word-break: keep-all !important;
+      line-height: 1.6 !important;
+      height: auto !important;
+    }
+
+    #infoSeatGuideText {
+      min-height: 80px;
+      overflow: hidden;
+      resize: none !important;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .mode-divider {
+      border-top: 0 !important;
+      padding-top: 14px;
+    }
+
+    body.member-mode #memberPanel .member-hide-in-ui {
+      display: none !important;
+    }
+
   </style>
 </head>
 <body>
@@ -799,7 +828,7 @@
           </div>
 
           <div id="memberPanel">
-            <div class="grid-2 member-input-row">
+            <div class="grid-2 member-hide-in-ui">
               <div>
                 
                 <select id="memberSeat"></select>
@@ -809,7 +838,7 @@
                 <input id="memberName" type="text" placeholder="회원 이름" />
               </div>
             </div>
-            <div class="member-cancel-row" style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+            <div id="memberActionRow" class="member-hide-in-ui" style="display:flex; gap:8px; align-items:center; margin-top:8px;">
               <button class="btn btn-outline" id="memberCancelBtn" type="button" style="flex:0 0 34%;">입력취소</button>
               <div class="status-box" style="margin-top:0; flex:1; min-width:0;">
                 <span><span class="online-dot"></span><strong id="connectionText">연결 준비중</strong></span>
@@ -925,18 +954,18 @@
               <div style="font-size:13px; font-weight:700; margin-bottom:8px;">좌석 이름 데이터</div>
               <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
                 <select id="adminNameExportType" style="flex:1; min-width:0;">
-                  <option value="line">줄바꿈 목록</option>
+                  <option value="line">가로 목록</option>
                   <option value="csv">CSV</option>
                   <option value="json">JSON</option>
                 </select>
                 <button class="btn btn-outline" id="copyNameExportBtn" type="button" style="width:38%;">복사</button>
               </div>
-              <textarea id="adminNameExportText" readonly style="width:100%; min-height:48px; height:auto; overflow:hidden; resize:none; background:#fff;"></textarea>
-              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 localStorage 와 window.BusSeatNameBridge 에 동시에 저장됩니다.</div>
+              <textarea id="adminNameExportText" readonly style="width:100%; min-height:88px; height:auto; overflow:hidden; resize:none; background:#fff; line-height:1.6; white-space:pre-wrap;"></textarea>
+              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 가로 정렬로 표시되며 localStorage 와 window.BusSeatNameBridge 에 동시에 저장됩니다.</div>
             </div>
           </div>
 
-          <div style="margin-top:16px; border-top:1px solid #e5e5e5; padding-top:14px;">
+          <div class="mode-divider" style="margin-top:16px; padding-top:14px;">
             
             <div id="busInfoLocked" class="notice">좌석을 변경 하려면 원하는 좌석을 선택후 이름을 입력 하면 [신규 파랑] [기존 주황] 으로 이름이 변경 됩니다 기존 좌석 취소는 하단의 좌석번호 를 찾아서 [ 입력 취소 ] 버튼을 누르면 됩니다.</div>
             <div id="busInfoEditor" class="hidden" style="margin-top:12px;">
@@ -1369,7 +1398,7 @@
           .map((seat) => ({ name: seat.name }));
       },
       toLine(records = this.buildRecords()) {
-        return records.map((item) => item.name).join("\n");
+        return records.map((item) => item.name).join("  ");
       },
       toCsv(records = this.buildRecords()) {
         const header = ["name"];
@@ -1419,6 +1448,7 @@
         if (textEl) {
           textEl.value = payload[selectedType] || payload.line;
           autoResizeNameExportText();
+      autoResizeTextarea(byId("infoSeatGuideText"), 80, 420);
         }
       }
     };
@@ -1702,6 +1732,8 @@
 
       if (memberTab) memberTab.classList.toggle("active", state.mode === "member");
       if (adminTab) adminTab.classList.toggle("active", state.mode === "admin");
+      document.body.classList.toggle("member-mode", state.mode === "member");
+      document.body.classList.toggle("admin-mode", state.mode === "admin");
 
       toggleHidden("memberPanel", state.mode !== "member");
       toggleHidden("adminLoginPanel", !(state.mode === "admin" && !state.isAdminAuthenticated));
@@ -1762,7 +1794,7 @@ const boardingPointBtn = byId("boardingPointBtn");
       if (infoAccountNumber) infoAccountNumber.value = state.busInfo.accountNumber;
       if (infoBankName) infoBankName.value = state.busInfo.bankName;
       if (infoAccountOwner) infoAccountOwner.value = state.busInfo.accountOwner;
-      if (infoSeatGuideText) infoSeatGuideText.value = state.busInfo.seatGuideText || "";
+      if (infoSeatGuideText) { infoSeatGuideText.value = state.busInfo.seatGuideText || ""; autoResizeTextarea(infoSeatGuideText, 80, 420); }
       if (busTypeSelect) busTypeSelect.value = state.busType;
 
       setStatusMessage(state.isFirebaseReady ? (state.canWrite ? " 실시간 연결됨" : "읽기 전용 연결") : "설정 대기중", state.projectLabel);
@@ -2022,6 +2054,13 @@ function renderAll() {
       const nextHeight = Math.max(48, Math.min(textEl.scrollHeight + 2, 420));
       textEl.style.height = `${nextHeight}px`;
       if (panelEl) panelEl.style.height = "auto";
+    }
+
+    function autoResizeTextarea(element, minHeight = 80, maxHeight = 420) {
+      if (!element) return;
+      element.style.height = "auto";
+      const nextHeight = Math.max(minHeight, Math.min(element.scrollHeight + 2, maxHeight));
+      element.style.height = `${nextHeight}px`;
     }
 
     function isPermissionError(error) {
@@ -3273,7 +3312,7 @@ function renderAll() {
       bindIfPresent("infoAccountNumber", "input", async (e) => { state.busInfo.accountNumber = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoBankName", "input", async (e) => { state.busInfo.bankName = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoAccountOwner", "input", async (e) => { state.busInfo.accountOwner = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
-      bindIfPresent("infoSeatGuideText", "input", async (e) => { state.busInfo.seatGuideText = e.target.value; renderPanels(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("infoSeatGuideText", "input", async (e) => { autoResizeTextarea(e.target, 80, 420); state.busInfo.seatGuideText = e.target.value; renderPanels(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("resetInlineCancelBtn", "click", () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); });
       bindIfPresent("resetInlineConfirmBtn", "click", async () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); await executeReset(); });
       bindIfPresent("captureBoardBtn", "click", captureBoardArea);
@@ -3297,7 +3336,7 @@ function renderAll() {
         alert("자동 복사가 지원되지 않아 아래 텍스트를 직접 복사하면 됩니다.");
       });
       document.querySelectorAll("button.btn[id]").forEach((btn) => btn.addEventListener("click", () => flashButton(btn.id)));
-      window.addEventListener("resize", autoResizeNameExportText);
+      window.addEventListener("resize", () => { autoResizeNameExportText(); autoResizeTextarea(byId("infoSeatGuideText"), 80, 420); });
     }
 
     async function initFirebase() {
