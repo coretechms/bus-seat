@@ -345,6 +345,12 @@
     .hidden { display: none !important; }
     .muted { color: #666; font-size: 12px; }
 
+    /* 회원 입력 모드에서 좌석선택/회원이름/입력취소 숨김 */
+    #memberPanel .member-input-row,
+    #memberPanel .member-cancel-row {
+      display: none !important;
+    }
+
     #memberPanel,
     #adminLoginPanel,
     #adminPanel,
@@ -793,7 +799,7 @@
           </div>
 
           <div id="memberPanel">
-            <div class="grid-2">
+            <div class="grid-2 member-input-row">
               <div>
                 
                 <select id="memberSeat"></select>
@@ -803,7 +809,7 @@
                 <input id="memberName" type="text" placeholder="회원 이름" />
               </div>
             </div>
-            <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+            <div class="member-cancel-row" style="display:flex; gap:8px; align-items:center; margin-top:8px;">
               <button class="btn btn-outline" id="memberCancelBtn" type="button" style="flex:0 0 34%;">입력취소</button>
               <div class="status-box" style="margin-top:0; flex:1; min-width:0;">
                 <span><span class="online-dot"></span><strong id="connectionText">연결 준비중</strong></span>
