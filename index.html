@@ -406,6 +406,32 @@
     }
     @media (max-width: 760px) {
       .app { padding: 12px; }
+      .card-title-row {
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .card-title-row > div:first-child {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-wrap: nowrap !important;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .card-title-row > div:first-child .card-title {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      #boardImageModeBtn,
+      #boardingPointBtn {
+        flex: 0 0 auto;
+        padding: 0 10px !important;
+        font-size: 10px !important;
+        white-space: nowrap !important;
+      }
+      .tabs {
+        flex: 0 0 auto;
+      }
       .alt-arrow-cell { height: 37px; }
       .alt-wide-cell { height: 28px; }
       .shell { width: 100%; max-width: 100%; height: calc(100vh - 20px); gap: 0; }
@@ -817,10 +843,10 @@
       <div class="controls">
         <div class="card">
           <div class="card-title-row">
-            <div style="display:flex; align-items:center; gap:8px; min-width:0; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px; min-width:0;">
               <div class="card-title" style="margin:0;">좌석 등록</div>
-              <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 14px; font-size:9px; white-space:nowrap;">화면반전</button>
-              <button class="btn btn-outline" id="boardingPointBtn" type="button" style="height:28px; padding:0 14px; font-size:9px; white-space:nowrap;">탑승지</button>
+              <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 14px; white-space:nowrap;">화면반전</button>
+              <button class="btn btn-outline" id="boardingPointBtn" type="button" style="height:28px; padding:0 14px; font-size:10px; white-space:nowrap;">탑승지</button>
             </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
