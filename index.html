@@ -772,7 +772,6 @@
       background-color: #EEECE0 !important;
     }
 
-
     /* consolidated UI fixes */
     #adminNameExportText {
       min-height: 88px !important;
@@ -968,13 +967,11 @@
               <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button">복구코드 생성</button>
             </div>
 
-
             
 
             
 
             
-
 
             
 
@@ -989,7 +986,7 @@
                 <button class="btn btn-outline" id="copyNameExportBtn" type="button" style="width:38%;">복사</button>
               </div>
               <textarea id="adminNameExportText" readonly style="width:100%; min-height:88px; height:auto; overflow:hidden; resize:none; background:#fff; line-height:1.6; white-space:pre-wrap;"></textarea>
-              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 localStorage 와 window.BusSeatNameBridge 에 저장됩니다. 멤버 페이지는 Firebase busSeatApp/seats 원본을 직접 실시간으로 읽습니다.</div>
+              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 localStorage 와 window.BusSeatNameBridge 에 저장됩니다. 멤버 버튼은 membel-list 페이지를 열기만 합니다.</div>
             </div>
           </div>
 
@@ -1051,10 +1048,6 @@
     const ADMIN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-admin-password-hash-v1";
     const TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-trip-plan-password-hash-v1";
     const ROOT_PATH = "busSeatApp";
-    const MEMBER_LIST_SYNC_PATH = `${ROOT_PATH}/memberList`;
-    const MEMBER_LIST_LEGACY_SYNC_PATH = "memberList/main";
-    const MEMBER_LIST_SYNC_PATHS = [MEMBER_LIST_SYNC_PATH, MEMBER_LIST_LEGACY_SYNC_PATH];
-    let memberListSyncTimer = null;
     const DEFAULT_WAITING_EXPIRE_HOURS = 48;
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
     const BOARD_IMAGE_MODE_STORAGE_KEY = "bus-seat-board-image-mode-v1";
@@ -1477,7 +1470,6 @@
           getAll: () => payload
         };
         window.dispatchEvent(new CustomEvent("bus-seat-name-export-updated", { detail: payload }));
-        pushMemberListRealtimeSync("name-bridge-sync");
         if (textEl) {
           textEl.value = payload[selectedType] || payload.line;
           autoResizeNameExportText();
@@ -1485,115 +1477,6 @@
         }
       }
     };
-
-
-    function buildMemberListTableDataFromSeats() {
-      const headers = ["직 책","이 름","성별","출생년도","주민번호","연락처","비상연락처<br>( 가족 )","구","거주지","집","배우자","닉네임","버스타는곳","참석  ○ △ Χ","연관검색","연관검색","연관검색","전임직책","전임총무"];
-      const colWidths = [72,78,45,57,78,118,118,54,86,133,72,94,141,86,70,110,62,70,94];
-      const headerCells = headers.map((h) => ({
-        html: h,
-        tag: "th",
-        className: "header-cell",
-        style: "font-weight:700;font-size:12px;text-align:center;vertical-align:middle;white-space:nowrap;overflow-wrap:normal;word-break:keep-all;"
-      }));
-      const nameRows = state.seats
-        .filter((seat) => !isBlockedSeat(seat.number) && String(seat.name || "").trim() !== "")
-        .map((seat, index) => {
-          const row = headers.map(() => ({
-            html: "",
-            tag: "td",
-            className: "",
-            style: "font-size:12px;text-align:center;vertical-align:middle;white-space:nowrap;overflow-wrap:normal;word-break:keep-all;"
-          }));
-          row[0].html = "";
-          row[1].html = escapeHtml(seat.name || "");
-          row[11].html = "";
-          row[12].html = `${getSeatDisplayNumber(seat.number)}번`;
-          row[13].html = escapeHtml(statusLabel(seat.status) || "");
-          row[14].html = `좌석${getSeatDisplayNumber(seat.number)}`;
-          row[15].html = String(seat.number);
-          row[16].html = state.busType;
-          return {
-            name: String(seat.name || ""),
-            row,
-            index
-          };
-        })
-        .sort((a, b) => {
-          const cmp = a.name.localeCompare(b.name, "ko-KR", { sensitivity: "base", numeric: true });
-          return cmp !== 0 ? cmp : a.index - b.index;
-        });
-      const rows = [headerCells, ...nameRows.map((item) => item.row)];
-      for (let i = rows.length; i < 21; i += 1) {
-        rows.push(headers.map(() => ({
-          html: "",
-          tag: "td",
-          className: "",
-          style: "font-size:12px;text-align:center;vertical-align:middle;white-space:nowrap;overflow-wrap:normal;word-break:keep-all;"
-        })));
-      }
-      return {
-        cols: colWidths.map((w) => `width:${w}px`),
-        rows,
-        updatedAt: new Date().toISOString()
-      };
-    }
-
-    async function writeMemberListRealtimeNow(reason = "bus-seat-sync") {
-      if (!state.db || !state.isFirebaseReady) {
-        console.warn("member-list sync skipped: firebase not ready");
-        return false;
-      }
-      const tableData = buildMemberListTableDataFromSeats();
-      const names = state.seats
-        .filter((seat) => !isBlockedSeat(seat.number) && String(seat.name || "").trim() !== "")
-        .map((seat) => ({
-          name: seat.name,
-          seatNumber: seat.number,
-          displaySeatNumber: getSeatDisplayNumber(seat.number),
-          status: seat.status || "empty",
-          statusLabel: statusLabel(seat.status) || "",
-          updatedAt: seat.updatedAt || 0
-        }));
-      const payload = {
-        type: "member-list-table-data",
-        version: "bus-seat-realtime-dualpath-1.0",
-        source: "bus-seat",
-        reason,
-        busType: state.busType,
-        totalCount: names.length,
-        updatedAt: Date.now(),
-        updatedAtISO: new Date().toISOString(),
-        names,
-        data: tableData
-      };
-
-      const results = await Promise.allSettled(
-        MEMBER_LIST_SYNC_PATHS.map((path) => set(ref(state.db, path), payload).then(() => path))
-      );
-      const okPaths = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
-      const failCount = results.length - okPaths.length;
-
-      if (okPaths.length) {
-        console.log("member-list realtime sync ok:", okPaths.join(", "), reason, names.length);
-        setStatusMessage(`회원명부 동기화 완료(${okPaths[0]})`, state.projectLabel);
-        return true;
-      }
-      console.error("member-list realtime sync failed all paths:", results);
-      setStatusMessage("회원명부 동기화 실패", state.projectLabel);
-      return false;
-    }
-
-    function pushMemberListRealtimeSync(reason = "bus-seat-sync", immediate = false) {
-      if (immediate) return writeMemberListRealtimeNow(reason);
-      window.clearTimeout(memberListSyncTimer);
-      memberListSyncTimer = window.setTimeout(() => {
-        writeMemberListRealtimeNow(reason);
-      }, 350);
-      return true;
-    }
-
-
     function isBlockedSeatFor(busType, seatNumber) {
       return (BUS_LAYOUTS[busType]?.blockedSeats || []).includes(Number(seatNumber));
     }
@@ -1974,7 +1857,6 @@
       });
     }
 
-
     function showNoticeDialog(message, title = "오타알림") {
       return new Promise((resolve) => {
         const existing = document.getElementById("noticeDialogOverlay");
@@ -2023,7 +1905,6 @@
         setTimeout(() => okBtn?.focus(), 0);
       });
     }
-
 
     function getLocalAdminPasswordHash() {
       try {
@@ -2138,7 +2019,6 @@ async function sha256Hex(value) {
         genericMessage: "비밀번호 해시 저장 실패"
       });
     }
-
 
     async function handleGenerateRecoveryCode() {
       if (!state.isAdminAuthenticated) {
@@ -2716,7 +2596,6 @@ function renderAll() {
         return;
       }
       flashSaveVisuals(seatNo, "memberSaveBtn");
-      pushMemberListRealtimeSync("member-save-committed", true);
     }
 
     async function executeMemberCancel() {
@@ -2760,7 +2639,6 @@ function renderAll() {
         return;
       }
       flashSaveVisuals(targetSeatNo, "memberCancelBtn");
-      pushMemberListRealtimeSync("member-cancel-committed", true);
     }
 
     async function handleAdminLogin() {
@@ -2800,7 +2678,6 @@ function renderAll() {
       if (pwInput) pwInput.value = "";
       renderAll();
     }
-
 
     function issueTripPlanAccessTicket() {
       const payload = {
@@ -3157,7 +3034,6 @@ function renderAll() {
         return;
       }
       flashSaveVisuals(seatNo, "adminSaveBtnTop");
-      pushMemberListRealtimeSync("admin-save-committed", true);
     }
 
     async function handleAdminClearSeat() {
@@ -3194,7 +3070,6 @@ function renderAll() {
         return;
       }
       flashSaveVisuals(seatNo, "adminClearSeatBtn");
-      pushMemberListRealtimeSync("admin-clear-committed", true);
     }
 
     async function handleAdminMarkNamedPaid() {
@@ -3253,7 +3128,6 @@ function renderAll() {
       renderAll();
       const ok = await resetAllSeatsRemote();
       if (!ok) alert("전체 초기화 권한이 없습니다.");
-      else pushMemberListRealtimeSync("reset-committed", true);
     }
 
     function bindIfPresent(id, event, handler) {
@@ -3270,7 +3144,6 @@ function renderAll() {
       link.download = "bus-seat-capture.png";
       link.click();
     }
-
 
     function handleBoardImageModeToggle() {
       if (state.busType !== "44") {
@@ -3461,18 +3334,7 @@ function renderAll() {
       bindIfPresent("resetInlineConfirmBtn", "click", async () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); await executeReset(); });
       bindIfPresent("captureBoardBtn", "click", captureBoardArea);
       bindIfPresent("tripScheduleBtn", "click", openTripPlanWithIndependentPassword);
-      bindIfPresent("memberListBtn", "click", async () => {
-        try {
-          if (state.db && state.isFirebaseReady) {
-            await safeUpdate(ref(state.db, `${ROOT_PATH}/meta`), { memberListOpenAt: Date.now(), updatedAt: Date.now() }, {
-              label: "memberListOpenTouch",
-              permissionMessage: "멤버 페이지 진입 동기화 권한이 없습니다.",
-              genericMessage: "멤버 페이지 진입 동기화 실패"
-            });
-          }
-        } catch (error) {
-          console.warn("member list open sync touch failed", error);
-        }
+      bindIfPresent("memberListBtn", "click", () => {
         window.location.href = "https://coretechms.github.io/memble-list/";
       });
       // 👉 GitHub Pages에 있는 bus-route.html 열기 (주소를 실제 URL로 변경하세요)
@@ -3521,7 +3383,6 @@ function renderAll() {
       try {
         const initialized = await ensureInitialData();
         setStatusMessage(initialized ? "실시간 연결됨" : "읽기 전용 연결", state.projectLabel);
-        pushMemberListRealtimeSync("firebase-init");
       } catch (error) {
         console.error("ensureInitialData failed", error);
         state.canWrite = false;
@@ -3560,7 +3421,6 @@ function renderAll() {
     init();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
 
 </body>
 </html>
