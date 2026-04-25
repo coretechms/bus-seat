@@ -989,7 +989,7 @@
                 <button class="btn btn-outline" id="copyNameExportBtn" type="button" style="width:38%;">복사</button>
               </div>
               <textarea id="adminNameExportText" readonly style="width:100%; min-height:88px; height:auto; overflow:hidden; resize:none; background:#fff; line-height:1.6; white-space:pre-wrap;"></textarea>
-              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 가로 정렬로 표시되며 localStorage, window.BusSeatNameBridge, Firebase busSeatApp/memberList 에 동시에 저장됩니다.</div>
+              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 가로 정렬로 표시되며 localStorage, window.BusSeatNameBridge, Firebase busSeatApp/memberList 및 memberList/main 에 동시에 저장됩니다.</div>
             </div>
           </div>
 
@@ -1052,6 +1052,8 @@
     const TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-trip-plan-password-hash-v1";
     const ROOT_PATH = "busSeatApp";
     const MEMBER_LIST_SYNC_PATH = `${ROOT_PATH}/memberList`;
+    const MEMBER_LIST_LEGACY_SYNC_PATH = "memberList/main";
+    const MEMBER_LIST_SYNC_PATHS = [MEMBER_LIST_SYNC_PATH, MEMBER_LIST_LEGACY_SYNC_PATH];
     let memberListSyncTimer = null;
     const DEFAULT_WAITING_EXPIRE_HOURS = 48;
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
@@ -1542,39 +1544,44 @@
         console.warn("member-list sync skipped: firebase not ready");
         return false;
       }
-      try {
-        const tableData = buildMemberListTableDataFromSeats();
-        const names = state.seats
-          .filter((seat) => !isBlockedSeat(seat.number) && String(seat.name || "").trim() !== "")
-          .map((seat) => ({
-            name: seat.name,
-            seatNumber: seat.number,
-            displaySeatNumber: getSeatDisplayNumber(seat.number),
-            status: seat.status || "empty",
-            statusLabel: statusLabel(seat.status) || "",
-            updatedAt: seat.updatedAt || 0
-          }));
+      const tableData = buildMemberListTableDataFromSeats();
+      const names = state.seats
+        .filter((seat) => !isBlockedSeat(seat.number) && String(seat.name || "").trim() !== "")
+        .map((seat) => ({
+          name: seat.name,
+          seatNumber: seat.number,
+          displaySeatNumber: getSeatDisplayNumber(seat.number),
+          status: seat.status || "empty",
+          statusLabel: statusLabel(seat.status) || "",
+          updatedAt: seat.updatedAt || 0
+        }));
+      const payload = {
+        type: "member-list-table-data",
+        version: "bus-seat-realtime-dualpath-1.0",
+        source: "bus-seat",
+        reason,
+        busType: state.busType,
+        totalCount: names.length,
+        updatedAt: Date.now(),
+        updatedAtISO: new Date().toISOString(),
+        names,
+        data: tableData
+      };
 
-        await set(ref(state.db, MEMBER_LIST_SYNC_PATH), {
-          type: "member-list-table-data",
-          version: "bus-seat-realtime-2.0",
-          source: "bus-seat",
-          reason,
-          busType: state.busType,
-          totalCount: names.length,
-          updatedAt: Date.now(),
-          updatedAtISO: new Date().toISOString(),
-          names,
-          data: tableData
-        });
+      const results = await Promise.allSettled(
+        MEMBER_LIST_SYNC_PATHS.map((path) => set(ref(state.db, path), payload).then(() => path))
+      );
+      const okPaths = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
+      const failCount = results.length - okPaths.length;
 
-        console.log("member-list realtime sync ok:", MEMBER_LIST_SYNC_PATH, reason, names.length);
+      if (okPaths.length) {
+        console.log("member-list realtime sync ok:", okPaths.join(", "), reason, names.length);
+        setStatusMessage(`회원명부 동기화 완료(${okPaths[0]})`, state.projectLabel);
         return true;
-      } catch (error) {
-        console.error("member-list realtime sync failed", MEMBER_LIST_SYNC_PATH, error);
-        setStatusMessage("회원명부 동기화 실패", state.projectLabel);
-        return false;
       }
+      console.error("member-list realtime sync failed all paths:", results);
+      setStatusMessage("회원명부 동기화 실패", state.projectLabel);
+      return false;
     }
 
     function pushMemberListRealtimeSync(reason = "bus-seat-sync", immediate = false) {
@@ -2753,6 +2760,7 @@ function renderAll() {
         return;
       }
       flashSaveVisuals(targetSeatNo, "memberCancelBtn");
+      pushMemberListRealtimeSync("member-cancel-committed", true);
     }
 
     async function handleAdminLogin() {
