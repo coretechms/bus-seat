@@ -1048,8 +1048,6 @@
     const ADMIN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-admin-password-hash-v1";
     const TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-trip-plan-password-hash-v1";
     const ROOT_PATH = "busSeatApp";
-    const ADMIN_AUTH_PATH = `${ROOT_PATH}/adminAuth`;
-    const TRIP_AUTH_PATH = `${ROOT_PATH}/tripAuth`;
     const DEFAULT_WAITING_EXPIRE_HOURS = 48;
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
     const BOARD_IMAGE_MODE_STORAGE_KEY = "bus-seat-board-image-mode-v1";
@@ -1291,8 +1289,6 @@
         tripPlanPassword: DEFAULT_ADMIN_PASSWORD,
         waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
         nameEntryLocked: false,
-        adminAuth: { passwordHash: "", recoveryCodeHash: "", updatedAt: Date.now() },
-        tripAuth: { passwordHash: "", updatedAt: Date.now() },
         meta: { createdAt: Date.now(), updatedAt: Date.now() }
       };
     }
@@ -1951,35 +1947,6 @@
     }
 
     async function getEffectiveAdminPasswordHash() {
-      if (state.db && state.isFirebaseReady) {
-        try {
-          const adminAuthSnap = await get(ref(state.db, ADMIN_AUTH_PATH));
-          const adminAuth = adminAuthSnap.exists() ? adminAuthSnap.val() : null;
-          if (adminAuth?.passwordHash) {
-            state.adminPasswordHash = adminAuth.passwordHash;
-            saveLocalAdminPasswordHash(adminAuth.passwordHash);
-            return adminAuth.passwordHash;
-          }
-
-          const rootSnap = await get(ref(state.db, ROOT_PATH));
-          const root = rootSnap.exists() ? rootSnap.val() : null;
-          if (root?.adminPasswordHash) {
-            state.adminPasswordHash = root.adminPasswordHash;
-            saveLocalAdminPasswordHash(root.adminPasswordHash);
-            return root.adminPasswordHash;
-          }
-          if (root?.adminPassword) {
-            const rootHash = await sha256Hex(root.adminPassword);
-            state.adminPasswordHash = rootHash;
-            saveLocalAdminPasswordHash(rootHash);
-            await saveAdminPasswordHashRemote(rootHash);
-            return rootHash;
-          }
-        } catch (error) {
-          console.warn("admin password remote read failed", error);
-        }
-      }
-
       if (state.adminPasswordHash) return state.adminPasswordHash;
       const localHash = getLocalAdminPasswordHash();
       if (localHash) return localHash;
@@ -2031,18 +1998,10 @@ async function sha256Hex(value) {
 
     async function saveRecoveryCodeRemote(nextHash) {
       if (!state.db) return false;
-      const now = Date.now();
       return safeUpdate(ref(state.db, ROOT_PATH), {
         recoveryCodeHash: nextHash,
-        "adminAuth/recoveryCodeHash": nextHash,
-        "adminAuth/recoveryUpdatedAt": now,
-        "meta/updatedAt": now
+        "meta/updatedAt": Date.now()
       }, {
-        label: "saveRecoveryCodeRemote",
-        permissionMessage: "복구코드 저장 권한이 없습니다.",
-        genericMessage: "복구코드 저장 실패"
-      });
-    }, {
         label: "saveRecoveryCodeRemote",
         permissionMessage: "복구코드 저장 권한이 없습니다.",
         genericMessage: "복구코드 저장 실패"
@@ -2051,21 +2010,14 @@ async function sha256Hex(value) {
 
     async function saveAdminPasswordHashRemote(nextHash) {
       if (!state.db) return false;
-      const now = Date.now();
-
-      const rootOk = await safeUpdate(ref(state.db, ROOT_PATH), {
+      return safeUpdate(ref(state.db, ROOT_PATH), {
         adminPasswordHash: nextHash,
-        "adminAuth/passwordHash": nextHash,
-        "adminAuth/updatedAt": now,
-        "adminAuth/updatedAtISO": new Date(now).toISOString(),
-        "meta/updatedAt": now
+        "meta/updatedAt": Date.now()
       }, {
         label: "saveAdminPasswordHashRemote",
         permissionMessage: "비밀번호 해시 저장 권한이 없습니다.",
         genericMessage: "비밀번호 해시 저장 실패"
       });
-
-      return rootOk;
     }
 
     async function handleGenerateRecoveryCode() {
@@ -2209,15 +2161,11 @@ function renderAll() {
       state.busInfo = { ...defaultBusInfo, ...(payload?.busInfo || {}) };
       state.adminPassword = payload?.adminPassword || DEFAULT_ADMIN_PASSWORD;
       state.tripPlanPassword = payload?.tripPlanPassword || DEFAULT_ADMIN_PASSWORD;
-
-      const remoteAdminAuth = payload?.adminAuth || {};
-      state.adminPasswordHash = remoteAdminAuth.passwordHash || payload?.adminPasswordHash || getLocalAdminPasswordHash() || "";
+      state.adminPasswordHash = payload?.adminPasswordHash || getLocalAdminPasswordHash() || "";
       if (state.adminPasswordHash) saveLocalAdminPasswordHash(state.adminPasswordHash);
-
-      state.tripPlanPasswordHash = payload?.tripAuth?.passwordHash || payload?.tripPlanPasswordHash || getLocalTripPlanPasswordHash() || "";
+      state.tripPlanPasswordHash = payload?.tripPlanPasswordHash || getLocalTripPlanPasswordHash() || "";
       if (state.tripPlanPasswordHash) saveLocalTripPlanPasswordHash(state.tripPlanPasswordHash);
-
-      state.recoveryCodeHash = remoteAdminAuth.recoveryCodeHash || payload?.recoveryCodeHash || getLocalRecoveryCodeHash() || "";
+      state.recoveryCodeHash = payload?.recoveryCodeHash || getLocalRecoveryCodeHash() || "";
       if (state.recoveryCodeHash) saveLocalRecoveryCodeHash(state.recoveryCodeHash);
       state.waitingExpireHours = expireHours;
       state.nameEntryLocked = Boolean(payload?.nameEntryLocked);
@@ -2387,11 +2335,9 @@ function renderAll() {
 
     async function saveAdminPasswordRemote(nextPassword) {
       if (!state.db) return false;
-      const now = Date.now();
       return safeUpdate(ref(state.db, ROOT_PATH), {
         adminPassword: nextPassword,
-        "adminAuth/legacyPasswordUpdatedAt": now,
-        "meta/updatedAt": now
+        "meta/updatedAt": Date.now()
       }, {
         label: "saveAdminPasswordRemote",
         permissionMessage: "관리자 비밀번호 저장 권한이 없습니다.",
@@ -2828,14 +2774,14 @@ function renderAll() {
       renderPanels();
 
       if (state.isFirebaseReady && state.db) {
-        const okHash = await saveAdminPasswordHashRemote(nextHash);
         const okPassword = await saveAdminPasswordRemote(nextPassword);
-        if (!okHash) {
+        const okHash = await saveAdminPasswordHashRemote(nextHash);
+        if (!okPassword || !okHash) {
           state.adminPassword = previousPassword;
           state.adminPasswordHash = previousHash;
           saveLocalAdminPasswordHash(previousHash);
           renderPanels();
-          alert("비밀번호 변경 권한이 없거나 Firebase 저장에 실패했습니다.");
+          alert("비밀번호 변경 권한이 없거나 저장에 실패했습니다.");
           return;
         }
       } else {
@@ -2927,14 +2873,14 @@ function renderAll() {
         return;
       }
 
-      const okHash = await saveAdminPasswordHashRemote(nextHash);
       const okPassword = await saveAdminPasswordRemote(nextPassword);
-      if (!okHash) {
+      const okHash = await saveAdminPasswordHashRemote(nextHash);
+      if (!okPassword || !okHash) {
         state.adminPassword = previousPassword;
         state.adminPasswordHash = previousHash;
         saveLocalAdminPasswordHash(previousHash);
         renderPanels();
-        alert("비밀번호 초기화 권한이 없거나 Firebase 저장에 실패했습니다.");
+        alert("비밀번호 초기화 권한이 없거나 저장에 실패했습니다.");
         return;
       }
 
@@ -3437,17 +3383,6 @@ function renderAll() {
       try {
         const initialized = await ensureInitialData();
         setStatusMessage(initialized ? "실시간 연결됨" : "읽기 전용 연결", state.projectLabel);
-        try {
-          const effectiveHash = await getEffectiveAdminPasswordHash();
-          if (effectiveHash) await saveAdminPasswordHashRemote(effectiveHash);
-          const recoveryHash = getLocalRecoveryCodeHash();
-          if (recoveryHash && !state.recoveryCodeHash) {
-            state.recoveryCodeHash = recoveryHash;
-            await saveRecoveryCodeRemote(recoveryHash);
-          }
-        } catch (syncError) {
-          console.warn("admin auth bootstrap sync failed", syncError);
-        }
       } catch (error) {
         console.error("ensureInitialData failed", error);
         state.canWrite = false;
