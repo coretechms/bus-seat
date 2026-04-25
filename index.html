@@ -989,7 +989,7 @@
                 <button class="btn btn-outline" id="copyNameExportBtn" type="button" style="width:38%;">복사</button>
               </div>
               <textarea id="adminNameExportText" readonly style="width:100%; min-height:88px; height:auto; overflow:hidden; resize:none; background:#fff; line-height:1.6; white-space:pre-wrap;"></textarea>
-              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 가로 정렬로 표시되며 localStorage, window.BusSeatNameBridge, Firebase busSeatApp/memberList 및 memberList/main 에 동시에 저장됩니다.</div>
+              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 localStorage 와 window.BusSeatNameBridge 에 저장됩니다. 멤버 페이지는 Firebase busSeatApp/seats 원본을 직접 실시간으로 읽습니다.</div>
             </div>
           </div>
 
@@ -3462,7 +3462,17 @@ function renderAll() {
       bindIfPresent("captureBoardBtn", "click", captureBoardArea);
       bindIfPresent("tripScheduleBtn", "click", openTripPlanWithIndependentPassword);
       bindIfPresent("memberListBtn", "click", async () => {
-        await pushMemberListRealtimeSync("member-button-open", true);
+        try {
+          if (state.db && state.isFirebaseReady) {
+            await safeUpdate(ref(state.db, `${ROOT_PATH}/meta`), { memberListOpenAt: Date.now(), updatedAt: Date.now() }, {
+              label: "memberListOpenTouch",
+              permissionMessage: "멤버 페이지 진입 동기화 권한이 없습니다.",
+              genericMessage: "멤버 페이지 진입 동기화 실패"
+            });
+          }
+        } catch (error) {
+          console.warn("member list open sync touch failed", error);
+        }
         window.location.href = "https://coretechms.github.io/memble-list/";
       });
       // 👉 GitHub Pages에 있는 bus-route.html 열기 (주소를 실제 URL로 변경하세요)
