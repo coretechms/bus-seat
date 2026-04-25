@@ -989,7 +989,7 @@
                 <button class="btn btn-outline" id="copyNameExportBtn" type="button" style="width:38%;">복사</button>
               </div>
               <textarea id="adminNameExportText" readonly style="width:100%; min-height:88px; height:auto; overflow:hidden; resize:none; background:#fff; line-height:1.6; white-space:pre-wrap;"></textarea>
-              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 가로 정렬로 표시되며 localStorage, window.BusSeatNameBridge, Firebase memberList/main 에 동시에 저장됩니다.</div>
+              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 가로 정렬로 표시되며 localStorage, window.BusSeatNameBridge, Firebase busSeatApp/memberList 에 동시에 저장됩니다.</div>
             </div>
           </div>
 
@@ -1051,7 +1051,7 @@
     const ADMIN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-admin-password-hash-v1";
     const TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-trip-plan-password-hash-v1";
     const ROOT_PATH = "busSeatApp";
-    const MEMBER_LIST_SYNC_PATH = "memberList/main";
+    const MEMBER_LIST_SYNC_PATH = `${ROOT_PATH}/memberList`;
     let memberListSyncTimer = null;
     const DEFAULT_WAITING_EXPIRE_HOURS = 48;
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
@@ -1537,38 +1537,53 @@
       };
     }
 
-    function pushMemberListRealtimeSync(reason = "bus-seat-sync") {
-      if (!state.db || !state.isFirebaseReady) return;
+    async function writeMemberListRealtimeNow(reason = "bus-seat-sync") {
+      if (!state.db || !state.isFirebaseReady) {
+        console.warn("member-list sync skipped: firebase not ready");
+        return false;
+      }
+      try {
+        const tableData = buildMemberListTableDataFromSeats();
+        const names = state.seats
+          .filter((seat) => !isBlockedSeat(seat.number) && String(seat.name || "").trim() !== "")
+          .map((seat) => ({
+            name: seat.name,
+            seatNumber: seat.number,
+            displaySeatNumber: getSeatDisplayNumber(seat.number),
+            status: seat.status || "empty",
+            statusLabel: statusLabel(seat.status) || "",
+            updatedAt: seat.updatedAt || 0
+          }));
+
+        await set(ref(state.db, MEMBER_LIST_SYNC_PATH), {
+          type: "member-list-table-data",
+          version: "bus-seat-realtime-2.0",
+          source: "bus-seat",
+          reason,
+          busType: state.busType,
+          totalCount: names.length,
+          updatedAt: Date.now(),
+          updatedAtISO: new Date().toISOString(),
+          names,
+          data: tableData
+        });
+
+        console.log("member-list realtime sync ok:", MEMBER_LIST_SYNC_PATH, reason, names.length);
+        return true;
+      } catch (error) {
+        console.error("member-list realtime sync failed", MEMBER_LIST_SYNC_PATH, error);
+        setStatusMessage("회원명부 동기화 실패", state.projectLabel);
+        return false;
+      }
+    }
+
+    function pushMemberListRealtimeSync(reason = "bus-seat-sync", immediate = false) {
+      if (immediate) return writeMemberListRealtimeNow(reason);
       window.clearTimeout(memberListSyncTimer);
-      memberListSyncTimer = window.setTimeout(async () => {
-        try {
-          const tableData = buildMemberListTableDataFromSeats();
-          const names = state.seats
-            .filter((seat) => !isBlockedSeat(seat.number) && String(seat.name || "").trim() !== "")
-            .map((seat) => ({
-              name: seat.name,
-              seatNumber: seat.number,
-              displaySeatNumber: getSeatDisplayNumber(seat.number),
-              status: seat.status || "empty",
-              statusLabel: statusLabel(seat.status) || "",
-              updatedAt: seat.updatedAt || 0
-            }));
-          await set(ref(state.db, MEMBER_LIST_SYNC_PATH), {
-            type: "member-list-table-data",
-            version: "bus-seat-realtime-1.0",
-            source: "bus-seat",
-            reason,
-            busType: state.busType,
-            totalCount: names.length,
-            updatedAt: Date.now(),
-            updatedAtISO: new Date().toISOString(),
-            names,
-            data: tableData
-          });
-        } catch (error) {
-          console.error("member-list realtime sync failed", error);
-        }
-      }, 600);
+      memberListSyncTimer = window.setTimeout(() => {
+        writeMemberListRealtimeNow(reason);
+      }, 350);
+      return true;
     }
 
 
@@ -2694,6 +2709,7 @@ function renderAll() {
         return;
       }
       flashSaveVisuals(seatNo, "memberSaveBtn");
+      pushMemberListRealtimeSync("member-save-committed", true);
     }
 
     async function executeMemberCancel() {
@@ -3133,6 +3149,7 @@ function renderAll() {
         return;
       }
       flashSaveVisuals(seatNo, "adminSaveBtnTop");
+      pushMemberListRealtimeSync("admin-save-committed", true);
     }
 
     async function handleAdminClearSeat() {
@@ -3169,6 +3186,7 @@ function renderAll() {
         return;
       }
       flashSaveVisuals(seatNo, "adminClearSeatBtn");
+      pushMemberListRealtimeSync("admin-clear-committed", true);
     }
 
     async function handleAdminMarkNamedPaid() {
@@ -3227,6 +3245,7 @@ function renderAll() {
       renderAll();
       const ok = await resetAllSeatsRemote();
       if (!ok) alert("전체 초기화 권한이 없습니다.");
+      else pushMemberListRealtimeSync("reset-committed", true);
     }
 
     function bindIfPresent(id, event, handler) {
@@ -3434,7 +3453,8 @@ function renderAll() {
       bindIfPresent("resetInlineConfirmBtn", "click", async () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); await executeReset(); });
       bindIfPresent("captureBoardBtn", "click", captureBoardArea);
       bindIfPresent("tripScheduleBtn", "click", openTripPlanWithIndependentPassword);
-      bindIfPresent("memberListBtn", "click", () => {
+      bindIfPresent("memberListBtn", "click", async () => {
+        await pushMemberListRealtimeSync("member-button-open", true);
         window.location.href = "https://coretechms.github.io/memble-list/";
       });
       // 👉 GitHub Pages에 있는 bus-route.html 열기 (주소를 실제 URL로 변경하세요)
