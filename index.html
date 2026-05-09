@@ -816,6 +816,66 @@
       padding-top: 4px !important;
     }
 
+
+    /* 필독공지 팝업 */
+    .notice-editor-label-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .notice-editor-label-row label {
+      width: auto !important;
+      margin-bottom: 0 !important;
+      flex: 0 0 auto;
+    }
+    #requiredNoticeBtn {
+      width: auto !important;
+      height: auto !important;
+      min-height: 0 !important;
+      padding: 2px 7px !important;
+      margin: 0 !important;
+      border-radius: 8px !important;
+      font-size: 12px !important;
+      line-height: 1.2 !important;
+      font-weight: 700 !important;
+      white-space: nowrap !important;
+      background: #1428c8 !important;
+      color: #fff !important;
+    }
+    .required-notice-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.25);
+    }
+    .required-notice-box {
+      min-width: min(320px, calc(100vw - 40px));
+      max-width: min(520px, calc(100vw - 40px));
+      min-height: 120px;
+      padding: 28px 24px;
+      border-radius: 24px;
+      background: #fff7e6;
+      border: 1px solid #f2c26b;
+      color: #1428c8;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+      cursor: pointer;
+      user-select: none;
+      text-align: left;
+      white-space: pre-wrap;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+
   </style>
 </head>
 <body>
@@ -855,7 +915,7 @@
             <div style="display:flex; align-items:center; gap:6px; min-width:0;">
               <div class="card-title" style="margin:0;">좌석 등록</div>
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
-              <button class="btn btn-outline" id="boardingPointBtn" type="button" style="height:28px; padding:0 13px; font-size:11px; white-space:nowrap;">탑승지</button>
+              <button class="btn btn-outline" id="boardingPointBtn" type="button" style="height:28px; padding:0 13px; font-size:10px; white-space:nowrap;">탑승지</button>
             </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
@@ -892,7 +952,7 @@
               <button class="btn btn-outline" id="tripScheduleBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행계획</button>
               <button class="btn btn-outline" id="memberListBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">회원정보</button>
               <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:100%; height:28px;">비번 초기화</button>
-              <button class="btn btn-outline" id="captureBoardBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">좌석배치 캡쳐</button>
+              <button class="btn btn-outline" id="captureBoardBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">좌석 캡쳐</button>
             </div>
           </div>
 
@@ -991,7 +1051,6 @@
           </div>
 
           <div class="mode-divider" style="margin-top:16px; padding-top:14px;">
-            
             <div id="busInfoLocked" class="notice">좌석을 변경 하려면 원하는 좌석을 선택후 이름을 입력 하면 [신규 파랑] [기존 주황] 으로 이름이 변경 됩니다 기존 좌석 취소는 하단의 좌석번호 를 찾아서 [ 입력 취소 ] 버튼을 누르면 됩니다.</div>
             <div id="busInfoEditor" class="hidden" style="margin-top:12px;">
               <div class="grid-2">
@@ -1019,7 +1078,10 @@
                 <input id="infoAccountOwner" type="text" />
               </div>
               <div style="margin-top:8px;">
-                <label for="infoSeatGuideText">안내문구</label>
+                <div class="notice-editor-label-row">
+                  <label for="infoSeatGuideText">안내문구</label>
+                  <button class="btn btn-outline hidden" id="requiredNoticeBtn" type="button">필독공지</button>
+                </div>
                 <textarea id="infoSeatGuideText" style="height:80px; resize:vertical;"></textarea>
               </div>
             </div>
@@ -1759,6 +1821,7 @@
       const memberCancelBtn = byId("memberCancelBtn");
       const toggleNameEntryLockBtn = byId("toggleNameEntryLockBtn");
       const nameEntryLockStatus = byId("nameEntryLockStatus");
+      const requiredNoticeBtn = byId("requiredNoticeBtn");
 
       if (memberTab) memberTab.classList.toggle("active", state.mode === "member");
       if (adminTab) adminTab.classList.toggle("active", state.mode === "admin");
@@ -1769,6 +1832,7 @@
       toggleHidden("adminLoginPanel", !(state.mode === "admin" && !state.isAdminAuthenticated));
       toggleHidden("adminPanel", !(state.mode === "admin" && state.isAdminAuthenticated));
       toggleHidden("busInfoEditor", !state.isAdminAuthenticated);
+      toggleHidden("requiredNoticeBtn", !(state.mode === "admin" && state.isAdminAuthenticated));
 
       const infoBox = byId("busInfoLocked");
       if (infoBox) {
@@ -3141,6 +3205,28 @@ function renderAll() {
       if (el) el.addEventListener(event, handler);
     }
 
+    function showRequiredNoticePopup() {
+      const existing = document.getElementById("requiredNoticeOverlay");
+      if (existing) existing.remove();
+
+      const guideTextEl = byId("infoSeatGuideText");
+      const lockedInfoEl = byId("busInfoLocked");
+      const noticeText = String(
+        guideTextEl?.value ||
+        state.busInfo?.seatGuideText ||
+        lockedInfoEl?.textContent ||
+        ""
+      ).trim();
+
+      const overlay = document.createElement("div");
+      overlay.className = "required-notice-overlay";
+      overlay.id = "requiredNoticeOverlay";
+      overlay.innerHTML = `<div class="required-notice-box">${escapeHtml(noticeText)}</div>`;
+      document.body.appendChild(overlay);
+
+      overlay.addEventListener("click", () => overlay.remove());
+    }
+
     async function captureBoardArea() {
       const target = document.querySelector(".board-wrap");
       if (!target || !window.html2canvas) return;
@@ -3212,6 +3298,7 @@ function renderAll() {
       });
     
       bindIfPresent("boardImageModeBtn", "click", handleBoardImageModeToggle);
+      bindIfPresent("requiredNoticeBtn", "click", showRequiredNoticePopup);
       bindIfPresent("adminPasswordInput", "keydown", async (e) => {
         if (e.key === "Enter" && !e.isComposing) {
           e.preventDefault();
