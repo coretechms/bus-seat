@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>탑승 좌석 실시간 공유</title>
+  <title>탑승좌석 실시간 공유</title>
   <style>
     :root {
       --bg: #dcdcdc;
@@ -1085,7 +1085,7 @@
       accountNumber: "333 330 117 5534",
       bankName: "카카오뱅킹",
       accountOwner: "검암산악회",
-      seatGuideText: " 안내 문구 "
+      seatGuideText: "좌석을 변경 하려면 원하는 좌석을 선택후 이름을 입력 하면 [신규 파랑] [기존 주황] 으로 이름이 변경 됩니다 기존 좌석 취소는 하단의 좌석번호 를 찾아서 [ 입력 취소 ] 버튼을 누르면 됩니다."
     };
 
     const state = {
@@ -1127,7 +1127,7 @@
 
     function getReversedLeftPairs() { return [...getLeftPairs()].reverse(); }
     function getReversedRightPairs() { return [...getRightPairs()].reverse(); }
-    function getBoardImageMode() { return Boolean(state.boardImageMode && state.busType === "44"); }
+    function getBoardImageMode() { return Boolean(state.boardImageMode); }
     function loadBoardImageMode() {
       try {
         return localStorage.getItem(BOARD_IMAGE_MODE_STORAGE_KEY) === "1";
@@ -1663,10 +1663,16 @@
         if (leftGrid) {
           const reversedRightPairs = getReversedRightPairs();
           const bodyPairs = reversedRightPairs.slice(0, -1);
+          const firstRightPair = reversedRightPairs[reversedRightPairs.length - 1] || [3, 4];
+          const [frontLeftSeatNo, frontRightSeatNo] = firstRightPair;
+          const frontLeftSeat = state.seats[frontLeftSeatNo - 1];
+          const frontRightSeat = state.seats[frontRightSeatNo - 1];
+          const frontPairHtml = isBlockedSeat(frontRightSeatNo)
+            ? '<div class="alt-arrow-cell"></div>' + renderSeatButton(frontLeftSeat, "right")
+            : renderSeatButton(frontRightSeat, "left") + '<div class="alt-arrow-cell"></div>';
           leftGrid.innerHTML =
             bodyPairs.map(([a, b]) => renderSeatButton(state.seats[b - 1], "left") + renderSeatButton(state.seats[a - 1], "right")).join("") +
-            '<div class="alt-arrow-cell"></div>' +
-            renderSeatButton(state.seats[2], "right") +
+            frontPairHtml +
             '<div class="alt-wide-cell">출입문</div>';
         }
         if (rightGrid) {
@@ -3146,10 +3152,6 @@ function renderAll() {
     }
 
     function handleBoardImageModeToggle() {
-      if (state.busType !== "44") {
-        alert("이미지형 반전 구성은 현재 44인승 모드에서만 지원합니다.");
-        return;
-      }
       state.boardImageMode = !state.boardImageMode;
       saveBoardImageMode(state.boardImageMode);
       renderAll();
