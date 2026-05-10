@@ -1923,6 +1923,7 @@
             <textarea id="seatMemoInput" placeholder="메모를 입력하세요. 메모를 비우고 저장하면 삭제됩니다.">${escapeHtml(seat.memo || "")}</textarea>
             <div class="seat-memo-hint">이름이 등록된 좌석을 1.5초 동안 누르면 다시 열 수 있습니다.</div>
             <div class="yn-actions">
+              <button type="button" class="yn-btn" id="seatMemoDelete">삭제</button>
               <button type="button" class="yn-btn" id="seatMemoCancel">취소</button>
               <button type="button" class="yn-btn primary" id="seatMemoSave">저장</button>
             </div>
@@ -1940,6 +1941,7 @@
           if (e.target === overlay) cleanup(null);
         });
         overlay.querySelector("#seatMemoCancel").addEventListener("click", () => cleanup(null));
+        overlay.querySelector("#seatMemoDelete").addEventListener("click", () => cleanup(""));
         overlay.querySelector("#seatMemoSave").addEventListener("click", () => cleanup(input.value));
         input.addEventListener("click", (e) => e.stopPropagation());
         input.addEventListener("keydown", (e) => {
@@ -2460,9 +2462,9 @@ function renderAll() {
         return safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
           name: "",
           status: "empty",
-          memo: "",
           updatedAt: Date.now(),
-          updatedBy: state.clientId
+          updatedBy: state.clientId,
+          memo: ""
         }, {
           label: "clearMemberSeatRemote",
           permissionMessage: "좌석 삭제 권한이 없습니다.",
