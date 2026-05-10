@@ -1085,7 +1085,7 @@
       accountNumber: "333 330 117 5534",
       bankName: "카카오뱅킹",
       accountOwner: "검암산악회",
-      seatGuideText: "좌석을 변경 하려면 원하는 좌석을 선택후 이름을 입력 하면 [신규 파랑] [기존 주황] 으로 이름이 변경 됩니다 기존 좌석 취소는 하단의 좌석번호 를 찾아서 [ 입력 취소 ] 버튼을 누르면 됩니다."
+      seatGuideText: " 공지 안내 "
     };
 
     const state = {
@@ -1775,7 +1775,7 @@
         infoBox.style.display = state.mode === "admin" ? "none" : "block";
         infoBox.textContent = state.nameEntryLocked
           ? "현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다."
-          : (state.busInfo.seatGuideText || "원하는 좌석을 선택 후 이름을 입력 하세요.");
+          : (state.busInfo.seatGuideText || "원하는 좌석을 선택 후 이름을 입력 하세요.    이름을 잘못 입력했을 경우 총무에게 문의 하세요. ");
       }
 
       const helpText = document.querySelector(".help-text");
