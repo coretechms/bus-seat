@@ -1920,10 +1920,10 @@
         overlay.innerHTML = `
           <div class="yn-dialog seat-memo-dialog" role="dialog" aria-modal="true" aria-labelledby="seatMemoTitle">
             <div class="yn-title" id="seatMemoTitle">${escapeHtml(title)} - ${escapeHtml(getSeatDisplayNumber(seat.number))}번 ${escapeHtml(seat.name || "")}</div>
-            <textarea id="seatMemoInput" placeholder="메모를 입력하세요. 메모를 비우고 저장하면 삭제됩니다.">${escapeHtml(seat.memo || "")}</textarea>
+            <textarea id="seatMemoInput" placeholder="메모를 입력하세요. 메모를 지우고 저장하면 삭제됩니다.">${escapeHtml(seat.memo || "")}</textarea>
             <div class="seat-memo-hint">이름이 등록된 좌석을 1.5초 동안 누르면 다시 열 수 있습니다.</div>
             <div class="yn-actions">
-              <button type="button" class="yn-btn" id="seatMemoDelete">삭제</button>
+              /<button type="button" class="yn-btn" id="seatMemoDelete">삭제</button>/
               <button type="button" class="yn-btn" id="seatMemoCancel">취소</button>
               <button type="button" class="yn-btn primary" id="seatMemoSave">저장</button>
             </div>
