@@ -2460,9 +2460,9 @@ function renderAll() {
         return safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
           name: "",
           status: "empty",
+          memo: "",
           updatedAt: Date.now(),
-          updatedBy: state.clientId,
-          memo: ""
+          updatedBy: state.clientId
         }, {
           label: "clearMemberSeatRemote",
           permissionMessage: "좌석 삭제 권한이 없습니다.",
