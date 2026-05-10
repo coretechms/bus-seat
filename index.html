@@ -836,11 +836,61 @@
     }
     .seat-memo-dialog textarea {
       width: 100%;
-      min-height: 110px;
+      min-height: 82px;
       resize: vertical;
       line-height: 1.5;
       margin-top: 8px;
     }
+    .seat-memo-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .seat-memo-delete-small {
+      width: auto !important;
+      min-width: 52px !important;
+      height: 24px !important;
+      padding: 0 8px !important;
+      border-radius: 12px !important;
+      font-size: 11px !important;
+      line-height: 1 !important;
+    }
+    .seat-memo-author-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .seat-memo-author-row label {
+      width: auto;
+      margin: 0;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+    #seatMemoAuthor {
+      flex: 1;
+      height: 28px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+    .seat-memo-history {
+      width: 100%;
+      min-height: 120px;
+      max-height: 220px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+      line-height: 1.55;
+      padding: 10px;
+      border: 1px solid #d4d4d4;
+      border-radius: 14px;
+      background: #f8fafc;
+      font-size: 13px;
+    }
+    .seat-memo-empty { color: #777; }
     .seat-memo-hint {
       margin-top: 6px;
       font-size: 11px;
@@ -1689,7 +1739,7 @@
           pressTimer = window.setTimeout(() => {
             longPressTriggered = true;
             openSeatMemoDialog(seatNo);
-          }, 1500);
+          }, 1300);
         };
 
         const movePress = (event) => {
@@ -1914,47 +1964,119 @@
         const existing = document.getElementById("seatMemoOverlay");
         if (existing) existing.remove();
 
+        const currentMemo = String(seat.memo || "").trim();
         const overlay = document.createElement("div");
         overlay.className = "yn-overlay";
         overlay.id = "seatMemoOverlay";
         overlay.innerHTML = `
           <div class="yn-dialog seat-memo-dialog" role="dialog" aria-modal="true" aria-labelledby="seatMemoTitle">
-            <div class="yn-title" id="seatMemoTitle">${escapeHtml(title)} - ${escapeHtml(getSeatDisplayNumber(seat.number))}번 ${escapeHtml(seat.name || "")}</div>
-            <textarea id="seatMemoInput" placeholder="메모를 입력하세요. 메모를 지우고 저장하면 삭제됩니다.">${escapeHtml(seat.memo || "")}</textarea>
-            <div class="seat-memo-hint">이름이 등록된 좌석을 1.5초 동안 누르면 다시 열 수 있습니다.</div>
+            <div class="seat-memo-top">
+              <div class="yn-title" id="seatMemoTitle" style="margin-bottom:0;">${escapeHtml(title)} - ${escapeHtml(getSeatDisplayNumber(seat.number))}번 ${escapeHtml(seat.name || "")}</div>
+              <button type="button" class="yn-btn seat-memo-delete-small" id="seatMemoDelete">전체삭제</button>
+            </div>
+            <div id="seatMemoHistory" class="seat-memo-history ${currentMemo ? "" : "seat-memo-empty"}">${currentMemo ? escapeHtml(currentMemo) : "기존 메모가 없습니다."}</div>
+            <div class="seat-memo-author-row">
+              <label for="seatMemoAuthor">작성자:</label>
+              <input id="seatMemoAuthor" type="text" placeholder="작성자 이름" autocomplete="off" />
+            </div>
+            <textarea id="seatMemoInput" placeholder="추가할 메모를 입력하세요. 기존 글은 편집할 수 없습니다."></textarea>
+            <div class="seat-memo-hint">작성자 이름을 입력해야 메모를 추가할 수 있습니다. 기존 글은 보존되고 새 글만 아래에 추가됩니다.</div>
             <div class="yn-actions">
-
-              <button type="button" class="yn-btn" id="seatMemoCancel">취소</button>
-              <button type="button" class="yn-btn primary" id="seatMemoSave">저장</button>
+              <button type="button" class="yn-btn" id="seatMemoCancel">나가기</button>
+              <button type="button" class="yn-btn primary" id="seatMemoSave">입력</button>
             </div>
           </div>
         `;
         document.body.appendChild(overlay);
 
+        const authorInput = overlay.querySelector("#seatMemoAuthor");
         const input = overlay.querySelector("#seatMemoInput");
+        const deleteBtn = overlay.querySelector("#seatMemoDelete");
+        const historyEl = overlay.querySelector("#seatMemoHistory");
+        const appendedLines = [];
+        let workingMemoText = currentMemo;
+        let hasChanged = false;
+
         const cleanup = (value) => {
           overlay.remove();
           resolve(value);
         };
+        const renderMemoHistory = () => {
+          if (!historyEl) return;
+          historyEl.textContent = workingMemoText || "기존 메모가 없습니다.";
+          historyEl.classList.toggle("seat-memo-empty", !workingMemoText);
+          historyEl.scrollTop = historyEl.scrollHeight;
+        };
+        const exitDialog = () => {
+          if (!hasChanged) {
+            cleanup(null);
+            return;
+          }
+          cleanup({ action: "set", memo: workingMemoText });
+        };
 
         overlay.addEventListener("click", (e) => {
-          if (e.target === overlay) cleanup(null);
+          if (e.target === overlay) e.stopPropagation();
         });
-        overlay.querySelector("#seatMemoCancel").addEventListener("click", () => cleanup(null));
-        overlay.querySelector("#seatMemoDelete").addEventListener("click", () => cleanup(""));
-        overlay.querySelector("#seatMemoSave").addEventListener("click", () => cleanup(input.value));
-        input.addEventListener("click", (e) => e.stopPropagation());
-        input.addEventListener("keydown", (e) => {
-          if (e.key === "Escape") {
-            e.preventDefault();
-            cleanup(null);
-          }
-          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-            e.preventDefault();
-            cleanup(input.value);
-          }
+        overlay.querySelector("#seatMemoCancel").addEventListener("click", () => exitDialog());
+        deleteBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (!workingMemoText) return;
+          if (!confirm("이 좌석의 메모를 전체 삭제할까요?")) return;
+          workingMemoText = "";
+          appendedLines.length = 0;
+          hasChanged = true;
+          renderMemoHistory();
+          input.value = "";
+          input.focus();
         });
-        setTimeout(() => input?.focus(), 0);
+        overlay.querySelector("#seatMemoSave").addEventListener("click", () => {
+          const author = normalizeName(authorInput.value);
+          const memoText = String(input.value || "").trim();
+          if (!author) {
+            alert("작성자 이름을 입력하세요.");
+            authorInput.focus();
+            return;
+          }
+          if (hasInvalidKoreanJamo(authorInput.value) || /[^가-힣0-9\s]/.test(authorInput.value)) {
+            alert("오타알림: 작성자 이름은 한글과 숫자만 입력하세요.");
+            authorInput.focus();
+            return;
+          }
+          if (!memoText) {
+            alert("추가할 메모 내용을 입력하세요.");
+            input.focus();
+            return;
+          }
+          const nextLine = `${author} : ${memoText}`;
+          appendedLines.push(nextLine);
+          workingMemoText = workingMemoText ? `${workingMemoText}
+${nextLine}` : nextLine;
+          hasChanged = true;
+          renderMemoHistory();
+          input.value = "";
+          input.focus();
+        });
+        [authorInput, input].forEach((el) => {
+          el.addEventListener("click", (e) => e.stopPropagation());
+          el.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              return;
+            }
+            if (el === authorInput && e.key === "Enter") {
+              e.preventDefault();
+              input.focus();
+              input.setSelectionRange(input.value.length, input.value.length);
+              return;
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+              e.preventDefault();
+              overlay.querySelector("#seatMemoSave").click();
+            }
+          });
+        });
+        setTimeout(() => authorInput?.focus(), 0);
       });
     }
 
@@ -1974,9 +2096,23 @@
     async function openSeatMemoDialog(seatNo) {
       const seat = state.seats.find((s) => s.number === Number(seatNo));
       if (!seat || isBlockedSeat(seatNo) || !seat.name) return;
-      const nextMemo = await showSeatMemoDialog(seat);
-      if (nextMemo === null) return;
-      const normalizedMemo = String(nextMemo || "").trim();
+      const memoResult = await showSeatMemoDialog(seat);
+      if (memoResult === null) return;
+
+      let normalizedMemo = String(seat.memo || "").trim();
+      if (memoResult?.action === "delete") {
+        normalizedMemo = "";
+      } else if (memoResult?.action === "append") {
+        const nextLine = `${memoResult.author} : ${String(memoResult.text || "").trim()}`;
+        normalizedMemo = normalizedMemo ? `${normalizedMemo}
+${nextLine}` : nextLine;
+      } else if (memoResult?.action === "set") {
+        normalizedMemo = String(memoResult.memo || "").trim();
+      } else {
+        return;
+      }
+
+
       const prevSeats = state.seats.map((item) => ({ ...item }));
       state.seats = state.seats.map((item) => item.number === Number(seatNo)
         ? { ...item, memo: normalizedMemo, updatedAt: Date.now(), updatedBy: state.clientId }
