@@ -816,6 +816,38 @@
       padding-top: 4px !important;
     }
 
+
+    /* ===== Seat memo feature ===== */
+    .seat-memo-mark {
+      position: absolute;
+      right: 4px;
+      bottom: 3px;
+      min-width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #2563eb;
+      color: #fff;
+      font-size: 9px;
+      line-height: 13px;
+      font-weight: 700;
+      text-align: center;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .seat-memo-dialog textarea {
+      width: 100%;
+      min-height: 110px;
+      resize: vertical;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+    .seat-memo-hint {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #666;
+      line-height: 1.4;
+    }
+
   </style>
 </head>
 <body>
@@ -1252,10 +1284,10 @@
       const now = Date.now();
       state.seats = state.seats.map((seat) => {
         if (sourceSeatNo && seat.number === sourceSeatNo) {
-          return { ...seat, name: "", status: "empty", updatedAt: now, updatedBy: state.clientId };
+          return { ...seat, name: "", status: "empty", memo: "", updatedAt: now, updatedBy: state.clientId };
         }
         if (seat.number === Number(targetSeatNo)) {
-          return { ...seat, name: nextName, status: nextName ? nextStatus : "empty", updatedAt: now, updatedBy: state.clientId };
+          return { ...seat, name: nextName, status: nextName ? nextStatus : "empty", memo: nextName ? (seat.memo || "") : "", updatedAt: now, updatedBy: state.clientId };
         }
         return seat;
       });
@@ -1268,7 +1300,8 @@
         name: "",
         status: "empty",
         updatedAt: 0,
-        updatedBy: ""
+        updatedBy: "",
+        memo: ""
       }));
     }
 
@@ -1279,7 +1312,8 @@
           name: "",
           status: "empty",
           updatedAt: Date.now(),
-          updatedBy: "system"
+          updatedBy: "system",
+          memo: ""
         };
       });
       return {
@@ -1615,12 +1649,14 @@
       const nameColorClass = duplicateRole === "old" ? "duplicate-old" : (duplicateRole === "new" ? "duplicate-new" : "");
       const waitingWarning = isWaitingBlinkTarget(seat);
       const isPaidNew = seat.status === "paid_new" || seat.status === "paid_new_move";
+      const hasMemo = Boolean(String(seat.memo || "").trim());
       const status = occupied && seat.status !== "reserved" && seat.status !== "empty" && seat.status !== "paid" && seat.status !== "paid_new"
         ? `<div class="status-pill status-${seat.status}">${statusLabel(seat.status)}</div>`
         : "";
       return `
         <button id="seat-btn-${seat.number}" class="seat ${seat.number <= 4 ? "light" : ""} ${occupied ? "occupied" : ""} ${locked ? "locked" : ""} ${blocked ? "unavailable" : ""} ${isJustSaved ? "seat-save-flash" : ""} ${waitingWarning ? "waiting-warning" : ""}" data-seat="${seat.number}" type="button" title="${blocked ? "사용할 수 없는 좌석입니다." : (locked ? "회원모드에서는 수정할 수 없는 좌석입니다." : "")}">
           <div class="seat-number ${side} ${isPaidNew ? "paid-new" : ""}">${getSeatDisplayNumber(seat.number)}</div>
+          ${hasMemo ? '<div class="seat-memo-mark">M</div>' : ''}
           <div class="seat-inner">
             ${!isEditing ? status : ""}
             ${isEditing
@@ -1632,7 +1668,49 @@
 
     function bindSeatEvents() {
       document.querySelectorAll(".seat").forEach((btn) => {
-        btn.addEventListener("click", () => {
+        let pressTimer = null;
+        let longPressTriggered = false;
+        let startX = 0;
+        let startY = 0;
+
+        const clearPressTimer = () => {
+          if (pressTimer) window.clearTimeout(pressTimer);
+          pressTimer = null;
+        };
+
+        const beginPress = (event) => {
+          const seatNo = Number(btn.dataset.seat);
+          const seat = state.seats.find((s) => s.number === seatNo);
+          longPressTriggered = false;
+          clearPressTimer();
+          if (!seat || isBlockedSeat(seatNo) || !seat.name) return;
+          startX = event.clientX ?? (event.touches?.[0]?.clientX || 0);
+          startY = event.clientY ?? (event.touches?.[0]?.clientY || 0);
+          pressTimer = window.setTimeout(() => {
+            longPressTriggered = true;
+            openSeatMemoDialog(seatNo);
+          }, 2000);
+        };
+
+        const movePress = (event) => {
+          if (!pressTimer) return;
+          const currentX = event.clientX ?? (event.touches?.[0]?.clientX || 0);
+          const currentY = event.clientY ?? (event.touches?.[0]?.clientY || 0);
+          if (Math.abs(currentX - startX) > 10 || Math.abs(currentY - startY) > 10) clearPressTimer();
+        };
+
+        btn.addEventListener("pointerdown", beginPress);
+        btn.addEventListener("pointermove", movePress);
+        btn.addEventListener("pointerup", clearPressTimer);
+        btn.addEventListener("pointercancel", clearPressTimer);
+        btn.addEventListener("pointerleave", clearPressTimer);
+        btn.addEventListener("click", (event) => {
+          if (longPressTriggered) {
+            event.preventDefault();
+            event.stopPropagation();
+            longPressTriggered = false;
+            return;
+          }
           const seatNo = Number(btn.dataset.seat);
           const seat = state.seats.find((s) => s.number === seatNo);
           handleSeatClick(seat);
@@ -1831,6 +1909,90 @@
 
     
     
+    function showSeatMemoDialog(seat, title = "좌석 메모") {
+      return new Promise((resolve) => {
+        const existing = document.getElementById("seatMemoOverlay");
+        if (existing) existing.remove();
+
+        const overlay = document.createElement("div");
+        overlay.className = "yn-overlay";
+        overlay.id = "seatMemoOverlay";
+        overlay.innerHTML = `
+          <div class="yn-dialog seat-memo-dialog" role="dialog" aria-modal="true" aria-labelledby="seatMemoTitle">
+            <div class="yn-title" id="seatMemoTitle">${escapeHtml(title)} - ${escapeHtml(getSeatDisplayNumber(seat.number))}번 ${escapeHtml(seat.name || "")}</div>
+            <textarea id="seatMemoInput" placeholder="메모를 입력하세요. 메모를 비우고 저장하면 삭제됩니다.">${escapeHtml(seat.memo || "")}</textarea>
+            <div class="seat-memo-hint">이름이 등록된 좌석을 2초 동안 누르면 다시 열 수 있습니다.</div>
+            <div class="yn-actions">
+              <button type="button" class="yn-btn" id="seatMemoCancel">취소</button>
+              <button type="button" class="yn-btn primary" id="seatMemoSave">저장</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const input = overlay.querySelector("#seatMemoInput");
+        const cleanup = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) cleanup(null);
+        });
+        overlay.querySelector("#seatMemoCancel").addEventListener("click", () => cleanup(null));
+        overlay.querySelector("#seatMemoSave").addEventListener("click", () => cleanup(input.value));
+        input.addEventListener("click", (e) => e.stopPropagation());
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            cleanup(null);
+          }
+          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            cleanup(input.value);
+          }
+        });
+        setTimeout(() => input?.focus(), 0);
+      });
+    }
+
+    async function saveSeatMemoRemote(seatNo, memo) {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
+        memo: String(memo || "").trim(),
+        updatedAt: Date.now(),
+        updatedBy: state.clientId
+      }, {
+        label: "saveSeatMemoRemote",
+        permissionMessage: "메모 저장 권한이 없습니다.",
+        genericMessage: "메모 저장 실패"
+      });
+    }
+
+    async function openSeatMemoDialog(seatNo) {
+      const seat = state.seats.find((s) => s.number === Number(seatNo));
+      if (!seat || isBlockedSeat(seatNo) || !seat.name) return;
+      const nextMemo = await showSeatMemoDialog(seat);
+      if (nextMemo === null) return;
+      const normalizedMemo = String(nextMemo || "").trim();
+      const prevSeats = state.seats.map((item) => ({ ...item }));
+      state.seats = state.seats.map((item) => item.number === Number(seatNo)
+        ? { ...item, memo: normalizedMemo, updatedAt: Date.now(), updatedBy: state.clientId }
+        : item
+      );
+      renderAll();
+      if (!state.isFirebaseReady) {
+        setStatusMessage("Firebase 미연결 - 메모가 화면에만 표시", state.projectLabel);
+        return;
+      }
+      const ok = await saveSeatMemoRemote(seatNo, normalizedMemo);
+      if (!ok) {
+        state.seats = prevSeats;
+        renderAll();
+        alert("메모 저장 권한이 없습니다.");
+      }
+    }
+
     function showRecoveryConfirmDialog(message, title = "이 페이지 내용:") {
       return new Promise((resolve) => {
         const existing = document.getElementById("recoveryConfirmOverlay");
@@ -2161,7 +2323,8 @@ function renderAll() {
           name: nextName,
           status: nextName ? nextStatus : "empty",
           updatedAt: raw.updatedAt || 0,
-          updatedBy: raw.updatedBy || ""
+          updatedBy: raw.updatedBy || "",
+          memo: nextName ? String(raw.memo || "") : ""
         };
       });
 
@@ -2256,6 +2419,10 @@ function renderAll() {
           "meta/updatedAt": now
         };
 
+        if (!name) {
+          updates[`seats/${seatNo}/memo`] = "";
+        }
+
         if (isMoveRequest) {
           const sourceSeat = await readSeatRemote(sourceSeatNo);
           const sourceName = normalizeName(sourceSeat?.name || "");
@@ -2267,6 +2434,7 @@ function renderAll() {
           updates[`seats/${sourceSeatNo}/status`] = "empty";
           updates[`seats/${sourceSeatNo}/updatedAt`] = now;
           updates[`seats/${sourceSeatNo}/updatedBy`] = state.clientId;
+          updates[`seats/${sourceSeatNo}/memo`] = "";
         }
 
         return safeUpdate(ref(state.db, ROOT_PATH), updates, {
@@ -2293,7 +2461,8 @@ function renderAll() {
           name: "",
           status: "empty",
           updatedAt: Date.now(),
-          updatedBy: state.clientId
+          updatedBy: state.clientId,
+          memo: ""
         }, {
           label: "clearMemberSeatRemote",
           permissionMessage: "좌석 삭제 권한이 없습니다.",
@@ -2319,6 +2488,7 @@ function renderAll() {
         genericMessage: "관리자 좌석 저장 실패"
       });
       if (!ok) return false;
+      if (!name) await safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), { memo: "" });
       await safeUpdate(ref(state.db, `${ROOT_PATH}/meta`), { updatedAt: Date.now() });
       return true;
     }
@@ -2327,7 +2497,7 @@ function renderAll() {
       if (!state.db) return false;
       const seatsObject = {};
       for (let i = 1; i <= getCapacity(); i += 1) {
-        seatsObject[String(i)] = { name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId };
+        seatsObject[String(i)] = { name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId, memo: "" };
       }
       return safeUpdate(ref(state.db, ROOT_PATH), {
         busType: state.busType,
@@ -2409,6 +2579,7 @@ function renderAll() {
         updates[`seats/${seatNo}/status`] = "empty";
         updates[`seats/${seatNo}/updatedAt`] = now;
         updates[`seats/${seatNo}/updatedBy`] = "system-expired";
+        updates[`seats/${seatNo}/memo`] = "";
       });
       updates["meta/updatedAt"] = now;
       await safeUpdate(ref(state.db, ROOT_PATH), updates, {
