@@ -1775,7 +1775,7 @@
         infoBox.style.display = state.mode === "admin" ? "none" : "block";
         infoBox.textContent = state.nameEntryLocked
           ? "현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다."
-          : (state.busInfo.seatGuideText || "1.원하는 좌석을 선택 후 이름을 입력 하세요  2.잘못 입력했을 경우 총무에게 문의 하세요 3.자리변경을 하려면 빈좌석에 이름을 입력 하세요");
+          : (state.busInfo.seatGuideText || "1. 원하는 좌석을 선택 후 이름을 입력 하세요  2. 잘못 입력했을 경우 총무에게 문의 하세요  3. 자리변경을 하려면 빈좌석에 이름을 입력 하세요");
       }
 
       const helpText = document.querySelector(".help-text");
