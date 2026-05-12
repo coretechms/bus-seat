@@ -898,6 +898,88 @@
       line-height: 1.4;
     }
 
+
+    /* ===== Hiking notice modal feature ===== */
+    .hiking-notice-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10020;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.28);
+      padding: 12px;
+    }
+    .hiking-notice-box {
+      width: 70vw;
+      height: 70vh;
+      max-width: 760px;
+      max-height: 760px;
+      min-width: min(320px, calc(100vw - 24px));
+      min-height: 360px;
+      background: #fff6bf;
+      color: #000;
+      border: 1px solid #d7c76b;
+      border-radius: 18px;
+      box-shadow: 0 10px 34px rgba(0,0,0,0.22);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .hiking-notice-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: #000;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .hiking-notice-state {
+      font-size: 12px;
+      font-weight: 700;
+      color: #000;
+      opacity: 0.72;
+    }
+    #hikingNoticeText {
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 0;
+      resize: none;
+      border: 1px solid #d7c76b;
+      border-radius: 14px;
+      background: #fffbe1;
+      color: #000;
+      font-size: 15px;
+      line-height: 1.6;
+      padding: 12px;
+      outline: none;
+    }
+    #hikingNoticeText[readonly] {
+      background: #fff6bf;
+      border-style: dashed;
+    }
+    .hiking-notice-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .hiking-notice-actions .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    @media (max-width:760px) {
+      .hiking-notice-box {
+        width: 70vw;
+        height: 70vh;
+        min-width: min(300px, calc(100vw - 18px));
+        padding: 10px;
+      }
+      #hikingNoticeText { font-size: 13px; padding: 10px; }
+      .hiking-notice-actions { gap: 5px; }
+    }
+
   </style>
 </head>
 <body>
@@ -975,6 +1057,7 @@
               <button class="btn btn-outline" id="memberListBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">회원정보</button>
               <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:100%; height:28px;">비번 초기화</button>
               <button class="btn btn-outline" id="captureBoardBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">좌석배치 캡쳐</button>
+              <button class="btn btn-outline" id="hikingNoticeBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행공지</button>
             </div>
           </div>
 
@@ -1025,6 +1108,7 @@
             </div>
 
             <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
+              <label for="busTypeSelect" style="width:80px; margin-bottom:0;">입력제한</label>
               <button class="btn btn-outline" id="toggleNameEntryLockBtn" type="button" style="flex:1;">전체 이름입력 제한</button>
               <div id="nameEntryLockStatus" class="status-box" style="margin-top:0; flex:1; min-width:0; justify-content:center;">
                 <strong>이름 입력 가능</strong>
@@ -1079,11 +1163,11 @@
             <div id="busInfoEditor" class="hidden" style="margin-top:12px;">
               <div class="grid-2">
                 <div>
-                  <label for="infoTitleMain">메인 제목</label>
+                  <label for="infoTitleMain">메인제목</label>
                   <input id="infoTitleMain" type="text" />
                 </div>
                 <div>
-                  <label for="infoFeeLabel">회비 문구</label>
+                  <label for="infoFeeLabel">회비문구</label>
                   <input id="infoFeeLabel" type="text" />
                 </div>
               </div>
@@ -1108,6 +1192,22 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="hiking-notice-overlay hidden" id="hikingNoticeOverlay">
+    <div class="hiking-notice-box" role="dialog" aria-modal="true" aria-labelledby="hikingNoticeTitle">
+      <div class="hiking-notice-head">
+        <span id="hikingNoticeTitle">산행공지</span>
+        <span class="hiking-notice-state" id="hikingNoticeState">편집 가능</span>
+      </div>
+      <textarea id="hikingNoticeText" placeholder="산행 공지 내용을 입력하세요."></textarea>
+      <div class="hiking-notice-actions">
+        <button class="btn btn-outline" id="hikingNoticeEditBtn" type="button">편집</button>
+        <button class="btn btn-outline" id="hikingNoticeLockBtn" type="button">잠금</button>
+        <button class="btn btn-danger" id="hikingNoticeDeleteBtn" type="button">삭제</button>
       </div>
     </div>
   </div>
@@ -1164,11 +1264,11 @@
 
     const defaultBusInfo = {
       titleMain: "버스 탑승좌석",
-      feeLabel: "회비입금",
-      accountNumber: "3333 30117 5534",
-      bankName: "카카오뱅킹",
-      accountOwner: "검암산악회",
-      seatGuideText: " 공지 안내 "
+      feeLabel: " ",
+      accountNumber: " ",
+      bankName: " ",
+      accountOwner: " ",
+      seatGuideText: "  "
     };
 
     const state = {
@@ -1199,7 +1299,8 @@
       lastSavedSeat: null,
       waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
       nameEntryLocked: false,
-      boardImageMode: false
+      boardImageMode: false,
+      hikingNotice: { text: "", locked: false, editing: true }
     };
 
     function byId(id) { return document.getElementById(id); }
@@ -1374,6 +1475,7 @@
         tripPlanPassword: DEFAULT_ADMIN_PASSWORD,
         waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
         nameEntryLocked: false,
+        hikingNotice: { text: "", locked: false },
         meta: { createdAt: Date.now(), updatedAt: Date.now() }
       };
     }
@@ -1954,6 +2056,7 @@
       if (infoSeatGuideText) { infoSeatGuideText.value = state.busInfo.seatGuideText || ""; autoResizeTextarea(infoSeatGuideText, 80, 420); }
       if (busTypeSelect) busTypeSelect.value = state.busType;
 
+      renderHikingNoticeDialog();
       setStatusMessage(state.isFirebaseReady ? (state.canWrite ? " 실시간 연결됨" : "읽기 전용 연결") : "설정 대기중", state.projectLabel);
     }
 
@@ -1980,7 +2083,7 @@
               <input id="seatMemoAuthor" type="text" placeholder="작성자 이름" autocomplete="off" />
             </div>
             <textarea id="seatMemoInput" placeholder="추가할 메모를 입력하세요. 기존 글은 편집할 수 없습니다."></textarea>
-            
+            <div class="seat-memo-hint">작성자 이름을 입력해야 메모를 추가할 수 있습니다. 기존 글은 보존되고 새 글만 아래에 추가됩니다.</div>
             <div class="yn-actions">
               <button type="button" class="yn-btn" id="seatMemoCancel">나가기</button>
               <button type="button" class="yn-btn primary" id="seatMemoSave">입력</button>
@@ -2477,6 +2580,7 @@ function renderAll() {
       if (state.recoveryCodeHash) saveLocalRecoveryCodeHash(state.recoveryCodeHash);
       state.waitingExpireHours = expireHours;
       state.nameEntryLocked = Boolean(payload?.nameEntryLocked);
+      state.hikingNotice = { text: String(payload?.hikingNotice?.text || ""), locked: Boolean(payload?.hikingNotice?.locked), editing: !Boolean(payload?.hikingNotice?.locked) };
 
       if (state.editingSeat && !state.seats.find((s) => s.number === state.editingSeat)) {
         state.editingSeat = null;
@@ -2513,6 +2617,81 @@ function renderAll() {
         applySnapshotData(data);
       }, 60000);
       state.isSubscribed = true;
+    }
+
+
+    let hikingNoticeSaveTimer = null;
+    function renderHikingNoticeDialog() {
+      const overlay = byId("hikingNoticeOverlay");
+      const textEl = byId("hikingNoticeText");
+      const stateEl = byId("hikingNoticeState");
+      const editBtn = byId("hikingNoticeEditBtn");
+      const lockBtn = byId("hikingNoticeLockBtn");
+      const deleteBtn = byId("hikingNoticeDeleteBtn");
+      if (!overlay || !textEl) return;
+      const locked = Boolean(state.hikingNotice?.locked);
+      const editing = Boolean(state.hikingNotice?.editing) && !locked;
+      if (textEl.value !== String(state.hikingNotice?.text || "")) textEl.value = String(state.hikingNotice?.text || "");
+      textEl.readOnly = !editing;
+      if (stateEl) stateEl.textContent = locked ? "잠금 상태" : (editing ? "편집 가능" : "읽기 상태");
+      if (editBtn) editBtn.textContent = editing ? "편집중" : "편집";
+      if (lockBtn) lockBtn.textContent = locked ? "잠금해제" : "잠금";
+      if (deleteBtn) deleteBtn.disabled = locked;
+    }
+
+    function openHikingNoticeDialog() {
+      const overlay = byId("hikingNoticeOverlay");
+      if (!overlay) return;
+      overlay.classList.remove("hidden");
+      renderHikingNoticeDialog();
+      const textEl = byId("hikingNoticeText");
+      if (textEl && !textEl.readOnly) {
+        textEl.focus();
+        textEl.setSelectionRange(textEl.value.length, textEl.value.length);
+      }
+    }
+
+    function closeHikingNoticeDialog() {
+      const overlay = byId("hikingNoticeOverlay");
+      if (overlay) overlay.classList.add("hidden");
+    }
+
+    async function saveHikingNoticeRemote() {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        hikingNotice: {
+          text: String(state.hikingNotice?.text || ""),
+          locked: Boolean(state.hikingNotice?.locked)
+        },
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveHikingNoticeRemote",
+        permissionMessage: "산행공지 저장 권한이 없습니다.",
+        genericMessage: "산행공지 저장 실패"
+      });
+    }
+
+    function scheduleHikingNoticeSave() {
+      clearTimeout(hikingNoticeSaveTimer);
+      hikingNoticeSaveTimer = window.setTimeout(() => {
+        if (state.isFirebaseReady) saveHikingNoticeRemote();
+      }, 350);
+    }
+
+    async function toggleHikingNoticeLock() {
+      state.hikingNotice.locked = !Boolean(state.hikingNotice.locked);
+      state.hikingNotice.editing = !state.hikingNotice.locked;
+      renderHikingNoticeDialog();
+      await saveHikingNoticeRemote();
+    }
+
+    async function deleteHikingNotice() {
+      if (state.hikingNotice.locked) { alert("잠금 상태에서는 삭제할 수 없습니다."); return; }
+      if (!confirm("산행공지 내용을 삭제할까요?")) return;
+      state.hikingNotice.text = "";
+      state.hikingNotice.editing = true;
+      renderHikingNoticeDialog();
+      await saveHikingNoticeRemote();
     }
 
     async function saveBusInfoRemote() {
@@ -3636,6 +3815,24 @@ function renderAll() {
         if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("saveWaitingExpireBtn"); await handleSaveWaitingExpireHours(); }
       });
       bindIfPresent("preLoginResetPasswordBtn", "click", handleResetAdminPassword);
+
+      bindIfPresent("hikingNoticeBtn", "click", openHikingNoticeDialog);
+      bindIfPresent("hikingNoticeEditBtn", "click", () => {
+        if (state.hikingNotice.locked) { alert("잠금 상태에서는 편집할 수 없습니다. 먼저 잠금해제 하세요."); return; }
+        state.hikingNotice.editing = true;
+        renderHikingNoticeDialog();
+        const textEl = byId("hikingNoticeText");
+        if (textEl) { textEl.focus(); textEl.setSelectionRange(textEl.value.length, textEl.value.length); }
+      });
+      bindIfPresent("hikingNoticeLockBtn", "click", toggleHikingNoticeLock);
+      bindIfPresent("hikingNoticeDeleteBtn", "click", deleteHikingNotice);
+      bindIfPresent("hikingNoticeText", "input", (e) => {
+        if (state.hikingNotice.locked) return;
+        state.hikingNotice.text = e.target.value;
+        scheduleHikingNoticeSave();
+      });
+      const hikingNoticeOverlay = byId("hikingNoticeOverlay");
+      if (hikingNoticeOverlay) hikingNoticeOverlay.addEventListener("click", (e) => { if (e.target === hikingNoticeOverlay) closeHikingNoticeDialog(); });
       bindIfPresent("infoTitleMain", "input", async (e) => { state.busInfo.titleMain = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoFeeLabel", "input", async (e) => { state.busInfo.feeLabel = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoAccountNumber", "input", async (e) => { state.busInfo.accountNumber = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
