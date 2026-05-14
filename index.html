@@ -3647,9 +3647,56 @@ function renderAll() {
       flashButton("boardImageModeBtn");
     }
 
+
+
+    function switchMode(nextMode) {
+      if (nextMode !== "member" && nextMode !== "admin") return;
+      if (state.mode === nextMode) return;
+      state.mode = nextMode;
+      state.editingSeat = null;
+      state.editName = "";
+      renderAll();
+    }
+
+    function bindMemberAdminSwipe() {
+      const swipeArea = document.querySelector(".card-title-row");
+      if (!swipeArea || swipeArea.dataset.swipeBound === "1") return;
+      swipeArea.dataset.swipeBound = "1";
+      swipeArea.style.touchAction = "pan-y";
+
+      let startX = 0;
+      let startY = 0;
+      let startTime = 0;
+
+      swipeArea.addEventListener("touchstart", (e) => {
+        if (!e.touches || e.touches.length !== 1) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        startTime = Date.now();
+      }, { passive: true });
+
+      swipeArea.addEventListener("touchend", (e) => {
+        if (!e.changedTouches || e.changedTouches.length !== 1) return;
+
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const diffX = endX - startX;
+        const diffY = endY - startY;
+        const elapsed = Date.now() - startTime;
+
+        if (elapsed > 900) return;
+        if (Math.abs(diffX) < 70) return;
+        if (Math.abs(diffY) > 45) return;
+
+        if (diffX < 0) switchMode("admin");
+        else switchMode("member");
+      }, { passive: true });
+    }
+
     function bindStaticEvents() {
-      bindIfPresent("memberTab", "click", () => { state.mode = "member"; state.editingSeat = null; state.editName = ""; renderAll(); });
-      bindIfPresent("adminTab", "click", () => { state.mode = "admin"; state.editingSeat = null; state.editName = ""; renderAll(); });
+      bindMemberAdminSwipe();
+      bindIfPresent("memberTab", "click", () => switchMode("member"));
+      bindIfPresent("adminTab", "click", () => switchMode("admin"));
       bindIfPresent("memberName", "input", (e) => {
         if (state.nameEntryLocked && !state.isAdminAuthenticated) return;
         const rawValue = e.target.value;
