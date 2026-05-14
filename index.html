@@ -1226,7 +1226,7 @@
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getDatabase, ref, onValue, get, set, update } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
     const firebaseConfig = {
@@ -1977,7 +1977,10 @@
 
       memberPhoneLookupPromise = (async () => {
         try {
-          const memberApp = initializeApp(MEMBER_LIST_FIREBASE_CONFIG, "memberListPhoneLookup");
+          const memberAppName = "memberListPhoneLookup";
+          const memberApp = getApps().some((app) => app.name === memberAppName)
+            ? getApp(memberAppName)
+            : initializeApp(MEMBER_LIST_FIREBASE_CONFIG, memberAppName);
           const memberDb = getDatabase(memberApp);
           const snapshot = await get(ref(memberDb, MEMBER_LIST_FIREBASE_PATH));
           if (!snapshot.exists()) return memberContactIndex;
@@ -2014,10 +2017,10 @@
         overlay.innerHTML = `
           <div class="tri-dialog" role="dialog" aria-modal="true" aria-labelledby="seatContactActionTitle">
             <div class="tri-title" id="seatContactActionTitle">${escapeHtml(seatName)} 연결</div>
-            <div class="tri-message">원하는 연결 방식을 선택하세요.${phone ? `\n전화: ${escapeHtml(formatPhoneForDisplay(phone))}` : ""}${kakao ? "\n카카오톡 연결 가능" : ""}</div>
+            <div class="tri-message">원하는 연결 방식을 선택하세요.${phone ? `\n전화: ${escapeHtml(formatPhoneForDisplay(phone))}` : ""}${kakao ? "\n카카오톡 연결 가능" : "\n카카오톡 앱 실행"}</div>
             <div class="tri-actions">
               ${phone ? '<button type="button" class="tri-btn primary" id="seatContactPhoneBtn">전화하기</button>' : ''}
-              ${kakao ? '<button type="button" class="tri-btn primary" id="seatContactKakaoBtn">카카오톡</button>' : ''}
+              '<button type="button" class="tri-btn primary" id="seatContactKakaoBtn">카카오톡</button>'
               <button type="button" class="tri-btn" id="seatContactCancelBtn">취소</button>
             </div>
           </div>
@@ -2057,9 +2060,18 @@
         window.location.href = `tel:${contact.phone}`;
         return true;
       }
-      if (action === "kakao" && contact.kakao) {
-        setStatusMessage(`${seatName} 카카오톡 연결`, "카카오톡 열기");
-        window.location.href = contact.kakao;
+      if (action === "kakao") {
+        setStatusMessage(`${seatName} 카카오톡 연결`, contact.kakao ? "카카오톡 열기" : "카카오톡 앱 실행");
+        if (contact.kakao) {
+          window.location.href = contact.kakao;
+        } else {
+          window.location.href = "kakaotalk://launch";
+          setTimeout(() => {
+            try {
+              window.location.href = "https://www.kakaocorp.com/page/service/service/KakaoTalk";
+            } catch (error) {}
+          }, 1200);
+        }
         return true;
       }
       return true;
@@ -2113,7 +2125,7 @@
             if (!connected) {
               openSeatMemoDialog(seatNo);
             }
-          }, SEAT_PHONE_LONG_PRESS_MS);
+          }, SEAT_CONTACT_LONG_PRESS_MS);
         };
 
         const movePress = (event) => {
@@ -4408,5 +4420,227 @@ function renderAll() {
 
 
 <!-- 좌석 이름과 회원명부 연락처 비교 후 3초 길게누름 전화연결 적용 -->
+
+<script>
+(function(){
+  const LONG_PRESS_MS = 3000;
+  let seatActionTimer = null;
+  let startX = 0;
+  let startY = 0;
+  let moved = false;
+
+  function cleanPhone(text){
+    return String(text || "").replace(/[^0-9]/g, "");
+  }
+
+  function normalizeNameText(text){
+    return String(text || "")
+      .replace(/[^가-힣0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function getSeatNameFromElement(seatEl){
+    if(!seatEl) return "";
+    const nameEl = seatEl.querySelector(".seat-name");
+    return normalizeNameText(nameEl ? nameEl.textContent : "");
+  }
+
+  function getPhoneFromMemberListByName(name){
+    const target = normalizeNameText(name);
+    if(!target) return "";
+    try{
+      const keys = [
+        "memberList.htmlForm.v3.safe",
+        "memberList.htmlForm.v1",
+        "memberList.htmlForm.v2",
+        "member-list-data",
+        "회원명부",
+        "회원명부데이터"
+      ];
+      for(const key of keys){
+        const raw = localStorage.getItem(key);
+        if(!raw) continue;
+        const parsed = JSON.parse(raw);
+        const rows = parsed && parsed.rows ? parsed.rows : (Array.isArray(parsed) ? parsed : []);
+        if(!Array.isArray(rows) || rows.length < 2) continue;
+        for(let i=1;i<rows.length;i++){
+          const row = rows[i];
+          if(!Array.isArray(row)) continue;
+          const nameCell = row[1];
+          const phoneCell = row[5];
+          const emergencyCell = row[6];
+          const rowName = normalizeNameText((nameCell && (nameCell.html || nameCell.text || nameCell.v)) || nameCell || "");
+          if(rowName && rowName === target){
+            const phone = cleanPhone((phoneCell && (phoneCell.html || phoneCell.text || phoneCell.v)) || phoneCell || "");
+            const emergency = cleanPhone((emergencyCell && (emergencyCell.html || emergencyCell.text || emergencyCell.v)) || emergencyCell || "");
+            return phone || emergency || "";
+          }
+        }
+      }
+    }catch(error){}
+    return "";
+  }
+
+  function findExistingContact(name){
+    // 기존 패치 함수가 있으면 우선 사용
+    try{
+      if(typeof window.findSeatMemberContact === "function"){
+        const found = window.findSeatMemberContact(name);
+        if(found && (found.phone || found.kakao)){
+          return found;
+        }
+      }
+    }catch(error){}
+
+    const phone = getPhoneFromMemberListByName(name);
+    return { phone, kakao: "" };
+  }
+
+  function openSeatMemo(seatEl){
+    try{
+      const seatNo =
+        seatEl?.dataset?.seat ||
+        seatEl?.dataset?.seatNo ||
+        seatEl?.getAttribute("data-seat") ||
+        seatEl?.getAttribute("data-seat-no") ||
+        "";
+      if(typeof window.openSeatMemoDialog === "function"){
+        window.openSeatMemoDialog(Number(seatNo));
+        return true;
+      }
+      if(typeof window.showSeatMemoDialog === "function"){
+        window.showSeatMemoDialog(Number(seatNo));
+        return true;
+      }
+      if(typeof window.handleSeatMemoLongPress === "function"){
+        window.handleSeatMemoLongPress(Number(seatNo), seatEl);
+        return true;
+      }
+      // 기존 좌석 메모 이벤트를 살리기 위한 fallback
+      seatEl.dispatchEvent(new CustomEvent("seat-memo-request", { bubbles:true, detail:{ seatNo:Number(seatNo) }}));
+    }catch(error){}
+    alert("메모 기능을 찾을 수 없습니다.");
+    return false;
+  }
+
+  function openKakao(kakaoLink){
+    if(kakaoLink){
+      window.location.href = kakaoLink;
+      return;
+    }
+    window.location.href = "kakaotalk://launch";
+    setTimeout(function(){
+      try{
+        window.location.href = "https://www.kakaocorp.com/page/service/service/KakaoTalk";
+      }catch(error){}
+    }, 1200);
+  }
+
+  function closeDialog(){
+    const old = document.getElementById("seatMemoPhoneKakaoOverlay");
+    if(old) old.remove();
+  }
+
+  function showActionDialog(seatEl, contact){
+    closeDialog();
+    const name = getSeatNameFromElement(seatEl);
+    const phone = contact && contact.phone ? String(contact.phone) : "";
+    const kakao = contact && contact.kakao ? String(contact.kakao) : "";
+
+    const overlay = document.createElement("div");
+    overlay.id = "seatMemoPhoneKakaoOverlay";
+    overlay.className = "tri-overlay";
+    overlay.innerHTML = `
+      <div class="tri-dialog" role="dialog" aria-modal="true">
+        <div class="tri-title">작업 선택</div>
+        <div class="tri-message">${name ? name + " 님" : "좌석"}\n메모 / 전화 / 카카오톡 중 선택하세요.</div>
+        <div class="tri-actions">
+          <button type="button" class="tri-btn primary" id="seatActionMemoBtn">메모</button>
+          <button type="button" class="tri-btn" id="seatActionPhoneBtn" ${phone ? "" : "disabled"}>전화</button>
+          <button type="button" class="tri-btn" id="seatActionKakaoBtn">카카오톡</button>
+          <button type="button" class="tri-btn" id="seatActionCancelBtn">취소</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener("click", function(e){
+      if(e.target === overlay) closeDialog();
+    });
+    overlay.querySelector("#seatActionMemoBtn").addEventListener("click", function(){
+      closeDialog();
+      openSeatMemo(seatEl);
+    });
+    overlay.querySelector("#seatActionPhoneBtn").addEventListener("click", function(){
+      if(!phone) return;
+      closeDialog();
+      window.location.href = "tel:" + phone;
+    });
+    overlay.querySelector("#seatActionKakaoBtn").addEventListener("click", function(){
+      closeDialog();
+      openKakao(kakao);
+    });
+    overlay.querySelector("#seatActionCancelBtn").addEventListener("click", closeDialog);
+  }
+
+  function cancelTimer(){
+    clearTimeout(seatActionTimer);
+    seatActionTimer = null;
+  }
+
+  function bindSeatActionLongPress(){
+    document.querySelectorAll(".seat").forEach(function(seatEl){
+      if(seatEl.dataset.memoPhoneKakaoBind === "1") return;
+      seatEl.dataset.memoPhoneKakaoBind = "1";
+
+      const start = function(e){
+        const name = getSeatNameFromElement(seatEl);
+        if(!name) return;
+        const point = e.touches && e.touches[0] ? e.touches[0] : e;
+        startX = point.clientX || 0;
+        startY = point.clientY || 0;
+        moved = false;
+        cancelTimer();
+
+        seatActionTimer = setTimeout(function(){
+          if(moved) return;
+          const contact = findExistingContact(name);
+          showActionDialog(seatEl, contact);
+        }, LONG_PRESS_MS);
+      };
+
+      const move = function(e){
+        const point = e.touches && e.touches[0] ? e.touches[0] : e;
+        const dx = Math.abs((point.clientX || 0) - startX);
+        const dy = Math.abs((point.clientY || 0) - startY);
+        if(dx > 12 || dy > 12){
+          moved = true;
+          cancelTimer();
+        }
+      };
+
+      seatEl.addEventListener("mousedown", start, true);
+      seatEl.addEventListener("touchstart", start, {passive:true, capture:true});
+      seatEl.addEventListener("mousemove", move, true);
+      seatEl.addEventListener("touchmove", move, {passive:true, capture:true});
+      seatEl.addEventListener("mouseup", cancelTimer, true);
+      seatEl.addEventListener("mouseleave", cancelTimer, true);
+      seatEl.addEventListener("touchend", cancelTimer, true);
+      seatEl.addEventListener("touchcancel", cancelTimer, true);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    setTimeout(bindSeatActionLongPress, 800);
+    const observer = new MutationObserver(function(){
+      clearTimeout(window.__seatMemoPhoneKakaoBindTimer);
+      window.__seatMemoPhoneKakaoBindTimer = setTimeout(bindSeatActionLongPress, 250);
+    });
+    observer.observe(document.body, {childList:true, subtree:true});
+  });
+})();
+</script>
+
 </body>
 </html>
