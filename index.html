@@ -1837,16 +1837,142 @@
         </button>`;
     }
 
+
+    /* ===== 좌석 이름 ↔ 회원명부 연락처 비교 후 3초 길게누름 전화 연결 ===== */
+    const MEMBER_LIST_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyBRxAdYRyjMIcQvCQ2ja7YOkdFGNCkW1cE",
+      authDomain: "member-b458f.firebaseapp.com",
+      databaseURL: "https://member-b458f-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "member-b458f",
+      storageBucket: "member-b458f.firebasestorage.app",
+      messagingSenderId: "399411166551",
+      appId: "1:399411166551:web:3c693da51daaa042751212"
+    };
+    const MEMBER_LIST_FIREBASE_PATH = "memberList/main";
+    const MEMBER_NAME_COLUMN_INDEX = 1;
+    const MEMBER_PHONE_COLUMN_INDEXES = [5, 6];
+    const SEAT_PHONE_LONG_PRESS_MS = 3000;
+    let memberPhoneIndex = new Map();
+    let memberPhoneLookupPromise = null;
+
+    function plainTextFromHtmlForPhone(html) {
+      const div = document.createElement("div");
+      div.innerHTML = String(html ?? "");
+      return div.innerText.trim();
+    }
+
+    function normalizePhoneName(name) {
+      return normalizeName(String(name || "").replace(/\d+$/g, ""));
+    }
+
+    function normalizePhoneNumber(text) {
+      return String(text || "").replace(/[^0-9]/g, "");
+    }
+
+    function formatPhoneForDisplay(digits) {
+      const raw = normalizePhoneNumber(digits);
+      if (raw.length === 11) return raw.slice(0, 3) + " " + raw.slice(3, 7) + " " + raw.slice(7);
+      if (raw.length === 10) return raw.slice(0, 3) + " " + raw.slice(3, 6) + " " + raw.slice(6);
+      return raw;
+    }
+
+    function extractMemberRowsForPhone(payload) {
+      const data = payload && payload.data ? payload.data : payload;
+      const rows = data && Array.isArray(data.rows) ? data.rows : [];
+      return rows;
+    }
+
+    function readCellTextForPhone(cell) {
+      if (cell && typeof cell === "object") {
+        return plainTextFromHtmlForPhone(cell.html ?? cell.text ?? cell.v ?? "");
+      }
+      return plainTextFromHtmlForPhone(cell ?? "");
+    }
+
+    function buildMemberPhoneIndex(payload) {
+      const rows = extractMemberRowsForPhone(payload);
+      const nextIndex = new Map();
+
+      rows.slice(1).forEach((row) => {
+        if (!Array.isArray(row)) return;
+        const memberName = normalizePhoneName(readCellTextForPhone(row[MEMBER_NAME_COLUMN_INDEX]));
+        if (!memberName) return;
+
+        let phone = "";
+        for (const colIndex of MEMBER_PHONE_COLUMN_INDEXES) {
+          const candidate = normalizePhoneNumber(readCellTextForPhone(row[colIndex]));
+          if (candidate.length >= 9) {
+            phone = candidate;
+            break;
+          }
+        }
+        if (!phone) return;
+        if (!nextIndex.has(memberName)) {
+          nextIndex.set(memberName, phone);
+        }
+      });
+
+      memberPhoneIndex = nextIndex;
+      return nextIndex;
+    }
+
+    async function loadMemberPhoneIndexFromFirebase() {
+      if (memberPhoneLookupPromise) return memberPhoneLookupPromise;
+
+      memberPhoneLookupPromise = (async () => {
+        try {
+          const memberApp = initializeApp(MEMBER_LIST_FIREBASE_CONFIG, "memberListPhoneLookup");
+          const memberDb = getDatabase(memberApp);
+          const snapshot = await get(ref(memberDb, MEMBER_LIST_FIREBASE_PATH));
+          if (!snapshot.exists()) return memberPhoneIndex;
+          return buildMemberPhoneIndex(snapshot.val());
+        } catch (error) {
+          console.warn("회원명부 연락처 불러오기 실패", error);
+          return memberPhoneIndex;
+        }
+      })();
+
+      return memberPhoneLookupPromise;
+    }
+
+    function findPhoneBySeatName(name) {
+      const key = normalizePhoneName(name);
+      if (!key) return "";
+      return memberPhoneIndex.get(key) || "";
+    }
+
+    async function callMemberBySeatName(seat) {
+      const seatName = normalizePhoneName(seat && seat.name);
+      if (!seatName) return false;
+
+      if (!memberPhoneIndex.size) {
+        await loadMemberPhoneIndexFromFirebase();
+      }
+
+      const phone = findPhoneBySeatName(seatName);
+      if (!phone) {
+        setStatusMessage(`${seatName} 연락처 없음`, "회원명부 확인 필요");
+        return false;
+      }
+
+      setStatusMessage(`${seatName} 전화 연결`, formatPhoneForDisplay(phone));
+      window.location.href = `tel:${phone}`;
+      return true;
+    }
+
     function bindSeatEvents() {
       document.querySelectorAll(".seat").forEach((btn) => {
         let pressTimer = null;
+        let phoneTimer = null;
         let longPressTriggered = false;
         let startX = 0;
         let startY = 0;
 
         const clearPressTimer = () => {
           if (pressTimer) window.clearTimeout(pressTimer);
+          if (phoneTimer) window.clearTimeout(phoneTimer);
           pressTimer = null;
+          phoneTimer = null;
         };
 
         const beginPress = (event) => {
@@ -1857,14 +1983,20 @@
           if (!seat || isBlockedSeat(seatNo) || !seat.name) return;
           startX = event.clientX ?? (event.touches?.[0]?.clientX || 0);
           startY = event.clientY ?? (event.touches?.[0]?.clientY || 0);
-          pressTimer = window.setTimeout(() => {
+
+          // 좌석 이름과 회원명부 이름을 비교해서 3초 이상 길게 누르면 전화 연결합니다.
+          phoneTimer = window.setTimeout(async () => {
             longPressTriggered = true;
-            openSeatMemoDialog(seatNo);
-          }, 1300);
+            clearPressTimer();
+            const connected = await callMemberBySeatName(seat);
+            if (!connected) {
+              openSeatMemoDialog(seatNo);
+            }
+          }, SEAT_PHONE_LONG_PRESS_MS);
         };
 
         const movePress = (event) => {
-          if (!pressTimer) return;
+          if (!phoneTimer && !pressTimer) return;
           const currentX = event.clientX ?? (event.touches?.[0]?.clientX || 0);
           const currentY = event.clientY ?? (event.touches?.[0]?.clientY || 0);
           if (Math.abs(currentX - startX) > 10 || Math.abs(currentY - startY) > 10) clearPressTimer();
@@ -4153,5 +4285,7 @@ function renderAll() {
   </script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
+
+<!-- 좌석 이름과 회원명부 연락처 비교 후 3초 길게누름 전화연결 적용 -->
 </body>
 </html>
