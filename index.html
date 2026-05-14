@@ -981,7 +981,8 @@
     }
 
   
-/* 이름 1.5초 길게누름: 메모/전화/카카오톡 선택 */
+
+/* 이름 1.5초 길게누름: 메모/전화/카카오톡 선택 - 안전 수정 */
 .seat-name-action-overlay{
   position:fixed;
   inset:0;
@@ -1002,24 +1003,9 @@
   text-align:center;
   font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;
 }
-.seat-name-action-title{
-  font-size:17px;
-  font-weight:700;
-  margin-bottom:8px;
-  color:#111;
-}
-.seat-name-action-message{
-  white-space:pre-line;
-  line-height:1.55;
-  font-size:14px;
-  color:#222;
-  margin-bottom:16px;
-}
-.seat-name-action-buttons{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:8px;
-}
+.seat-name-action-title{font-size:17px;font-weight:700;margin-bottom:8px;color:#111;}
+.seat-name-action-message{white-space:pre-line;line-height:1.55;font-size:14px;color:#222;margin-bottom:16px;}
+.seat-name-action-buttons{display:grid;grid-template-columns:1fr;gap:8px;}
 .seat-name-action-buttons button{
   width:100%;
   height:40px;
@@ -1036,10 +1022,7 @@
 .seat-name-action-buttons .phone{background:#111827;border-color:#111827;color:#fff;}
 .seat-name-action-buttons .kakao{background:#fee500;border-color:#d6c300;color:#111;}
 .seat-name-action-buttons .cancel{background:#fff;color:#555;}
-.seat-name-action-buttons button:disabled{
-  opacity:.45;
-  cursor:not-allowed;
-}
+.seat-name-action-buttons button:disabled{opacity:.45;cursor:not-allowed;}
 @media(max-width:760px){
   .seat-name-action-dialog{padding:14px;border-radius:18px;}
   .seat-name-action-title{font-size:15px;}
@@ -4220,9 +4203,19 @@ function renderAll() {
       autoResizeNameExportText();
       await initFirebase();
     }
+    // ===== Safe bridge: expose original seat memo functions without changing them =====
+    try {
+      window.__seatMemoBridge = window.__seatMemoBridge || {};
+      if (typeof showSeatMemoDialog === "function") window.__seatMemoBridge.showSeatMemoDialog = showSeatMemoDialog;
+      if (typeof openSeatMemoDialog === "function") window.__seatMemoBridge.openSeatMemoDialog = openSeatMemoDialog;
+      if (typeof handleSeatMemoLongPress === "function") window.__seatMemoBridge.handleSeatMemoLongPress = handleSeatMemoLongPress;
+    } catch (error) {}
+
     init();
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js">
+</script>
+
 
 
 <script>
@@ -4260,32 +4253,20 @@ function renderAll() {
   let moved = false;
   let activeSeat = null;
 
-  function cleanPhone(text){
-    return String(text || "").replace(/[^0-9]/g, "");
-  }
-
+  function cleanPhone(text){ return String(text || "").replace(/[^0-9]/g, ""); }
   function escapeHtmlText(text){
     return String(text || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
+      .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;").replaceAll("'","&#39;");
   }
-
   function plainTextFromHtml(value){
     const div = document.createElement("div");
     div.innerHTML = String(value ?? "");
     return (div.innerText || div.textContent || "").trim();
   }
-
   function normalizeNameText(value){
-    return String(value || "")
-      .replace(/[^가-힣0-9\s]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
+    return String(value || "").replace(/[^가-힣0-9\s]/g,"").replace(/\s+/g," ").trim();
   }
-
   function normalizeKakaoLink(value){
     const text = String(value || "").trim();
     if(!text) return "";
@@ -4294,79 +4275,67 @@ function renderAll() {
     if(/^(open\.kakao\.com|pf\.kakao\.com|talk\.kakao\.com)/i.test(text)) return "https://" + text;
     return "";
   }
-
   function getSeatName(seatEl){
     const nameEl = seatEl ? seatEl.querySelector(".seat-name") : null;
     return normalizeNameText(nameEl ? nameEl.textContent : "");
   }
-
   function getSeatNo(seatEl){
     if(!seatEl) return 0;
-    return Number(
-      seatEl.dataset.seat ||
-      seatEl.dataset.seatNo ||
-      seatEl.getAttribute("data-seat") ||
-      seatEl.getAttribute("data-seat-no") ||
-      seatEl.querySelector(".seat-number")?.textContent ||
-      0
-    );
-  }
-
-  function cellValue(cell){
-    if(cell && typeof cell === "object"){
-      return plainTextFromHtml(cell.html ?? cell.text ?? cell.v ?? "");
+    const candidates = [
+      seatEl.dataset.seatNo,
+      seatEl.dataset.seat,
+      seatEl.dataset.number,
+      seatEl.dataset.seatNumber,
+      seatEl.getAttribute("data-seat-no"),
+      seatEl.getAttribute("data-seat"),
+      seatEl.getAttribute("data-number"),
+      seatEl.getAttribute("data-seat-number")
+    ].filter(Boolean);
+    for(const v of candidates){
+      const n = Number(v);
+      if(Number.isFinite(n) && n > 0) return n;
     }
+    // 마지막 fallback: seat-number 텍스트는 31인승 표시번호일 수 있어 최후에만 사용
+    const textNo = Number(seatEl.querySelector(".seat-number")?.textContent || 0);
+    return Number.isFinite(textNo) ? textNo : 0;
+  }
+  function cellValue(cell){
+    if(cell && typeof cell === "object") return plainTextFromHtml(cell.html ?? cell.text ?? cell.v ?? "");
     return plainTextFromHtml(cell || "");
   }
-
   function extractRowsFromMemberData(raw){
     if(!raw) return [];
     const data = raw.data && raw.data.rows ? raw.data : raw;
     const rows = Array.isArray(data.rows) ? data.rows : (Array.isArray(data) ? data : []);
     return rows.filter(row => Array.isArray(row));
   }
-
   function loadMemberRowsFromLocal(){
     for(const key of MEMBER_LOCAL_KEYS){
       try{
         const raw = localStorage.getItem(key);
         if(!raw) continue;
-        const parsed = JSON.parse(raw);
-        const rows = extractRowsFromMemberData(parsed);
+        const rows = extractRowsFromMemberData(JSON.parse(raw));
         if(rows.length > 1) return rows;
       }catch(error){}
     }
     return [];
   }
-
   function loadMemberRowsFromFirebase(){
     if(memberFirebaseTried) return;
     memberFirebaseTried = true;
-
     try{
       if(!window.firebase || !window.firebase.initializeApp || !window.firebase.database) return;
-
       let app = null;
       if(window.firebase.apps && window.firebase.apps.length){
-        app = window.firebase.apps.find(function(item){ return item && item.name === "seatNameMemberLookup"; });
+        app = window.firebase.apps.find(item => item && item.name === "seatNameMemberLookup");
       }
-      if(!app){
-        app = window.firebase.initializeApp(MEMBER_FIREBASE_CONFIG, "seatNameMemberLookup");
-      }
-
-      const db = window.firebase.database(app);
-      db.ref(MEMBER_FIREBASE_PATH).once("value").then(function(snapshot){
-        const value = snapshot.val();
-        const rows = extractRowsFromMemberData(value);
+      if(!app) app = window.firebase.initializeApp(MEMBER_FIREBASE_CONFIG, "seatNameMemberLookup");
+      window.firebase.database(app).ref(MEMBER_FIREBASE_PATH).once("value").then(function(snapshot){
+        const rows = extractRowsFromMemberData(snapshot.val());
         if(rows.length > 1) memberRowsCache = rows;
-      }).catch(function(error){
-        console.warn("회원명부 Firebase 연락처 조회 실패", error);
-      });
-    }catch(error){
-      console.warn("회원명부 Firebase 초기화 실패", error);
-    }
+      }).catch(function(error){ console.warn("회원명부 Firebase 연락처 조회 실패", error); });
+    }catch(error){ console.warn("회원명부 Firebase 초기화 실패", error); }
   }
-
   function getMemberRows(){
     if(memberRowsCache && memberRowsCache.length > 1) return memberRowsCache;
     const localRows = loadMemberRowsFromLocal();
@@ -4377,101 +4346,73 @@ function renderAll() {
     loadMemberRowsFromFirebase();
     return memberRowsCache || [];
   }
-
   function findMemberContactByName(name){
     const target = normalizeNameText(name);
     if(!target) return { phone:"", kakao:"" };
-
     const rows = getMemberRows();
-
-    for(let i = 1; i < rows.length; i++){
+    for(let i=1; i<rows.length; i++){
       const row = rows[i];
       const rowName = normalizeNameText(cellValue(row[1]));
       if(!rowName || rowName !== target) continue;
-
       const phone = cleanPhone(cellValue(row[5])) || cleanPhone(cellValue(row[6]));
       let kakao = "";
-
-      for(let c = 0; c < row.length; c++){
+      for(let c=0; c<row.length; c++){
         const text = cellValue(row[c]);
         const urlMatch = text.match(/(?:https?:\/\/)?(?:open\.kakao\.com|pf\.kakao\.com|talk\.kakao\.com)[^\s<>"']*/i);
-        if(urlMatch){
-          kakao = normalizeKakaoLink(urlMatch[0]);
-          break;
-        }
+        if(urlMatch){ kakao = normalizeKakaoLink(urlMatch[0]); break; }
         const direct = normalizeKakaoLink(text);
-        if(direct){
-          kakao = direct;
-          break;
-        }
+        if(direct){ kakao = direct; break; }
       }
-
       return { phone, kakao };
     }
-
     return { phone:"", kakao:"" };
   }
-
   function closeDialog(){
     const old = document.getElementById("seatNameActionOverlay");
     if(old) old.remove();
   }
-
   function openKakao(kakaoLink){
+    /*
+      카카오톡 홈페이지 이동 제거.
+      휴대폰에 카카오톡 앱이 설치되어 있으면 앱만 직접 실행합니다.
+      오픈채팅/프로필 링크가 있는 경우에는 해당 링크를 우선 실행합니다.
+    */
     if(kakaoLink){
       window.location.href = kakaoLink;
       return;
     }
     window.location.href = "kakaotalk://launch";
-    setTimeout(function(){
-      try{
-        window.location.href = "https://www.kakaocorp.com/page/service/service/KakaoTalk";
-      }catch(error){}
-    }, 1200);
   }
-
-  function openMemo(seatEl){
+  function openOriginalMemo(seatEl){
     const seatNo = getSeatNo(seatEl);
-
+    const bridge = window.__seatMemoBridge || {};
     try{
-      if(typeof window.openSeatMemoDialog === "function"){
-        window.openSeatMemoDialog(seatNo);
+      if(typeof bridge.showSeatMemoDialog === "function"){
+        bridge.showSeatMemoDialog(seatNo);
         return;
       }
-      if(typeof window.showSeatMemoDialog === "function"){
-        window.showSeatMemoDialog(seatNo);
+      if(typeof bridge.openSeatMemoDialog === "function"){
+        bridge.openSeatMemoDialog(seatNo);
         return;
       }
-      if(typeof window.handleSeatMemoLongPress === "function"){
-        window.handleSeatMemoLongPress(seatNo, seatEl);
+      if(typeof bridge.handleSeatMemoLongPress === "function"){
+        bridge.handleSeatMemoLongPress(seatNo, seatEl);
         return;
       }
-
-      // 기존 메모 이벤트가 내부에 묶여 있을 경우를 위한 fallback
+      // 원래 좌석 메모가 seat click/longpress 이벤트로만 묶인 경우: 기존 이벤트를 발생시킴
       seatEl.dispatchEvent(new CustomEvent("seat-memo-request", {
         bubbles:true,
         detail:{ seatNo:seatNo, seatEl:seatEl }
       }));
-
-      // fallback 입력창
-      const currentMemo = "";
-      const memo = prompt("메모를 입력하세요.", currentMemo);
-      if(memo === null) return;
-
-      if(window.state && Array.isArray(window.state.seats)){
-        const targetSeat = window.state.seats.find(function(item){ return Number(item.number) === Number(seatNo); });
-        if(targetSeat) targetSeat.memo = memo;
-      }
+      alert("기존 메모 함수 연결을 찾지 못했습니다. 원본 메모 코드는 변경하지 않았습니다.");
     }catch(error){
-      console.warn("메모 열기 실패", error);
-      alert("메모 기능을 열 수 없습니다.");
+      console.warn("기존 메모 열기 실패", error);
+      alert("메모 기능 오류: 기존 메모창을 열 수 없습니다.");
     }
   }
-
   function showActionDialog(seatEl){
     const name = getSeatName(seatEl);
     const contact = findMemberContactByName(name);
-
     closeDialog();
 
     const overlay = document.createElement("div");
@@ -4491,54 +4432,30 @@ function renderAll() {
     `;
     document.body.appendChild(overlay);
 
-    overlay.addEventListener("click", function(e){
-      if(e.target === overlay) closeDialog();
-    }, true);
-
+    overlay.addEventListener("click", function(e){ if(e.target === overlay) closeDialog(); }, true);
     overlay.querySelector("#seatNameMemoBtn").addEventListener("click", function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      closeDialog();
-      openMemo(seatEl);
+      e.preventDefault(); e.stopPropagation(); closeDialog(); openOriginalMemo(seatEl);
     }, true);
-
     overlay.querySelector("#seatNamePhoneBtn").addEventListener("click", function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      if(!contact.phone) return;
-      closeDialog();
-      window.location.href = "tel:" + contact.phone;
+      e.preventDefault(); e.stopPropagation(); if(!contact.phone) return; closeDialog(); window.location.href = "tel:" + contact.phone;
     }, true);
-
     overlay.querySelector("#seatNameKakaoBtn").addEventListener("click", function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      closeDialog();
-      openKakao(contact.kakao);
+      e.preventDefault(); e.stopPropagation(); closeDialog(); openKakao(contact.kakao);
     }, true);
-
     overlay.querySelector("#seatNameCancelBtn").addEventListener("click", function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      closeDialog();
+      e.preventDefault(); e.stopPropagation(); closeDialog();
     }, true);
   }
-
   function cancelPress(){
     clearTimeout(pressTimer);
     pressTimer = null;
     activeSeat = null;
   }
-
   function startPress(e){
     const nameEl = e.target && e.target.closest ? e.target.closest(".seat-name") : null;
     if(!nameEl) return;
-
     const seatEl = nameEl.closest(".seat");
-    if(!seatEl) return;
-
-    const name = getSeatName(seatEl);
-    if(!name) return;
+    if(!seatEl || !getSeatName(seatEl)) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -4549,7 +4466,6 @@ function renderAll() {
     startY = point.clientY || 0;
     moved = false;
     activeSeat = seatEl;
-
     clearTimeout(pressTimer);
     pressTimer = setTimeout(function(){
       if(moved || !activeSeat) return;
@@ -4557,48 +4473,28 @@ function renderAll() {
       cancelPress();
     }, LONG_PRESS_MS);
   }
-
   function movePress(e){
     if(!activeSeat) return;
     const point = e.touches && e.touches[0] ? e.touches[0] : e;
     const dx = Math.abs((point.clientX || 0) - startX);
     const dy = Math.abs((point.clientY || 0) - startY);
-    if(dx > 12 || dy > 12){
-      moved = true;
-      cancelPress();
-    }
+    if(dx > 12 || dy > 12){ moved = true; cancelPress(); }
   }
-
-  function blockShortClick(e){
-    const nameEl = e.target && e.target.closest ? e.target.closest(".seat-name") : null;
-    if(!nameEl) return;
-    const seatEl = nameEl.closest(".seat");
-    if(!seatEl || !getSeatName(seatEl)) return;
-
-    // 이름 짧은 클릭은 기존 좌석 선택 기능을 유지하기 위해 차단하지 않음
-  }
-
   function bindNameLongPress(){
     if(document.body.dataset.seatNameActionBind === "1") return;
     document.body.dataset.seatNameActionBind = "1";
-
     document.addEventListener("pointerdown", startPress, true);
     document.addEventListener("pointermove", movePress, true);
     document.addEventListener("pointerup", cancelPress, true);
     document.addEventListener("pointercancel", cancelPress, true);
-
     document.addEventListener("touchstart", startPress, {capture:true, passive:false});
     document.addEventListener("touchmove", movePress, {capture:true, passive:true});
     document.addEventListener("touchend", cancelPress, true);
     document.addEventListener("touchcancel", cancelPress, true);
-
     document.addEventListener("mousedown", startPress, true);
     document.addEventListener("mousemove", movePress, true);
     document.addEventListener("mouseup", cancelPress, true);
-
-    document.addEventListener("click", blockShortClick, true);
   }
-
   document.addEventListener("DOMContentLoaded", function(){
     setTimeout(bindNameLongPress, 500);
     setTimeout(loadMemberRowsFromFirebase, 1200);
