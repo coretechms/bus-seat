@@ -2048,15 +2048,15 @@
       if (memberSaveBtn) {
         memberSaveBtn.disabled = isMemberLocked;
         memberSaveBtn.style.opacity = isMemberLocked ? "0.55" : "1";
-        memberSaveBtn.title = isMemberLocked ? "관리자가 전체 이름 입력을 제한했습니다." : "";
+        memberSaveBtn.title = isMemberLocked ? "관리자가 전체 입력을 제한했습니다." : "";
       }
       if (memberCancelBtn) {
         memberCancelBtn.disabled = isMemberLocked;
         memberCancelBtn.style.opacity = isMemberLocked ? "0.55" : "1";
-        memberCancelBtn.title = isMemberLocked ? "관리자가 전체 이름 입력을 제한했습니다." : "";
+        memberCancelBtn.title = isMemberLocked ? "관리자가 전체 입력을 제한했습니다." : "";
       }
       if (toggleNameEntryLockBtn) {
-        toggleNameEntryLockBtn.textContent = state.nameEntryLocked ? "전체 이름입력 해제" : "전체 이름입력 제한";
+        toggleNameEntryLockBtn.textContent = state.nameEntryLocked ? "전체 입력 해제" : "전체 입력 제한";
       }
       if (nameEntryLockStatus) {
         nameEntryLockStatus.innerHTML = `<strong>${state.nameEntryLocked ? "이름 입력 제한됨" : "이름 입력 가능"}</strong>`;
@@ -2066,7 +2066,7 @@
         memberSeat.innerHTML = getSeatOptionsHtml();
         memberSeat.value = state.memberSeat;
         memberSeat.disabled = isMemberLocked;
-        memberSeat.title = isMemberLocked ? "관리자가 전체 이름 입력을 제한했습니다." : "";
+        memberSeat.title = isMemberLocked ? "관리자가 전체 입력을 제한했습니다." : "";
       }
       if (adminSeat) {
         adminSeat.innerHTML = getSeatOptionsHtml();
