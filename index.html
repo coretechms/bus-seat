@@ -1838,7 +1838,7 @@
     }
 
 
-    /* ===== 좌석 이름 ↔ 회원명부 연락처 비교 후 3초 길게누름 전화 연결 ===== */
+    /* ===== 좌석 이름 ↔ 회원명부 연락처/카카오톡 비교 후 3초 길게누름 연결 ===== */
     const MEMBER_LIST_FIREBASE_CONFIG = {
       apiKey: "AIzaSyBRxAdYRyjMIcQvCQ2ja7YOkdFGNCkW1cE",
       authDomain: "member-b458f.firebaseapp.com",
@@ -1851,7 +1851,9 @@
     const MEMBER_LIST_FIREBASE_PATH = "memberList/main";
     const MEMBER_NAME_COLUMN_INDEX = 1;
     const MEMBER_PHONE_COLUMN_INDEXES = [5, 6];
-    const SEAT_PHONE_LONG_PRESS_MS = 3000;
+    const MEMBER_KAKAO_HEADER_KEYWORDS = ["카카오", "카톡", "kakao", "오픈채팅", "openchat", "open.kakao"];
+    const SEAT_CONTACT_LONG_PRESS_MS = 3000;
+    let memberContactIndex = new Map();
     let memberPhoneIndex = new Map();
     let memberPhoneLookupPromise = null;
 
@@ -1889,9 +1891,39 @@
       return plainTextFromHtmlForPhone(cell ?? "");
     }
 
+    function isLikelyKakaoValue(text) {
+      const raw = String(text || "").trim();
+      if (!raw) return false;
+      return /kakao|카카오|카톡|오픈채팅|openchat|open\.kakao\.com|kakaotalk:\/\//i.test(raw);
+    }
+
+    function normalizeKakaoLink(text) {
+      const raw = String(text || "").trim();
+      if (!raw) return "";
+      const urlMatch = raw.match(/(https?:\/\/[^\s<>"]*kakao[^\s<>"]*|kakaotalk:\/\/[^\s<>"]*)/i);
+      if (urlMatch) return urlMatch[1];
+      if (/^open\.kakao\.com\//i.test(raw)) return "https://" + raw;
+      if (/^pf\.kakao\.com\//i.test(raw)) return "https://" + raw;
+      return "";
+    }
+
+    function getKakaoColumnIndexes(rows) {
+      const headerRow = Array.isArray(rows[0]) ? rows[0] : [];
+      const indexes = [];
+      headerRow.forEach((cell, index) => {
+        const header = readCellTextForPhone(cell).toLowerCase();
+        if (MEMBER_KAKAO_HEADER_KEYWORDS.some((keyword) => header.includes(keyword.toLowerCase()))) {
+          indexes.push(index);
+        }
+      });
+      return indexes;
+    }
+
     function buildMemberPhoneIndex(payload) {
       const rows = extractMemberRowsForPhone(payload);
-      const nextIndex = new Map();
+      const kakaoColumnIndexes = getKakaoColumnIndexes(rows);
+      const nextContactIndex = new Map();
+      const nextPhoneIndex = new Map();
 
       rows.slice(1).forEach((row) => {
         if (!Array.isArray(row)) return;
@@ -1906,14 +1938,38 @@
             break;
           }
         }
-        if (!phone) return;
-        if (!nextIndex.has(memberName)) {
-          nextIndex.set(memberName, phone);
+
+        let kakao = "";
+        for (const colIndex of kakaoColumnIndexes) {
+          const candidate = normalizeKakaoLink(readCellTextForPhone(row[colIndex]));
+          if (candidate) {
+            kakao = candidate;
+            break;
+          }
+        }
+        if (!kakao) {
+          for (const cell of row) {
+            const text = readCellTextForPhone(cell);
+            if (isLikelyKakaoValue(text)) {
+              const candidate = normalizeKakaoLink(text);
+              if (candidate) {
+                kakao = candidate;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!phone && !kakao) return;
+        if (!nextContactIndex.has(memberName)) {
+          nextContactIndex.set(memberName, { phone, kakao });
+          if (phone) nextPhoneIndex.set(memberName, phone);
         }
       });
 
-      memberPhoneIndex = nextIndex;
-      return nextIndex;
+      memberContactIndex = nextContactIndex;
+      memberPhoneIndex = nextPhoneIndex;
+      return nextContactIndex;
     }
 
     async function loadMemberPhoneIndexFromFirebase() {
@@ -1924,37 +1980,102 @@
           const memberApp = initializeApp(MEMBER_LIST_FIREBASE_CONFIG, "memberListPhoneLookup");
           const memberDb = getDatabase(memberApp);
           const snapshot = await get(ref(memberDb, MEMBER_LIST_FIREBASE_PATH));
-          if (!snapshot.exists()) return memberPhoneIndex;
+          if (!snapshot.exists()) return memberContactIndex;
           return buildMemberPhoneIndex(snapshot.val());
         } catch (error) {
-          console.warn("회원명부 연락처 불러오기 실패", error);
-          return memberPhoneIndex;
+          console.warn("회원명부 연락처/카카오톡 불러오기 실패", error);
+          return memberContactIndex;
         }
       })();
 
       return memberPhoneLookupPromise;
     }
 
-    function findPhoneBySeatName(name) {
+    function findContactBySeatName(name) {
       const key = normalizePhoneName(name);
-      if (!key) return "";
-      return memberPhoneIndex.get(key) || "";
+      if (!key) return { phone: "", kakao: "" };
+      return memberContactIndex.get(key) || { phone: "", kakao: "" };
+    }
+
+    function findPhoneBySeatName(name) {
+      return findContactBySeatName(name).phone || "";
+    }
+
+    function showSeatContactActionDialog(seatName, contact) {
+      return new Promise((resolve) => {
+        const existing = document.getElementById("seatContactActionOverlay");
+        if (existing) existing.remove();
+
+        const phone = contact && contact.phone ? String(contact.phone) : "";
+        const kakao = contact && contact.kakao ? String(contact.kakao) : "";
+        const overlay = document.createElement("div");
+        overlay.className = "tri-overlay";
+        overlay.id = "seatContactActionOverlay";
+        overlay.innerHTML = `
+          <div class="tri-dialog" role="dialog" aria-modal="true" aria-labelledby="seatContactActionTitle">
+            <div class="tri-title" id="seatContactActionTitle">${escapeHtml(seatName)} 연결</div>
+            <div class="tri-message">원하는 연결 방식을 선택하세요.${phone ? `\n전화: ${escapeHtml(formatPhoneForDisplay(phone))}` : ""}${kakao ? "\n카카오톡 연결 가능" : ""}</div>
+            <div class="tri-actions">
+              ${phone ? '<button type="button" class="tri-btn primary" id="seatContactPhoneBtn">전화하기</button>' : ''}
+              ${kakao ? '<button type="button" class="tri-btn primary" id="seatContactKakaoBtn">카카오톡</button>' : ''}
+              <button type="button" class="tri-btn" id="seatContactCancelBtn">취소</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const cleanup = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) cleanup("cancel");
+        });
+        overlay.querySelector("#seatContactPhoneBtn")?.addEventListener("click", () => cleanup("phone"));
+        overlay.querySelector("#seatContactKakaoBtn")?.addEventListener("click", () => cleanup("kakao"));
+        overlay.querySelector("#seatContactCancelBtn")?.addEventListener("click", () => cleanup("cancel"));
+      });
+    }
+
+    async function openSeatContactBySeatName(seat) {
+      const seatName = normalizePhoneName(seat && seat.name);
+      if (!seatName) return false;
+
+      if (!memberContactIndex.size) {
+        await loadMemberPhoneIndexFromFirebase();
+      }
+
+      const contact = findContactBySeatName(seatName);
+      if (!contact.phone && !contact.kakao) {
+        setStatusMessage(`${seatName} 연락처/카카오 없음`, "회원명부 확인 필요");
+        return false;
+      }
+
+      const action = await showSeatContactActionDialog(seatName, contact);
+      if (action === "phone" && contact.phone) {
+        setStatusMessage(`${seatName} 전화 연결`, formatPhoneForDisplay(contact.phone));
+        window.location.href = `tel:${contact.phone}`;
+        return true;
+      }
+      if (action === "kakao" && contact.kakao) {
+        setStatusMessage(`${seatName} 카카오톡 연결`, "카카오톡 열기");
+        window.location.href = contact.kakao;
+        return true;
+      }
+      return true;
     }
 
     async function callMemberBySeatName(seat) {
       const seatName = normalizePhoneName(seat && seat.name);
       if (!seatName) return false;
-
-      if (!memberPhoneIndex.size) {
+      if (!memberContactIndex.size) {
         await loadMemberPhoneIndexFromFirebase();
       }
-
       const phone = findPhoneBySeatName(seatName);
       if (!phone) {
         setStatusMessage(`${seatName} 연락처 없음`, "회원명부 확인 필요");
         return false;
       }
-
       setStatusMessage(`${seatName} 전화 연결`, formatPhoneForDisplay(phone));
       window.location.href = `tel:${phone}`;
       return true;
@@ -1984,11 +2105,11 @@
           startX = event.clientX ?? (event.touches?.[0]?.clientX || 0);
           startY = event.clientY ?? (event.touches?.[0]?.clientY || 0);
 
-          // 좌석 이름과 회원명부 이름을 비교해서 3초 이상 길게 누르면 전화 연결합니다.
+          // 좌석 이름과 회원명부 이름을 비교해서 3초 이상 길게 누르면 전화/카카오톡 선택창을 엽니다.
           phoneTimer = window.setTimeout(async () => {
             longPressTriggered = true;
             clearPressTimer();
-            const connected = await callMemberBySeatName(seat);
+            const connected = await openSeatContactBySeatName(seat);
             if (!connected) {
               openSeatMemoDialog(seatNo);
             }
