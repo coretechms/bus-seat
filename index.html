@@ -1056,7 +1056,7 @@
               <button class="btn btn-outline" id="tripScheduleBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행계획</button>
               <button class="btn btn-outline" id="memberListBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">회원정보</button>
               <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:100%; height:28px;">비번 초기화</button>
-              <button class="btn btn-outline" id="captureBoardBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">좌석배치 캡쳐</button>
+              <button class="btn btn-outline" id="captureBoardBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">좌석캡쳐</button>
               <button class="btn btn-outline" id="hikingNoticeBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행공지</button>
             </div>
           </div>
@@ -1115,24 +1115,37 @@
               </div>
             </div>
 
-            <div id="adminPasswordInline" style="margin-top:12px;">
-              <div style="display:flex; gap:8px; align-items:center;">
-                <input id="newAdminPassword" type="password" placeholder="비밀번호 입력" style="flex:1;" />
-                <button class="btn btn-outline" id="changePasswordBtn" type="button" style="width:38%;">관리자비번변경</button>
+            <div id="systemAdminGatePanel" style="margin-top:10px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; align-items:center;">
+                <button class="btn btn-danger" id="resetBtn" type="button">전체초기화</button>
+                <button class="btn btn-primary" id="systemAdminEnterBtn" type="button">시스템관리자</button>
+              </div>
+              <div id="systemAdminPanel" class="hidden" style="margin-top:10px; border:1px solid #d4d4d4; border-radius:16px; padding:10px; background:#f8fafc;">
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <input id="newSystemAdminPassword" type="password" placeholder="시스템 관리자 비밀번호 입력" style="flex:1;" />
+                  <button class="btn btn-outline" id="changeSystemAdminPasswordBtn" type="button" style="width:38%;">시스템관리자 비번변경</button>
+                </div>
+
+                <div id="adminPasswordInline" style="margin-top:10px;">
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <input id="newAdminPassword" type="password" placeholder="관리자 비밀번호 입력" style="flex:1;" />
+                    <button class="btn btn-outline" id="changePasswordBtn" type="button" style="width:38%;">관리자비번변경</button>
+                  </div>
+                </div>
+
+                <div id="tripPlanPasswordInline" style="margin-top:10px;">
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <input id="newTripPlanPassword" type="password" placeholder="산행계획 비밀번호 입력" style="flex:1;" />
+                    <button class="btn btn-outline" id="changeTripPlanPasswordBtn" type="button" style="width:38%;">산행계획비번변경</button>
+                  </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr; gap:6px; margin-top:10px;">
+                  <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button">복구코드 생성</button>
+                </div>
               </div>
             </div>
 
-            <div id="tripPlanPasswordInline" style="margin-top:12px;">
-              <div style="display:flex; gap:8px; align-items:center;">
-                <input id="newTripPlanPassword" type="password" placeholder="산행계획 비밀번호 입력" style="flex:1;" />
-                <button class="btn btn-outline" id="changeTripPlanPasswordBtn" type="button" style="width:38%;">산행계획비번변경</button>
-              </div>
-            </div>
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px;">
-              <button class="btn btn-danger" id="resetBtn" type="button">전체초기화</button>
-              <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button">복구코드 생성</button>
-            </div>
 
             
 
@@ -1142,19 +1155,6 @@
 
             
 
-            <div id="adminNameExportPanel" style="margin-top:12px; border:1px solid #d4d4d4; border-radius:16px; padding:10px; background:#fafafa;">
-              <div style="font-size:13px; font-weight:700; margin-bottom:8px;">좌석 이름 데이터</div>
-              <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-                <select id="adminNameExportType" style="flex:1; min-width:0;">
-                  <option value="line">가로 목록</option>
-                  <option value="csv">CSV</option>
-                  <option value="json">JSON</option>
-                </select>
-                <button class="btn btn-outline" id="copyNameExportBtn" type="button" style="width:38%;">복사</button>
-              </div>
-              <textarea id="adminNameExportText" readonly style="width:100%; min-height:88px; height:auto; overflow:hidden; resize:none; background:#fff; line-height:1.6; white-space:pre-wrap;"></textarea>
-              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 localStorage 와 window.BusSeatNameBridge 에 저장됩니다. 멤버 버튼은 membel-list 페이지를 열기만 합니다.</div>
-            </div>
           </div>
 
           <div class="mode-divider" style="margin-top:16px; padding-top:14px;">
@@ -1189,6 +1189,20 @@
                 <label for="infoSeatGuideText">안내문구</label>
                 <textarea id="infoSeatGuideText" style="height:80px; resize:vertical;"></textarea>
               </div>
+            </div>
+
+            <div id="adminNameExportPanel" style="margin-top:12px; border:1px solid #d4d4d4; border-radius:16px; padding:10px; background:#fafafa;">
+              <div style="font-size:13px; font-weight:700; margin-bottom:8px;">좌석 이름 데이터</div>
+              <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                <select id="adminNameExportType" style="flex:1; min-width:0;">
+                  <option value="line">가로 목록</option>
+                  <option value="csv">CSV</option>
+                  <option value="json">JSON</option>
+                </select>
+                <button class="btn btn-outline" id="copyNameExportBtn" type="button" style="width:38%;">복사</button>
+              </div>
+              <textarea id="adminNameExportText" readonly style="width:100%; min-height:88px; height:auto; overflow:hidden; resize:none; background:#fff; line-height:1.6; white-space:pre-wrap;"></textarea>
+              <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.5;">이 데이터는 localStorage 와 window.BusSeatNameBridge 에 저장됩니다. 멤버 버튼은 membel-list 페이지를 열기만 합니다.</div>
             </div>
           </div>
         </div>
@@ -1227,9 +1241,11 @@
     };
 
     const DEFAULT_ADMIN_PASSWORD = "1234";
+    const DEFAULT_SYSTEM_ADMIN_PASSWORD = "1234";
     const RECOVERY_CODE_STORAGE_KEY = "bus-seat-recovery-code-hash-v1";
     const ADMIN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-admin-password-hash-v1";
     const TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-trip-plan-password-hash-v1";
+    const SYSTEM_ADMIN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-system-admin-password-hash-v1";
     const ROOT_PATH = "busSeatApp";
     const DEFAULT_WAITING_EXPIRE_HOURS = 48;
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
@@ -1289,10 +1305,13 @@
       editName: "",
       adminPassword: DEFAULT_ADMIN_PASSWORD,
       tripPlanPassword: DEFAULT_ADMIN_PASSWORD,
+      systemAdminPassword: DEFAULT_SYSTEM_ADMIN_PASSWORD,
       adminPasswordHash: "",
       tripPlanPasswordHash: "",
+      systemAdminPasswordHash: "",
       recoveryCodeHash: "",
       isAdminAuthenticated: false,
+      isSystemAdminAuthenticated: false,
       clientId: crypto.randomUUID(),
       projectLabel: "프로젝트 미설정",
       pendingCancelSeat: null,
@@ -1473,6 +1492,7 @@
         busInfo: { ...defaultBusInfo },
         adminPassword: DEFAULT_ADMIN_PASSWORD,
         tripPlanPassword: DEFAULT_ADMIN_PASSWORD,
+        systemAdminPassword: DEFAULT_SYSTEM_ADMIN_PASSWORD,
         waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
         nameEntryLocked: false,
         hikingNotice: { text: "", locked: false },
@@ -1990,6 +2010,7 @@
       const memberCancelBtn = byId("memberCancelBtn");
       const toggleNameEntryLockBtn = byId("toggleNameEntryLockBtn");
       const nameEntryLockStatus = byId("nameEntryLockStatus");
+      const systemAdminEnterBtn = byId("systemAdminEnterBtn");
 
       if (memberTab) memberTab.classList.toggle("active", state.mode === "member");
       if (adminTab) adminTab.classList.toggle("active", state.mode === "admin");
@@ -2000,6 +2021,12 @@
       toggleHidden("adminLoginPanel", !(state.mode === "admin" && !state.isAdminAuthenticated));
       toggleHidden("adminPanel", !(state.mode === "admin" && state.isAdminAuthenticated));
       toggleHidden("busInfoEditor", !state.isAdminAuthenticated);
+      toggleHidden("adminNameExportPanel", !(state.mode === "admin" && state.isAdminAuthenticated));
+
+      toggleHidden("systemAdminPanel", !(state.mode === "admin" && state.isAdminAuthenticated && state.isSystemAdminAuthenticated));
+      if (systemAdminEnterBtn) {
+        systemAdminEnterBtn.textContent = "시스템관리자";
+      }
 
       const infoBox = byId("busInfoLocked");
       if (infoBox) {
@@ -2356,6 +2383,33 @@ ${nextLine}` : nextLine;
       }
     }
 
+    function getLocalSystemAdminPasswordHash() {
+      try {
+        return localStorage.getItem(SYSTEM_ADMIN_PASSWORD_HASH_STORAGE_KEY) || "";
+      } catch (error) {
+        console.warn("system admin password local read failed", error);
+        return "";
+      }
+    }
+
+    function saveLocalSystemAdminPasswordHash(nextHash) {
+      try {
+        if (!nextHash) localStorage.removeItem(SYSTEM_ADMIN_PASSWORD_HASH_STORAGE_KEY);
+        else localStorage.setItem(SYSTEM_ADMIN_PASSWORD_HASH_STORAGE_KEY, nextHash);
+        return true;
+      } catch (error) {
+        console.warn("system admin password local save failed", error);
+        return false;
+      }
+    }
+
+    async function getEffectiveSystemAdminPasswordHash() {
+      if (state.systemAdminPasswordHash) return state.systemAdminPasswordHash;
+      const localHash = getLocalSystemAdminPasswordHash();
+      if (localHash) return localHash;
+      return await sha256Hex(state.systemAdminPassword || DEFAULT_SYSTEM_ADMIN_PASSWORD);
+    }
+
     async function getEffectiveAdminPasswordHash() {
       if (state.adminPasswordHash) return state.adminPasswordHash;
       const localHash = getLocalAdminPasswordHash();
@@ -2431,8 +2485,8 @@ async function sha256Hex(value) {
     }
 
     async function handleGenerateRecoveryCode() {
-      if (!state.isAdminAuthenticated) {
-        alert("관리자 인증 후 사용할 수 있습니다.");
+      if (!state.isAdminAuthenticated || !state.isSystemAdminAuthenticated) {
+        alert("시스템 관리자 인증 후 사용할 수 있습니다.");
         return;
       }
 
@@ -2572,10 +2626,13 @@ function renderAll() {
       state.busInfo = { ...defaultBusInfo, ...(payload?.busInfo || {}) };
       state.adminPassword = payload?.adminPassword || DEFAULT_ADMIN_PASSWORD;
       state.tripPlanPassword = payload?.tripPlanPassword || DEFAULT_ADMIN_PASSWORD;
+      state.systemAdminPassword = payload?.systemAdminPassword || DEFAULT_SYSTEM_ADMIN_PASSWORD;
       state.adminPasswordHash = payload?.adminPasswordHash || getLocalAdminPasswordHash() || "";
       if (state.adminPasswordHash) saveLocalAdminPasswordHash(state.adminPasswordHash);
       state.tripPlanPasswordHash = payload?.tripPlanPasswordHash || getLocalTripPlanPasswordHash() || "";
       if (state.tripPlanPasswordHash) saveLocalTripPlanPasswordHash(state.tripPlanPasswordHash);
+      state.systemAdminPasswordHash = payload?.systemAdminPasswordHash || getLocalSystemAdminPasswordHash() || "";
+      if (state.systemAdminPasswordHash) saveLocalSystemAdminPasswordHash(state.systemAdminPasswordHash);
       state.recoveryCodeHash = payload?.recoveryCodeHash || getLocalRecoveryCodeHash() || "";
       if (state.recoveryCodeHash) saveLocalRecoveryCodeHash(state.recoveryCodeHash);
       state.waitingExpireHours = expireHours;
@@ -2863,6 +2920,31 @@ function renderAll() {
       });
     }
 
+
+    async function saveSystemAdminPasswordRemote(nextPassword) {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        systemAdminPassword: nextPassword,
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveSystemAdminPasswordRemote",
+        permissionMessage: "시스템 관리자 비밀번호 저장 권한이 없습니다.",
+        genericMessage: "시스템 관리자 비밀번호 저장 실패"
+      });
+    }
+
+    async function saveSystemAdminPasswordHashRemote(nextHash) {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        systemAdminPasswordHash: nextHash,
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveSystemAdminPasswordHashRemote",
+        permissionMessage: "시스템 관리자 비밀번호 해시 저장 권한이 없습니다.",
+        genericMessage: "시스템 관리자 비밀번호 해시 저장 실패"
+      });
+    }
+
     async function saveWaitingExpireHoursRemote(nextHours) {
       if (!state.db) return false;
       return safeUpdate(ref(state.db, ROOT_PATH), {
@@ -2917,8 +2999,10 @@ function renderAll() {
         busInfo: { ...defaultBusInfo, ...(currentData.busInfo || state.busInfo || {}) },
         adminPassword: currentData.adminPassword || state.adminPassword || DEFAULT_ADMIN_PASSWORD,
         tripPlanPassword: currentData.tripPlanPassword || state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD,
+        systemAdminPassword: currentData.systemAdminPassword || state.systemAdminPassword || DEFAULT_SYSTEM_ADMIN_PASSWORD,
         adminPasswordHash: currentData.adminPasswordHash || state.adminPasswordHash || getLocalAdminPasswordHash() || "",
         tripPlanPasswordHash: currentData.tripPlanPasswordHash || state.tripPlanPasswordHash || getLocalTripPlanPasswordHash() || "",
+        systemAdminPasswordHash: currentData.systemAdminPasswordHash || state.systemAdminPasswordHash || getLocalSystemAdminPasswordHash() || "",
         recoveryCodeHash: currentData.recoveryCodeHash || state.recoveryCodeHash || getLocalRecoveryCodeHash() || "",
         waitingExpireHours: Number(currentData.waitingExpireHours ?? state.waitingExpireHours ?? DEFAULT_WAITING_EXPIRE_HOURS) || DEFAULT_WAITING_EXPIRE_HOURS,
         nameEntryLocked: Boolean(currentData.nameEntryLocked ?? state.nameEntryLocked),
@@ -3236,6 +3320,7 @@ function renderAll() {
 
     function handleAdminLogout() {
       state.isAdminAuthenticated = false;
+      state.isSystemAdminAuthenticated = false;
       state.mode = "member";
       state.adminSeat = "";
       state.editingSeat = null;
@@ -3243,9 +3328,57 @@ function renderAll() {
       renderAll();
     }
 
-    async function handleChangeAdminPassword() {
+    async function handleSystemAdminLogin() {
       if (!state.isAdminAuthenticated) {
         alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      if (state.isSystemAdminAuthenticated) {
+        renderPanels();
+        return;
+      }
+      const typedPassword = window.prompt("시스템 관리자 비밀번호를 입력하세요.", "");
+      if (typedPassword === null) return;
+      const typed = String(typedPassword || "").trim();
+      if (!typed) {
+        alert("시스템 관리자 비밀번호를 입력하세요.");
+        return;
+      }
+      const typedHash = await sha256Hex(typed);
+      const savedHash = await getEffectiveSystemAdminPasswordHash();
+      if (typedHash !== savedHash) {
+        alert("시스템 관리자 비밀번호가 올바르지 않습니다.");
+        return;
+      }
+      state.isSystemAdminAuthenticated = true;
+      renderPanels();
+      alert("시스템 관리자 모드로 진입했습니다.");
+    }
+
+    async function handleChangeSystemAdminPassword() {
+      if (!state.isAdminAuthenticated || !state.isSystemAdminAuthenticated) {
+        alert("시스템 관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      const input = byId("newSystemAdminPassword");
+      const nextPassword = input?.value.trim() || "";
+      if (!nextPassword) {
+        alert("새 시스템 관리자 비밀번호를 입력하세요.");
+        return;
+      }
+      const nextHash = await sha256Hex(nextPassword);
+      state.systemAdminPassword = nextPassword;
+      state.systemAdminPasswordHash = nextHash;
+      saveLocalSystemAdminPasswordHash(nextHash);
+      if (input) input.value = "";
+      flashSaveVisuals(null, "changeSystemAdminPasswordBtn");
+      renderPanels();
+      alert("시스템 관리자 비밀번호가 변경되었습니다.");
+    }
+
+    async function handleChangeAdminPassword() {
+      if (!state.isAdminAuthenticated || !state.isSystemAdminAuthenticated) {
+        alert("시스템 관리자 인증 후 사용할 수 있습니다.");
         return;
       }
 
@@ -3287,8 +3420,8 @@ function renderAll() {
     }
 
     async function handleChangeTripPlanPassword() {
-      if (!state.isAdminAuthenticated) {
-        alert("관리자 인증 후 사용할 수 있습니다.");
+      if (!state.isAdminAuthenticated || !state.isSystemAdminAuthenticated) {
+        alert("시스템 관리자 인증 후 사용할 수 있습니다.");
         return;
       }
 
@@ -3339,7 +3472,7 @@ function renderAll() {
 
       const savedRecoveryHash = getEffectiveRecoveryCodeHash();
       if (!savedRecoveryHash) {
-        alert("등록된 복구코드가 없습니다. 관리자 로그인 후 [복구코드 생성] 버튼으로 먼저 복구코드를 만들어 주세요.");
+        alert("등록된 복구코드가 없습니다. 시스템 관리자 로그인 후 [복구코드 생성] 버튼으로 먼저 복구코드를 만들어 주세요.");
         return;
       }
 
@@ -3349,37 +3482,68 @@ function renderAll() {
         return;
       }
 
-      const nextPassword = DEFAULT_ADMIN_PASSWORD;
-      const nextHash = await sha256Hex(nextPassword);
-      const previousPassword = state.adminPassword;
-      const previousHash = state.adminPasswordHash || getLocalAdminPasswordHash() || "";
+      const nextAdminPassword = DEFAULT_ADMIN_PASSWORD;
+      const nextTripPlanPassword = DEFAULT_ADMIN_PASSWORD;
+      const nextSystemAdminPassword = DEFAULT_SYSTEM_ADMIN_PASSWORD;
+      const nextAdminHash = await sha256Hex(nextAdminPassword);
+      const nextTripPlanHash = await sha256Hex(nextTripPlanPassword);
+      const nextSystemAdminHash = await sha256Hex(nextSystemAdminPassword);
 
-      state.adminPassword = nextPassword;
-      state.adminPasswordHash = nextHash;
-      saveLocalAdminPasswordHash(nextHash);
+      const previous = {
+        adminPassword: state.adminPassword,
+        tripPlanPassword: state.tripPlanPassword,
+        systemAdminPassword: state.systemAdminPassword,
+        adminPasswordHash: state.adminPasswordHash || getLocalAdminPasswordHash() || "",
+        tripPlanPasswordHash: state.tripPlanPasswordHash || getLocalTripPlanPasswordHash() || "",
+        systemAdminPasswordHash: state.systemAdminPasswordHash || getLocalSystemAdminPasswordHash() || ""
+      };
+
+      state.adminPassword = nextAdminPassword;
+      state.tripPlanPassword = nextTripPlanPassword;
+      state.systemAdminPassword = nextSystemAdminPassword;
+      state.adminPasswordHash = nextAdminHash;
+      state.tripPlanPasswordHash = nextTripPlanHash;
+      state.systemAdminPasswordHash = nextSystemAdminHash;
+      state.isSystemAdminAuthenticated = false;
+      saveLocalAdminPasswordHash(nextAdminHash);
+      saveLocalTripPlanPasswordHash(nextTripPlanHash);
+      saveLocalSystemAdminPasswordHash(nextSystemAdminHash);
 
       if (adminPasswordInput) adminPasswordInput.value = "";
       flashSaveVisuals(null, "preLoginResetPasswordBtn");
       renderPanels();
 
       if (!state.isFirebaseReady || !state.db) {
-        setStatusMessage("Firebase 미연결 - 현재 기기 localStorage 기준으로 비번 초기화", state.projectLabel);
-        alert("복구코드 확인 완료. 관리자 비밀번호가 1234로 초기화되었습니다.");
+        setStatusMessage("Firebase 미연결 - 현재 기기 localStorage 기준으로 전체 비번 초기화", state.projectLabel);
+        alert("복구코드 확인 완료. 관리자/산행계획/시스템관리자 비밀번호가 모두 1234로 초기화되었습니다.");
         return;
       }
 
-      const okPassword = await saveAdminPasswordRemote(nextPassword);
-      const okHash = await saveAdminPasswordHashRemote(nextHash);
-      if (!okPassword || !okHash) {
-        state.adminPassword = previousPassword;
-        state.adminPasswordHash = previousHash;
-        saveLocalAdminPasswordHash(previousHash);
+      const okAll = await Promise.all([
+        saveAdminPasswordRemote(nextAdminPassword),
+        saveAdminPasswordHashRemote(nextAdminHash),
+        saveTripPlanPasswordRemote(nextTripPlanPassword),
+        saveTripPlanPasswordHashRemote(nextTripPlanHash),
+        saveSystemAdminPasswordRemote(nextSystemAdminPassword),
+        saveSystemAdminPasswordHashRemote(nextSystemAdminHash)
+      ]);
+
+      if (!okAll.every(Boolean)) {
+        state.adminPassword = previous.adminPassword;
+        state.tripPlanPassword = previous.tripPlanPassword;
+        state.systemAdminPassword = previous.systemAdminPassword;
+        state.adminPasswordHash = previous.adminPasswordHash;
+        state.tripPlanPasswordHash = previous.tripPlanPasswordHash;
+        state.systemAdminPasswordHash = previous.systemAdminPasswordHash;
+        saveLocalAdminPasswordHash(previous.adminPasswordHash);
+        saveLocalTripPlanPasswordHash(previous.tripPlanPasswordHash);
+        saveLocalSystemAdminPasswordHash(previous.systemAdminPasswordHash);
         renderPanels();
         alert("비밀번호 초기화 권한이 없거나 저장에 실패했습니다.");
         return;
       }
 
-      alert("복구코드 확인 완료. 관리자 비밀번호가 1234로 초기화되었습니다.");
+      alert("복구코드 확인 완료. 관리자/산행계획/시스템관리자 비밀번호가 모두 1234로 초기화되었습니다.");
     }
 
     async function handleSaveWaitingExpireHours() {
@@ -3848,10 +4012,15 @@ function renderAll() {
         const box = byId("resetInlineConfirm");
         if (box) box.classList.remove("hidden");
       });
+      bindIfPresent("systemAdminEnterBtn", "click", handleSystemAdminLogin);
+      bindIfPresent("changeSystemAdminPasswordBtn", "click", handleChangeSystemAdminPassword);
       bindIfPresent("changePasswordBtn", "click", handleChangeAdminPassword);
       bindIfPresent("changeTripPlanPasswordBtn", "click", handleChangeTripPlanPassword);
       bindIfPresent("generateRecoveryCodeBtn", "click", handleGenerateRecoveryCode);
       bindIfPresent("saveWaitingExpireBtn", "click", handleSaveWaitingExpireHours);
+      bindIfPresent("newSystemAdminPassword", "keydown", async (e) => {
+        if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("changeSystemAdminPasswordBtn"); await handleChangeSystemAdminPassword(); }
+      });
       bindIfPresent("newAdminPassword", "keydown", async (e) => {
         if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("changePasswordBtn"); await handleChangeAdminPassword(); }
       });
@@ -3956,6 +4125,13 @@ function renderAll() {
         const defaultTripHash = await sha256Hex(DEFAULT_ADMIN_PASSWORD);
         saveLocalTripPlanPasswordHash(defaultTripHash);
         state.tripPlanPasswordHash = defaultTripHash;
+      }
+      if (!getLocalSystemAdminPasswordHash()) {
+        const defaultSystemHash = await sha256Hex(DEFAULT_SYSTEM_ADMIN_PASSWORD);
+        saveLocalSystemAdminPasswordHash(defaultSystemHash);
+        state.systemAdminPasswordHash = defaultSystemHash;
+      } else {
+        state.systemAdminPasswordHash = getLocalSystemAdminPasswordHash();
       }
       window.BusSeatNameBridge = window.BusSeatNameBridge || {
         storageKey: NAME_EXPORT_STORAGE_KEY,
