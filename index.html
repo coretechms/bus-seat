@@ -982,7 +982,7 @@
 
   
 
-/* 이름 1.5초 길게누름: 메모/전화/카카오톡 선택 - 안전 수정 */
+/* 이름 1.5초 길게누름: 메모/전화/문자메세지 선택 - 안전 수정 */
 .seat-name-action-overlay{
   position:fixed;
   inset:0;
@@ -1020,7 +1020,7 @@
 }
 .seat-name-action-buttons .memo{background:#2563eb;border-color:#2563eb;color:#fff;}
 .seat-name-action-buttons .phone{background:#111827;border-color:#111827;color:#fff;}
-.seat-name-action-buttons .kakao{background:#fee500;border-color:#d6c300;color:#111;}
+.seat-name-action-buttons .sms{background:#16a34a;border-color:#15803d;color:#fff;}
 .seat-name-action-buttons .cancel{background:#fff;color:#555;}
 .seat-name-action-buttons button:disabled{opacity:.45;cursor:not-allowed;}
 @media(max-width:760px){
@@ -4371,17 +4371,14 @@ function renderAll() {
     const old = document.getElementById("seatNameActionOverlay");
     if(old) old.remove();
   }
-  function openKakao(kakaoLink){
-    /*
-      카카오톡 홈페이지 이동 제거.
-      휴대폰에 카카오톡 앱이 설치되어 있으면 앱만 직접 실행합니다.
-      오픈채팅/프로필 링크가 있는 경우에는 해당 링크를 우선 실행합니다.
-    */
-    if(kakaoLink){
-      window.location.href = kakaoLink;
+  function openSmsMessage(phoneNumber){
+    const phone = cleanPhone(phoneNumber);
+    if(!phone){
+      alert("연락처를 찾을 수 없습니다.");
       return;
     }
-    window.location.href = "kakaotalk://launch";
+    // 휴대폰에서는 기본 문자메세지 앱을 선택된 이름의 전화번호로 바로 엽니다.
+    window.location.href = "sms:" + phone;
   }
   function openOriginalMemo(seatEl){
     const seatNo = getSeatNo(seatEl);
@@ -4421,11 +4418,11 @@ function renderAll() {
     overlay.innerHTML = `
       <div class="seat-name-action-dialog" role="dialog" aria-modal="true">
         <div class="seat-name-action-title">작업 선택</div>
-        <div class="seat-name-action-message">${escapeHtmlText(name || "이름")}\n메모 / 전화연결 / 카카오톡연결 중 선택하세요.</div>
+        <div class="seat-name-action-message">${escapeHtmlText(name || "이름")}\n메모 / 전화연결 / 문자메세지 중 선택하세요.</div>
         <div class="seat-name-action-buttons">
           <button type="button" class="memo" id="seatNameMemoBtn">메모</button>
           <button type="button" class="phone" id="seatNamePhoneBtn" ${contact.phone ? "" : "disabled"}>전화연결</button>
-          <button type="button" class="kakao" id="seatNameKakaoBtn">카카오톡연결</button>
+          <button type="button" class="sms" id="seatNameSmsBtn" ${contact.phone ? "" : "disabled"}>문자메세지</button>
           <button type="button" class="cancel" id="seatNameCancelBtn">취소</button>
         </div>
       </div>
@@ -4439,8 +4436,8 @@ function renderAll() {
     overlay.querySelector("#seatNamePhoneBtn").addEventListener("click", function(e){
       e.preventDefault(); e.stopPropagation(); if(!contact.phone) return; closeDialog(); window.location.href = "tel:" + contact.phone;
     }, true);
-    overlay.querySelector("#seatNameKakaoBtn").addEventListener("click", function(e){
-      e.preventDefault(); e.stopPropagation(); closeDialog(); openKakao(contact.kakao);
+    overlay.querySelector("#seatNameSmsBtn").addEventListener("click", function(e){
+      e.preventDefault(); e.stopPropagation(); if(!contact.phone) return; closeDialog(); openSmsMessage(contact.phone);
     }, true);
     overlay.querySelector("#seatNameCancelBtn").addEventListener("click", function(e){
       e.preventDefault(); e.stopPropagation(); closeDialog();
