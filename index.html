@@ -3346,20 +3346,27 @@ function renderAll() {
 
     function openTripPlanWithIndependentPassword() {
       try {
-        issueTripPlanAccessTicket({
-          viewMode: "public_rows_only",
-          allowedRows: TRIP_PLAN_PUBLIC_ROWS,
-          readonly: true
-        });
+        // 전체보기 입장권은 만들지 않는다.
+        // trip-schedule 쪽에서 이 값/주소 파라미터를 읽어 공개 행만 표시하도록 한다.
         saveTripPlanPublicViewRequest();
+        sessionStorage.removeItem(TRIP_PLAN_ACCESS_TICKET_KEY);
       } catch (error) {
-        console.warn("trip plan access ticket session save failed", error);
-        alert("산행계획 보기 설정에 실패했습니다. 다시 시도하세요.");
-        return;
+        console.warn("trip plan public view setup failed", error);
       }
 
-      const rowParam = encodeURIComponent(TRIP_PLAN_PUBLIC_ROWS.join(","));
-      window.location.href = `https://coretechms.github.io/trip-schedule/?view=public_rows_only&readonly=1&rows=${rowParam}`;
+      const rows = TRIP_PLAN_PUBLIC_ROWS.join(",");
+      const rowParam = encodeURIComponent(rows);
+      const publicUrl =
+        "https://coretechms.github.io/trip-schedule/" +
+        "?view=public_rows_only" +
+        "&mode=public_rows_only" +
+        "&publicOnly=1" +
+        "&readonly=1" +
+        "&hideAllExcept=1" +
+        "&rows=" + rowParam +
+        "#public_rows_only=" + rowParam;
+
+      window.location.href = publicUrl;
     }
 
     function handleAdminLogout() {
