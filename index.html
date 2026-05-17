@@ -1302,8 +1302,6 @@
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
     const BOARD_IMAGE_MODE_STORAGE_KEY = "bus-seat-board-image-mode-v1";
     const TRIP_PLAN_ACCESS_TICKET_KEY = "trip-plan-access-ticket-v1";
-    const TRIP_PLAN_PUBLIC_VIEW_KEY = "trip-plan-public-view-v1";
-    const TRIP_PLAN_PUBLIC_ROWS = ["관광버스", "소요시간", "예상시간", "식당"];
     const TRIP_PLAN_ACCESS_TTL_MS = 500;
 
     const BUS_LAYOUTS = {
@@ -3311,62 +3309,64 @@ function renderAll() {
       renderAll();
     }
 
-    function issueTripPlanAccessTicket(options = {}) {
-      const now = Date.now();
+    function issueTripPlanAccessTicket() {
       const payload = {
-        issuedAt: now,
-        expiresAt: now + TRIP_PLAN_ACCESS_TTL_MS,
+        issuedAt: Date.now(),
+        expiresAt: Date.now() + TRIP_PLAN_ACCESS_TTL_MS,
         source: "bus-seat",
-        version: 2,
-        viewMode: options.viewMode || "full",
-        allowedRows: Array.isArray(options.allowedRows) ? options.allowedRows : [],
-        readonly: Boolean(options.readonly),
-        nonce: `${now}-${Math.random().toString(36).slice(2, 10)}`
+        version: 1,
+        nonce: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
       };
       sessionStorage.setItem(TRIP_PLAN_ACCESS_TICKET_KEY, JSON.stringify(payload));
       return payload;
     }
 
-    function saveTripPlanPublicViewRequest() {
-      const payload = {
-        issuedAt: Date.now(),
-        source: "bus-seat",
-        viewMode: "public_rows_only",
-        readonly: true,
-        allowedRows: TRIP_PLAN_PUBLIC_ROWS
-      };
-      try {
-        sessionStorage.setItem(TRIP_PLAN_PUBLIC_VIEW_KEY, JSON.stringify(payload));
-        localStorage.setItem(TRIP_PLAN_PUBLIC_VIEW_KEY, JSON.stringify(payload));
-      } catch (error) {
-        console.warn("trip plan public view request save failed", error);
-      }
-      return payload;
-    }
-
-    function openTripPlanWithIndependentPassword() {
-      try {
-        // 전체보기 입장권은 만들지 않는다.
-        // trip-schedule 쪽에서 이 값/주소 파라미터를 읽어 공개 행만 표시하도록 한다.
-        saveTripPlanPublicViewRequest();
-        sessionStorage.removeItem(TRIP_PLAN_ACCESS_TICKET_KEY);
-      } catch (error) {
-        console.warn("trip plan public view setup failed", error);
+    async function openTripPlanWithIndependentPassword() {
+      const pwInput = byId("adminPasswordInput");
+      const normalizedInput = pwInput?.value.trim() || "";
+      if (!normalizedInput) {
+        alert("산행계획 비밀번호를 입력하세요.");
+        if (pwInput) pwInput.focus();
+        return;
       }
 
-      const rows = TRIP_PLAN_PUBLIC_ROWS.join(",");
-      const rowParam = encodeURIComponent(rows);
-      const publicUrl =
-        "https://coretechms.github.io/trip-schedule/" +
-        "?view=public_rows_only" +
-        "&mode=public_rows_only" +
-        "&publicOnly=1" +
-        "&readonly=1" +
-        "&hideAllExcept=1" +
-        "&rows=" + rowParam +
-        "#public_rows_only=" + rowParam;
+      const typedHash = await sha256Hex(normalizedInput);
+      let loginOk = false;
 
-      window.location.href = publicUrl;
+      if (state.isFirebaseReady && state.db) {
+        const serverHash = state.tripPlanPasswordHash || "";
+        if (serverHash) {
+          loginOk = (typedHash === serverHash);
+        } else {
+          loginOk = (normalizedInput === (state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD));
+        }
+      } else {
+        const localHash = getLocalTripPlanPasswordHash();
+        if (localHash) {
+          loginOk = (typedHash === localHash);
+        } else {
+          loginOk = (normalizedInput === (state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD));
+        }
+      }
+
+      if (!loginOk) {
+        alert("산행계획 비밀번호가 올바르지 않습니다.");
+        if (pwInput) {
+          pwInput.focus();
+          pwInput.select();
+        }
+        return;
+      }
+
+      try {
+        issueTripPlanAccessTicket();
+      } catch (error) {
+        console.warn("trip plan access ticket session save failed", error);
+        alert("산행계획 입장권 생성에 실패했습니다. 다시 시도하세요.");
+        return;
+      }
+
+      window.location.href = "https://coretechms.github.io/trip-schedule/";
     }
 
     function handleAdminLogout() {
