@@ -982,7 +982,7 @@
 
   
 
-/* 이름 1.5초 길게누름: 메모/전화/문자메세지 선택 - 안전 수정 */
+/* 이름 1.5초 길게누름: 메모 선택 - 전화/문자 기능 제거 */
 .seat-name-action-overlay{
   position:fixed;
   inset:0;
@@ -1019,8 +1019,6 @@
   cursor:pointer;
 }
 .seat-name-action-buttons .memo{background:#2563eb;border-color:#2563eb;color:#fff;}
-.seat-name-action-buttons .phone{background:#111827;border-color:#111827;color:#fff;}
-.seat-name-action-buttons .sms{background:#16a34a;border-color:#15803d;color:#fff;}
 .seat-name-action-buttons .cancel{background:#fff;color:#555;}
 .seat-name-action-buttons button:disabled{opacity:.45;cursor:not-allowed;}
 @media(max-width:760px){
@@ -1304,6 +1302,8 @@
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
     const BOARD_IMAGE_MODE_STORAGE_KEY = "bus-seat-board-image-mode-v1";
     const TRIP_PLAN_ACCESS_TICKET_KEY = "trip-plan-access-ticket-v1";
+    const TRIP_PLAN_PUBLIC_VIEW_KEY = "trip-plan-public-view-v1";
+    const TRIP_PLAN_PUBLIC_ROWS = ["관광버스", "소요시간", "예상시간", "식당"];
     const TRIP_PLAN_ACCESS_TTL_MS = 500;
 
     const BUS_LAYOUTS = {
@@ -3311,64 +3311,55 @@ function renderAll() {
       renderAll();
     }
 
-    function issueTripPlanAccessTicket() {
+    function issueTripPlanAccessTicket(options = {}) {
+      const now = Date.now();
       const payload = {
-        issuedAt: Date.now(),
-        expiresAt: Date.now() + TRIP_PLAN_ACCESS_TTL_MS,
+        issuedAt: now,
+        expiresAt: now + TRIP_PLAN_ACCESS_TTL_MS,
         source: "bus-seat",
-        version: 1,
-        nonce: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+        version: 2,
+        viewMode: options.viewMode || "full",
+        allowedRows: Array.isArray(options.allowedRows) ? options.allowedRows : [],
+        readonly: Boolean(options.readonly),
+        nonce: `${now}-${Math.random().toString(36).slice(2, 10)}`
       };
       sessionStorage.setItem(TRIP_PLAN_ACCESS_TICKET_KEY, JSON.stringify(payload));
       return payload;
     }
 
-    async function openTripPlanWithIndependentPassword() {
-      const pwInput = byId("adminPasswordInput");
-      const normalizedInput = pwInput?.value.trim() || "";
-      if (!normalizedInput) {
-        alert("산행계획 비밀번호를 입력하세요.");
-        if (pwInput) pwInput.focus();
-        return;
-      }
-
-      const typedHash = await sha256Hex(normalizedInput);
-      let loginOk = false;
-
-      if (state.isFirebaseReady && state.db) {
-        const serverHash = state.tripPlanPasswordHash || "";
-        if (serverHash) {
-          loginOk = (typedHash === serverHash);
-        } else {
-          loginOk = (normalizedInput === (state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD));
-        }
-      } else {
-        const localHash = getLocalTripPlanPasswordHash();
-        if (localHash) {
-          loginOk = (typedHash === localHash);
-        } else {
-          loginOk = (normalizedInput === (state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD));
-        }
-      }
-
-      if (!loginOk) {
-        alert("산행계획 비밀번호가 올바르지 않습니다.");
-        if (pwInput) {
-          pwInput.focus();
-          pwInput.select();
-        }
-        return;
-      }
-
+    function saveTripPlanPublicViewRequest() {
+      const payload = {
+        issuedAt: Date.now(),
+        source: "bus-seat",
+        viewMode: "public_rows_only",
+        readonly: true,
+        allowedRows: TRIP_PLAN_PUBLIC_ROWS
+      };
       try {
-        issueTripPlanAccessTicket();
+        sessionStorage.setItem(TRIP_PLAN_PUBLIC_VIEW_KEY, JSON.stringify(payload));
+        localStorage.setItem(TRIP_PLAN_PUBLIC_VIEW_KEY, JSON.stringify(payload));
+      } catch (error) {
+        console.warn("trip plan public view request save failed", error);
+      }
+      return payload;
+    }
+
+    function openTripPlanWithIndependentPassword() {
+      try {
+        issueTripPlanAccessTicket({
+          viewMode: "public_rows_only",
+          allowedRows: TRIP_PLAN_PUBLIC_ROWS,
+          readonly: true
+        });
+        saveTripPlanPublicViewRequest();
       } catch (error) {
         console.warn("trip plan access ticket session save failed", error);
-        alert("산행계획 입장권 생성에 실패했습니다. 다시 시도하세요.");
+        alert("산행계획 보기 설정에 실패했습니다. 다시 시도하세요.");
         return;
       }
 
-      window.location.href = "https://coretechms.github.io/trip-schedule/";
+      const rowParam = encodeURIComponent(TRIP_PLAN_PUBLIC_ROWS.join(","));
+      window.location.href = `https://coretechms.github.io/trip-schedule/?view=public_rows_only&readonly=1&rows=${rowParam}`;
     }
 
     function handleAdminLogout() {
@@ -4371,15 +4362,6 @@ function renderAll() {
     const old = document.getElementById("seatNameActionOverlay");
     if(old) old.remove();
   }
-  function openSmsMessage(phoneNumber){
-    const phone = cleanPhone(phoneNumber);
-    if(!phone){
-      alert("연락처를 찾을 수 없습니다.");
-      return;
-    }
-    // 휴대폰에서는 기본 문자메세지 앱을 선택된 이름의 전화번호로 바로 엽니다.
-    window.location.href = "sms:" + phone;
-  }
   function openOriginalMemo(seatEl){
     const seatNo = getSeatNo(seatEl);
     const bridge = window.__seatMemoBridge || {};
@@ -4409,7 +4391,6 @@ function renderAll() {
   }
   function showActionDialog(seatEl){
     const name = getSeatName(seatEl);
-    const contact = findMemberContactByName(name);
     closeDialog();
 
     const overlay = document.createElement("div");
@@ -4418,11 +4399,9 @@ function renderAll() {
     overlay.innerHTML = `
       <div class="seat-name-action-dialog" role="dialog" aria-modal="true">
         <div class="seat-name-action-title">작업 선택</div>
-        <div class="seat-name-action-message">${escapeHtmlText(name || "이름")}\n메모 / 전화연결 / 문자메세지 중 선택하세요.</div>
+        <div class="seat-name-action-message">${escapeHtmlText(name || "이름")}\n메모를 선택하세요.</div>
         <div class="seat-name-action-buttons">
           <button type="button" class="memo" id="seatNameMemoBtn">메모</button>
-          <button type="button" class="phone" id="seatNamePhoneBtn" ${contact.phone ? "" : "disabled"}>전화연결</button>
-          <button type="button" class="sms" id="seatNameSmsBtn" ${contact.phone ? "" : "disabled"}>문자메세지</button>
           <button type="button" class="cancel" id="seatNameCancelBtn">취소</button>
         </div>
       </div>
@@ -4432,12 +4411,6 @@ function renderAll() {
     overlay.addEventListener("click", function(e){ if(e.target === overlay) closeDialog(); }, true);
     overlay.querySelector("#seatNameMemoBtn").addEventListener("click", function(e){
       e.preventDefault(); e.stopPropagation(); closeDialog(); openOriginalMemo(seatEl);
-    }, true);
-    overlay.querySelector("#seatNamePhoneBtn").addEventListener("click", function(e){
-      e.preventDefault(); e.stopPropagation(); if(!contact.phone) return; closeDialog(); window.location.href = "tel:" + contact.phone;
-    }, true);
-    overlay.querySelector("#seatNameSmsBtn").addEventListener("click", function(e){
-      e.preventDefault(); e.stopPropagation(); if(!contact.phone) return; closeDialog(); openSmsMessage(contact.phone);
     }, true);
     overlay.querySelector("#seatNameCancelBtn").addEventListener("click", function(e){
       e.preventDefault(); e.stopPropagation(); closeDialog();
@@ -4494,7 +4467,7 @@ function renderAll() {
   }
   document.addEventListener("DOMContentLoaded", function(){
     setTimeout(bindNameLongPress, 500);
-    setTimeout(loadMemberRowsFromFirebase, 1200);
+    // 전화/문자 기능 제거: 회원명부 연락처 조회 자동 실행 안 함
   });
 })();
 </script>
