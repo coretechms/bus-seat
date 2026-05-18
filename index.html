@@ -69,7 +69,7 @@
     }
     .title {
       text-align: center;
-      font-size: 18px;
+      font-size: 16px;
       letter-spacing: 0.3em;
       margin-bottom: 4px;
       font-weight: 600;
@@ -1046,9 +1046,345 @@
       }
     }
 
+
+/* ===== 회원가입/승인 로그인 게이트 ===== */
+body.membership-locked .app {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.member-auth-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: linear-gradient(135deg, #eef5ff 0%, #ffffff 48%, #fff8d8 100%);
+  font-family: Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+}
+.member-auth-gate.is-hidden {
+  display: none !important;
+}
+.member-auth-box {
+  width: min(340px, 92vw);
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 16px 44px rgba(0,0,0,0.22);
+}
+.member-auth-title {
+  margin: 0 0 10px;
+  text-align: center;
+  color: #1428c8;
+  font-size: 16px;
+  font-weight: 800;
+}
+.member-auth-row {
+  display: grid;
+  grid-template-columns: 70px auto;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.member-auth-row label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+.member-auth-row input,
+.member-auth-row select {
+  height: 28px;
+  border: 1px solid #999;
+  border-radius: 8px;
+  padding: 3px 7px;
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+  width: 158px !important;
+  max-width: 158px !important;
+  justify-self: start;
+}
+#memberLoginNameInput,
+#memberJoinNameInput {
+  ime-mode: active;
+}
+.member-auth-actions {
+  display: grid;
+  grid-template-columns: 92px 92px;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 7px;
+}
+.member-auth-actions button,
+.member-signup-actions button {
+  height: 30px;
+  border: 1px solid #999;
+  border-radius: 8px;
+  background: #f4f4f4;
+  color: #111;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+#memberLoginBtn {
+  border-color: #1428c8;
+  background: #1428c8;
+  color: #fff;
+}
+#memberJoinOpenBtn {
+  border-color: #0b7a28;
+  background: #0b7a28;
+  color: #fff;
+}
+.member-signup-panel {
+  display: none;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid #e0e0e0;
+}
+.member-signup-panel.is-open {
+  display: block;
+}
+.member-signup-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 7px;
+}
+#memberJoinSubmitBtn {
+  border-color: #0b7a28;
+  background: #0b7a28;
+  color: #fff;
+}
+.member-auth-message {
+  min-height: 18px;
+  margin-top: 7px;
+  text-align: center;
+  color: #c51616;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.member-auth-message.ok {
+  color: #0b7a28;
+}
+.member-current-badge {
+  display: none !important;
+  margin: 0 0 6px;
+  padding: 7px 9px;
+  border-radius: 12px;
+  background: #eef5ff;
+  color: #1428c8;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+body:not(.membership-locked) .member-current-badge {
+  display: none !important;
+}
+@media (max-width: 430px) {
+  .member-auth-box { padding: 12px 10px; }
+  .member-auth-row { grid-template-columns: 62px auto; gap: 5px; }
+  .member-auth-row label { font-size: 12px; }
+  .member-auth-row input,
+  .member-auth-row select,
+  .member-auth-actions button,
+  .member-signup-actions button { height: 30px; font-size: 12px; }
+}
+
+
+/* 회원가입/로그인 버튼 가로폭 축소 */
+.member-auth-actions button {
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+}
+
+/* 가입신청란 개인정보 기본 노출 방지: 회원가입 버튼을 누르기 전에는 표시하지 않고, 기본값은 비워둔다. */
+#memberSignupPanel:not(.is-open) {
+  display: none !important;
+}
+
+
+
+/* 가입승인 관리자 버튼은 회원 로그인 박스에서 표시하지 않음 */
+#memberApprovalAdminOpenBtn {
+  display: none !important;
+}
+
+/* ===== 가입승인 관리자 모드 ===== */
+.member-approval-admin-open {
+  width: 190px !important;
+  max-width: 190px !important;
+  height: 28px !important;
+  margin: 8px auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.member-approval-panel {
+  display: none;
+  margin-top: 9px;
+  padding: 9px;
+  border: 1px solid #cfd8ff;
+  border-radius: 10px;
+  background: #f7f9ff;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+.member-approval-panel.is-open { display: block; }
+.member-approval-login {
+  display: grid;
+  grid-template-columns: 1fr 70px;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.member-approval-login input {
+  height: 28px;
+  border: 1px solid #999;
+  border-radius: 8px;
+  padding: 3px 7px;
+  font: inherit;
+  font-size: 12px;
+}
+.member-approval-login button,
+.member-approval-toolbar button,
+.member-approval-card button {
+  height: 28px;
+  border: 1px solid #999;
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.member-approval-toolbar {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+.member-approval-panel.is-auth .member-approval-toolbar { display: grid; }
+.member-approval-list { display: grid; gap: 7px; }
+.member-approval-card {
+  border: 1px solid #d7d7d7;
+  border-radius: 10px;
+  background: #fff;
+  padding: 7px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.member-approval-card-title {
+  font-weight: 900;
+  color: #1428c8;
+  margin-bottom: 3px;
+}
+.member-approval-card-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 6px;
+}
+.member-approval-card-actions .approve { background:#0b7a28; border-color:#0b7a28; color:#fff; }
+.member-approval-card-actions .block { background:#fff7ed; border-color:#fb923c; color:#9a3412; }
+.member-approval-card-actions .admin { background:#eef5ff; border-color:#2563eb; color:#1428c8; }
+.member-approval-card-actions .withdraw { background:#fff2f2; border-color:#d80000; color:#b30000; }
+.member-approval-card-actions .delete { background:#111827; border-color:#111827; color:#fff; }
+.member-approval-empty {
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 0;
+}
+
+
+    /* 회원입력 / 관리자 / 회원관리 3항목 탭 */
+    #memberManageTab {
+      white-space: nowrap;
+    }
+    @media (max-width: 760px) {
+      .tabs .tab {
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+      }
+    }
 </style>
 </head>
-<body>
+<body class="membership-locked">
+  
+  <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
+    <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
+      <h2 id="memberAuthTitle" class="member-auth-title">회원 로그인</h2>
+
+      <div class="member-auth-row">
+        <label for="memberLoginNameInput">아이디</label>
+        <input id="memberLoginNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" placeholder="이  름" value="" />
+      </div>
+      <div class="member-auth-row">
+        <label for="memberLoginPasswordInput">비밀번호</label>
+        <input id="memberLoginPasswordInput" type="password" autocomplete="current-password" placeholder="비밀번호 입력" value="" />
+      </div>
+
+      <div class="member-auth-actions">
+        <button id="memberJoinOpenBtn" type="button">회원가입</button>
+        <button id="memberLoginBtn" type="button">로그인</button>
+      </div>
+
+      <div id="memberSignupPanel" class="member-signup-panel">
+        <div class="member-auth-row">
+          <label for="memberJoinNameInput">본명</label>
+          <input id="memberJoinNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" placeholder="본명" value="" />
+        </div>
+        <div class="member-auth-row">
+          <label for="memberJoinPasswordInput">비밀번호</label>
+          <input id="memberJoinPasswordInput" type="password" autocomplete="new-password" placeholder="비밀번호 입력" value="" />
+        </div>
+        <div class="member-auth-row">
+          <label for="memberJoinGenderInput">성별</label>
+          <select id="memberJoinGenderInput">
+            <option value="" selected>선택</option>
+            <option value="남">남</option>
+            <option value="여">여</option>
+          </select>
+        </div>
+        <div class="member-auth-row">
+          <label for="memberJoinBirthInput">출생년도</label>
+          <input id="memberJoinBirthInput" type="text" inputmode="numeric" placeholder="출생년도" value="" />
+        </div>
+        <div class="member-auth-row">
+          <label for="memberJoinPhoneInput">전화번호</label>
+          <input id="memberJoinPhoneInput" type="tel" placeholder="010 1234 5678" value="" />
+        </div>
+        <div class="member-auth-row">
+          <label for="memberJoinDongInput">거주지</label>
+          <input id="memberJoinDongInput" type="text" placeholder="거주지(동)" value="" />
+        </div>
+        <div class="member-signup-actions">
+          <button id="memberJoinSubmitBtn" type="button">가입신청</button>
+          <button id="memberJoinCloseBtn" type="button">닫기</button>
+        </div>
+      </div>
+
+      <div id="memberAuthMessage" class="member-auth-message">아이디와 비밀번호를 입력하세요.</div>
+    </div>
+  </div>
+
   <div class="app">
     <div class="shell">
       <div class="board-wrap">
@@ -1080,6 +1416,7 @@
       </div>
 
       <div class="controls">
+        <div id="memberCurrentBadge" class="member-current-badge"></div>
         <div class="card">
           <div class="card-title-row">
             <div style="display:flex; align-items:center; gap:6px; min-width:0;">
@@ -1090,6 +1427,7 @@
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
               <button class="tab" id="adminTab" type="button">관리자</button>
+              <button class="tab" id="memberManageTab" type="button">회원관리</button>
             </div>
           </div>
 
@@ -1211,6 +1549,12 @@
                 <div style="display:grid; grid-template-columns:1fr; gap:6px; margin-top:10px;">
                   <button class="btn btn-danger" id="generateRecoveryCodeBtn" type="button">복구코드 생성</button>
                 </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px;">
+                  <button class="btn btn-outline" id="jsonBackupBtn" type="button">JSON 백업</button>
+                  <button class="btn btn-outline" id="jsonRestoreBtn" type="button">JSON 복구</button>
+                  <input id="jsonRestoreFileInput" type="file" accept="application/json,.json" class="hidden" />
+                </div>
               </div>
             </div>
 
@@ -1223,6 +1567,26 @@
 
             
 
+          </div>
+
+          <div id="memberManagePanel" class="hidden" style="margin-top:10px;">
+            <div style="border:1px solid #cfd8ff; border-radius:16px; padding:10px; background:#f7f9ff;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
+                <div style="font-size:13px; font-weight:800; color:#1428c8;">회원관리</div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <button class="btn btn-outline" id="memberApprovalLoginMoveBtn" type="button" style="width:auto; padding:0 10px;">로그아웃</button>
+                  <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button" style="width:auto; padding:0 10px;">새로고침</button>
+                </div>
+              </div>
+              <div style="font-size:11px; color:#555; line-height:1.5; margin-bottom:8px;">
+
+              </div>
+              <div id="memberApprovalPanel" class="member-approval-panel is-open is-auth" style="display:block; max-height:48vh; margin-top:0;">
+                <div id="memberApprovalList" class="member-approval-list">
+                  <div class="member-approval-empty">회원관리 탭을 열면 가입대기 회원 목록을 불러옵니다.</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="mode-divider" style="margin-top:16px; padding-top:14px;">
@@ -2067,6 +2431,7 @@ const firebaseConfig = {
     function renderPanels() {
       const memberTab = byId("memberTab");
       const adminTab = byId("adminTab");
+      const memberManageTab = byId("memberManageTab");
       const memberName = byId("memberName");
       const memberSeat = byId("memberSeat");
       const adminSeat = byId("adminSeat");
@@ -2089,13 +2454,19 @@ const firebaseConfig = {
 
       if (memberTab) memberTab.classList.toggle("active", state.mode === "member");
       if (adminTab) adminTab.classList.toggle("active", state.mode === "admin");
+      if (memberManageTab) {
+        memberManageTab.classList.toggle("active", state.mode === "memberManage");
+        memberManageTab.classList.toggle("hidden", !state.isAdminAuthenticated);
+      }
       document.body.classList.toggle("member-mode", state.mode === "member");
       document.body.classList.toggle("admin-mode", state.mode === "admin");
+      document.body.classList.toggle("member-manage-mode", state.mode === "memberManage");
 
       toggleHidden("memberPanel", state.mode !== "member");
       toggleHidden("adminLoginPanel", !(state.mode === "admin" && !state.isAdminAuthenticated));
       toggleHidden("adminPanel", !(state.mode === "admin" && state.isAdminAuthenticated));
-      toggleHidden("busInfoEditor", !state.isAdminAuthenticated);
+      toggleHidden("memberManagePanel", !(state.mode === "memberManage" && state.isAdminAuthenticated));
+      toggleHidden("busInfoEditor", !(state.isAdminAuthenticated && state.mode === "admin"));
       toggleHidden("adminNameExportPanel", !(state.mode === "admin" && state.isAdminAuthenticated));
 
       toggleHidden("systemAdminPanel", !(state.mode === "admin" && state.isAdminAuthenticated && state.isSystemAdminAuthenticated));
@@ -2105,14 +2476,14 @@ const firebaseConfig = {
 
       const infoBox = byId("busInfoLocked");
       if (infoBox) {
-        infoBox.style.display = state.mode === "admin" ? "none" : "block";
+        infoBox.style.display = (state.mode === "admin" || state.mode === "memberManage") ? "none" : "block";
         infoBox.textContent = state.nameEntryLocked
-          ? "현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다."
+          ? "현재 전체 이름 입력이 제한되어 있습니다."
           : (state.busInfo.seatGuideText || "1. 원하는 좌석을 선택 후 이름을 입력 하세요  2. 잘못 입력했을 경우 총무에게 문의 하세요  3. 자리변경을 하려면 빈좌석에 이름을 입력 하세요");
       }
 
       const helpText = document.querySelector(".help-text");
-      if (helpText) helpText.style.display = state.mode === "admin" ? "none" : "block";
+      if (helpText) helpText.style.display = (state.mode === "admin" || state.mode === "memberManage") ? "none" : "block";
 
       const isMemberLocked = state.nameEntryLocked && !state.isAdminAuthenticated;
       if (memberName) {
@@ -2589,6 +2960,141 @@ async function sha256Hex(value) {
 
       flashSaveVisuals(null, "generateRecoveryCodeBtn");
       alert(`새 복구코드가 생성되었습니다.\n\n${newCode}\n\n이 코드는 지금 한 번만 표시됩니다. 반드시 별도로 안전하게 보관하세요.`);
+    }
+
+
+    function makeBackupFileName() {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      return `bus-seat-backup_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.json`;
+    }
+
+    function downloadJsonBackup(payload) {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = makeBackupFileName();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function handleJsonBackup() {
+      if (!state.isAdminAuthenticated || !state.isSystemAdminAuthenticated) {
+        alert("시스템 관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      if (!state.db) {
+        alert("Firebase DB가 연결되지 않았습니다.");
+        return;
+      }
+      try {
+        const [appSnap, joinCodesSnap] = await Promise.all([
+          get(ref(state.db, ROOT_PATH)),
+          get(ref(state.db, "memberList/joinCodes"))
+        ]);
+        const payload = {
+          backupType: "bus-seat-full-backup",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          rootPath: ROOT_PATH,
+          data: {
+            [ROOT_PATH]: appSnap.exists() ? appSnap.val() : null,
+            memberList: {
+              joinCodes: joinCodesSnap.exists() ? joinCodesSnap.val() : null
+            }
+          }
+        };
+        downloadJsonBackup(payload);
+        flashSaveVisuals(null, "jsonBackupBtn");
+      } catch (error) {
+        console.error("JSON 백업 실패:", error);
+        alert("JSON 백업 실패: Firebase 연결 또는 읽기 권한을 확인하세요.");
+      }
+    }
+
+    function readJsonFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try { resolve(JSON.parse(String(reader.result || "{}"))); }
+          catch (error) { reject(error); }
+        };
+        reader.onerror = () => reject(reader.error || new Error("파일 읽기 실패"));
+        reader.readAsText(file, "utf-8");
+      });
+    }
+
+    async function handleJsonRestoreFile(event) {
+      const input = event.target;
+      const file = input?.files?.[0];
+      if (input) input.value = "";
+      if (!file) return;
+      if (!state.isAdminAuthenticated || !state.isSystemAdminAuthenticated) {
+        alert("시스템 관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      if (!state.db) {
+        alert("Firebase DB가 연결되지 않았습니다.");
+        return;
+      }
+      try {
+        const backup = await readJsonFile(file);
+        const rootData = backup?.data?.[ROOT_PATH] ?? backup?.[ROOT_PATH] ?? backup?.busSeatApp;
+        const joinCodesData = backup?.data?.memberList?.joinCodes ?? backup?.memberList?.joinCodes;
+        if (!rootData || typeof rootData !== "object") {
+          alert("복구할 busSeatApp 데이터가 없는 JSON 파일입니다.");
+          return;
+        }
+        const okConfirm = confirm("현재 Firebase DB 데이터를 JSON 파일 내용으로 복구할까요?\n\n기존 좌석/공지/회원가입 승인/비밀번호 설정이 백업 파일 기준으로 덮어쓰기 됩니다.");
+        if (!okConfirm) return;
+
+        const nextRoot = {
+          ...rootData,
+          meta: {
+            ...(rootData.meta || {}),
+            restoredAt: Date.now(),
+            updatedAt: Date.now()
+          }
+        };
+        const okRoot = await safeSet(ref(state.db, ROOT_PATH), nextRoot, {
+          label: "jsonRestoreRoot",
+          permissionMessage: "JSON 복구 권한이 없습니다.",
+          genericMessage: "JSON 복구 실패"
+        });
+        if (!okRoot) {
+          alert("JSON 복구 실패: busSeatApp 저장 권한을 확인하세요.");
+          return;
+        }
+        if (joinCodesData && typeof joinCodesData === "object") {
+          const okJoinCodes = await safeSet(ref(state.db, "memberList/joinCodes"), joinCodesData, {
+            label: "jsonRestoreJoinCodes",
+            permissionMessage: "회원번호 DB 복구 권한이 없습니다.",
+            genericMessage: "회원번호 DB 복구 실패"
+          });
+          if (!okJoinCodes) {
+            alert("좌석 DB는 복구됐지만 회원번호 DB 복구에 실패했습니다. Firebase 규칙을 확인하세요.");
+            return;
+          }
+        }
+        applySnapshotData(nextRoot);
+        renderAll();
+        flashSaveVisuals(null, "jsonRestoreBtn");
+        alert("JSON 복구 완료");
+      } catch (error) {
+        console.error("JSON 복구 실패:", error);
+        alert("JSON 복구 실패: 올바른 JSON 백업 파일인지 확인하세요.");
+      }
+    }
+
+    function handleJsonRestoreClick() {
+      if (!state.isAdminAuthenticated || !state.isSystemAdminAuthenticated) {
+        alert("시스템 관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      byId("jsonRestoreFileInput")?.click();
     }
 
 function renderAll() {
@@ -3101,7 +3607,7 @@ function renderAll() {
       if (isBlockedSeat(seat.number) || (state.mode === "member" && seat.number <= 3)) return;
       if (state.mode === "member") {
         if (state.nameEntryLocked) {
-          alert("현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다.");
+          alert("현재 전체 입력이 제한되어 있습니다.");
           return;
         }
         if (seat.status === "paid" || seat.status === "paid_new") {
@@ -3136,7 +3642,7 @@ function renderAll() {
       if (state.pendingCancelSeat && Number(state.pendingCancelSeat) === Number(seatNumber)) return;
       if (isBlockedSeat(seatNumber)) return;
       if (state.mode === "member" && state.nameEntryLocked && !state.isAdminAuthenticated) {
-        alert("현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다.");
+        alert("현재 전체 입력이 제한되어 있습니다.");
         state.editingSeat = null;
         state.editName = "";
         renderAll();
@@ -3210,7 +3716,7 @@ function renderAll() {
 
     async function handleMemberSave() {
       if (state.nameEntryLocked && !state.isAdminAuthenticated) {
-        alert("현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다.");
+        alert("현재 전체 입력이 제한되어 있습니다.");
         return;
       }
       const seatNo = Number(state.memberSeat);
@@ -3260,7 +3766,7 @@ function renderAll() {
 
     async function executeMemberCancel() {
       if (state.nameEntryLocked && !state.isAdminAuthenticated) {
-        alert("현재 관리자 설정으로 전체 좌석 이름 입력이 제한되어 있습니다.");
+        alert("현재 전체 입력이 제한되어 있습니다.");
         state.pendingCancelSeat = null;
         return;
       }
@@ -3852,13 +4358,89 @@ function renderAll() {
 
 
     function switchMode(nextMode) {
-      if (nextMode !== "member" && nextMode !== "admin") return;
+      if (nextMode !== "member" && nextMode !== "admin" && nextMode !== "memberManage") return;
+      if (nextMode === "memberManage" && !state.isAdminAuthenticated) {
+        alert("회원관리는 관리자 로그인 후 사용할 수 있습니다.");
+        nextMode = "admin";
+      }
       if (state.mode === nextMode) return;
       state.mode = nextMode;
       state.editingSeat = null;
       state.editName = "";
       renderAll();
+      if (nextMode === "memberManage") {
+        if (typeof window.__loadMembershipApprovalMembers === "function") {
+          window.__loadMembershipApprovalMembers().catch((error) => {
+            console.error("회원관리 목록 불러오기 오류:", error);
+            if (typeof window.__setMembershipAuthMessage === "function") {
+              window.__setMembershipAuthMessage("회원관리 목록을 불러오지 못했습니다.");
+            }
+          });
+        }
+      }
     }
+
+    window.__busSeatSwitchMode = switchMode;
+    window.__busSeatIsAdminAuthenticated = function() { return !!state.isAdminAuthenticated; };
+    window.__busSeatVerifyAdminPassword = async function(inputPassword) {
+      const normalizedInput = String(inputPassword || "").trim();
+      if (!normalizedInput) return false;
+      const inputHash = await sha256Hex(normalizedInput);
+
+      // 핵심 수정: 로그인 게이트에서는 Firebase 실시간 로딩보다 먼저 입력될 수 있으므로
+      // state/localStorage의 오래된 기본값(1234)을 먼저 보지 않고, Firebase ROOT_PATH 최신값을 먼저 확인한다.
+      try {
+        if (state.db) {
+          const snap = await get(ref(state.db, ROOT_PATH));
+          const remote = snap.exists() ? (snap.val() || {}) : {};
+          const remoteHash = String(remote.adminPasswordHash || "").trim();
+          const remotePlain = String(remote.adminPassword || "").trim();
+          if (remoteHash && inputHash === remoteHash) {
+            state.adminPasswordHash = remoteHash;
+            saveLocalAdminPasswordHash(remoteHash);
+            if (remotePlain) state.adminPassword = remotePlain;
+            return true;
+          }
+          if (remotePlain && normalizedInput === remotePlain) {
+            state.adminPassword = remotePlain;
+            if (remoteHash) {
+              state.adminPasswordHash = remoteHash;
+              saveLocalAdminPasswordHash(remoteHash);
+            }
+            return true;
+          }
+        }
+      } catch (error) {
+        console.warn("관리자 비밀번호 Firebase 최신값 확인 실패:", error);
+      }
+
+      // Firebase 읽기가 실패한 경우에만 현재 앱 상태/로컬 보조 해시로 확인한다.
+      const serverHash = String(state.adminPasswordHash || "").trim();
+      if (serverHash && inputHash === serverHash) return true;
+      const localHash = getLocalAdminPasswordHash();
+      if (localHash && inputHash === localHash) return true;
+      if (normalizedInput === String(state.adminPassword || DEFAULT_ADMIN_PASSWORD).trim()) return true;
+      return false;
+    };
+    window.__busSeatEnterAdminFromMembership = function() {
+      // 회원 로그인 화면에서 관리자 비밀번호로 진입해도 시작 화면은 반드시 회원 입력 모드로 연다.
+      // 관리자 권한만 부여하고, 시스템관리자 모드는 반드시 [시스템관리자] 버튼에서 별도 인증 후 진입한다.
+      state.isAdminAuthenticated = true;
+      state.isSystemAdminAuthenticated = false;
+      switchMode("member");
+      renderAll();
+    };
+
+    window.__busSeatForceFullLogoutFromMembership = function() {
+      // 회원관리 화면의 로그아웃은 관리자/시스템관리자 상태를 모두 초기화한다.
+      state.isAdminAuthenticated = false;
+      state.isSystemAdminAuthenticated = false;
+      state.mode = "member";
+      state.adminSeat = "";
+      state.editingSeat = null;
+      state.editName = "";
+      renderAll();
+    };
 
     function bindMemberAdminSwipe() {
       const swipeArea = document.querySelector(".card-title-row");
@@ -3899,6 +4481,7 @@ function renderAll() {
       bindMemberAdminSwipe();
       bindIfPresent("memberTab", "click", () => switchMode("member"));
       bindIfPresent("adminTab", "click", () => switchMode("admin"));
+      bindIfPresent("memberManageTab", "click", () => switchMode("memberManage"));
       bindIfPresent("memberName", "input", (e) => {
         if (state.nameEntryLocked && !state.isAdminAuthenticated) return;
         const rawValue = e.target.value;
@@ -4055,6 +4638,9 @@ function renderAll() {
       bindIfPresent("changePasswordBtn", "click", handleChangeAdminPassword);
       bindIfPresent("changeTripPlanPasswordBtn", "click", handleChangeTripPlanPassword);
       bindIfPresent("generateRecoveryCodeBtn", "click", handleGenerateRecoveryCode);
+      bindIfPresent("jsonBackupBtn", "click", handleJsonBackup);
+      bindIfPresent("jsonRestoreBtn", "click", handleJsonRestoreClick);
+      bindIfPresent("jsonRestoreFileInput", "change", handleJsonRestoreFile);
       bindIfPresent("saveWaitingExpireBtn", "click", handleSaveWaitingExpireHours);
       bindIfPresent("newSystemAdminPassword", "keydown", async (e) => {
         if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); flashButton("changeSystemAdminPasswordBtn"); await handleChangeSystemAdminPassword(); }
@@ -4461,6 +5047,1120 @@ function renderAll() {
     // 전화/문자 기능 제거: 회원명부 연락처 조회 자동 실행 안 함
   });
 })();
+</script>
+
+
+<script type="module" id="bus-seat-membership-gate-script">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getDatabase, ref, get, set, update, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+  const MEMBERSHIP_FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgwQ",
+    authDomain: "bus-seat-eb86c.firebaseapp.com",
+    databaseURL: "https://bus-seat-eb86c-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "bus-seat-eb86c",
+    storageBucket: "bus-seat-eb86c.firebasestorage.app",
+    messagingSenderId: "132111967366",
+    appId: "1:132111967366:web:e034a00f8c8cc4aa441d07"
+  };
+
+  const MEMBERS_ROOT = "busSeatApp/membership";
+  const MEMBER_LIST_JOIN_CODES_PATH = "memberList/joinCodes";
+  const LOGIN_SESSION_KEY = "bus-seat-approved-member-session-v1";
+  let currentApprovedMemberSession = null;
+
+  const membershipApp = initializeApp(MEMBERSHIP_FIREBASE_CONFIG, "busSeatMembershipGateApp");
+  const membershipDb = getDatabase(membershipApp);
+
+  // 회원 로그인/가입 모듈은 별도 type=module 스코프이므로 필요한 공통 함수를 내부에 포함한다.
+  // 이 함수들이 없으면 ReferenceError로 로그인/회원가입 버튼 이벤트가 전부 멈춘다.
+  function byId(id) { return document.getElementById(id); }
+
+  function escapeHtml(text) {
+    return String(text ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function normalizeName(inputName) {
+    return String(inputName || "").trim().replace(/\s+/g, "");
+  }
+
+  function makeNameKey(inputName) {
+    return normalizeName(inputName).toLowerCase();
+  }
+
+  function normalizeBirthYear(value) {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 4);
+    return digits;
+  }
+
+  function normalizePhone(value) {
+    return String(value || "").replace(/\D/g, "");
+  }
+
+  function formatPhone344(phoneDigits) {
+    const digits = normalizePhone(phoneDigits).slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7, 11)}`;
+  }
+
+  function hasInvalidPhoneChars(value) {
+    return /[^0-9\s]/.test(String(value || ""));
+  }
+
+  function hasWhitespace(value) {
+    return /\s/.test(String(value || ""));
+  }
+
+  function normalizeTextNoSpace(value) {
+    return String(value || "").trim();
+  }
+
+  function validateNoWhitespaceFields(fields) {
+    for (const item of fields) {
+      if (hasWhitespace(item.value)) {
+        return `${item.label}에는 띄어쓰기를 넣을 수 없습니다.`;
+      }
+    }
+    return "";
+  }
+
+  function isValidKoreanMobileDigits(phoneDigits) {
+    return /^010\d{8}$/.test(String(phoneDigits || ""));
+  }
+
+  async function findMembersByPhoneDigits(phoneDigits) {
+    const target = String(phoneDigits || "");
+    if (!target) return [];
+    const allSnap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members`)).catch(() => null);
+    const all = allSnap && allSnap.exists() ? allSnap.val() || {} : {};
+    return Object.keys(all)
+      .map((code) => all[code])
+      .filter((m) => String((m && m.phoneDigits) || normalizePhone(m && m.phone)) === target);
+  }
+
+  function summarizeMemberForDuplicateCheck(member) {
+    if (!member) return "";
+    const parts = [
+      `회원번호 ${member.code || "-"}`,
+      `이름 ${member.name || "-"}`,
+      `출생년도 ${member.birthYear || "-"}`,
+      `거주지 ${member.dong || "-"}`
+    ];
+    return parts.join(" / ");
+  }
+
+  async function sha256Hex(value) {
+    const text = String(value ?? "");
+    const bytes = new TextEncoder().encode(text);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  function setAuthMessage(message, ok = false) {
+    const el = byId("memberAuthMessage");
+    if (!el) return;
+    el.textContent = message || "";
+    el.classList.toggle("ok", !!ok);
+  }
+
+  async function memberExists(code) {
+    if (!code) return false;
+    const snap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members/${code}`));
+    return snap.exists();
+  }
+
+  async function getExistingMemberCodes() {
+    const codeSet = new Set();
+    const [membersSnap, joinCodesSnap] = await Promise.all([
+      get(ref(membershipDb, `${MEMBERS_ROOT}/members`)).catch(() => null),
+      get(ref(membershipDb, MEMBER_LIST_JOIN_CODES_PATH)).catch(() => null)
+    ]);
+    const members = membersSnap && membersSnap.exists() ? membersSnap.val() || {} : {};
+    const joinCodes = joinCodesSnap && joinCodesSnap.exists() ? joinCodesSnap.val() || {} : {};
+    Object.keys(members).forEach((code) => codeSet.add(String(code)));
+    Object.keys(joinCodes).forEach((code) => codeSet.add(String(code)));
+    return codeSet;
+  }
+
+  function makeMemberCodeCandidate(letter, sequenceNumber, phoneLast4) {
+    const seqText = sequenceNumber < 100
+      ? String(sequenceNumber).padStart(2, "0")
+      : String(sequenceNumber);
+    return `${letter}${seqText}${phoneLast4}`;
+  }
+
+  async function allocateMemberCode(phoneDigits) {
+    const phoneLast4 = String(phoneDigits || "").replace(/\D/g, "").slice(-4);
+    if (phoneLast4.length !== 4) {
+      throw new Error("전화번호 끝 4자리를 확인할 수 없습니다.");
+    }
+
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const existingCodes = await getExistingMemberCodes();
+
+    // 기본형: A006218 ~ A996218, B006218 ~ Z996218
+    for (const letter of letters) {
+      for (let seq = 0; seq <= 99; seq += 1) {
+        const code = makeMemberCodeCandidate(letter, seq, phoneLast4);
+        if (!existingCodes.has(code) && !(await memberExists(code))) return code;
+      }
+    }
+
+    // 초과형: 2600개를 넘으면 순번 자릿수를 자동 확장한다. 예: A1006218
+    for (let seq = 100; seq <= 999999; seq += 1) {
+      for (const letter of letters) {
+        const code = makeMemberCodeCandidate(letter, seq, phoneLast4);
+        if (!existingCodes.has(code) && !(await memberExists(code))) return code;
+      }
+    }
+
+    throw new Error("회원코드 생성 실패");
+  }
+
+  async function saveMemberListJoinCode(member) {
+    if (!member || !member.code) return;
+    const payload = {
+      code: member.code,
+      name: member.name || "",
+      gender: member.gender || "",
+      birthYear: member.birthYear || "",
+      phone: member.phone || "",
+      phoneDigits: member.phoneDigits || "",
+      phoneLast4: member.phoneLast4 || "",
+      dong: member.dong || "",
+      status: member.status || "pending",
+      approved: !!member.approved,
+      adminAccess: !!member.adminAccess,
+      createdAt: member.createdAt || Date.now(),
+      updatedAt: Date.now()
+    };
+    await update(ref(membershipDb), { [`${MEMBER_LIST_JOIN_CODES_PATH}/${member.code}`]: payload });
+  }
+
+  /* 테스트 회원 자동 생성 기능 제거됨.
+     실제 회원 데이터는 Firebase DB 또는 JSON 복구 데이터만 사용한다. */
+
+  async function findMembersByName(name) {
+    const key = makeNameKey(name);
+    const idxSnap = await get(ref(membershipDb, `${MEMBERS_ROOT}/nameIndex/${key}`));
+    const codes = idxSnap.exists() ? Object.keys(idxSnap.val() || {}) : [];
+    const members = [];
+    for (const code of codes) {
+      const snap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members/${code}`));
+      if (snap.exists()) members.push(snap.val());
+    }
+    // 구버전/초기 데이터 대비: 인덱스가 없으면 전체 검색
+    if (members.length === 0) {
+      const allSnap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members`));
+      const all = allSnap.val() || {};
+      Object.keys(all).forEach((code) => {
+        const m = all[code];
+        if (normalizeName(m && m.name) === normalizeName(name)) members.push(m);
+      });
+    }
+    return members;
+  }
+
+  async function loginMember() {
+    const name = normalizeName(byId("memberLoginNameInput")?.value);
+    const password = String(byId("memberLoginPasswordInput")?.value || "");
+
+    // 관리자 로그인: 아이디를 비워두고 비밀번호 칸에 관리자 비밀번호만 입력한 뒤 [로그인]을 누르면 진입 가능
+    // 일반 회원은 기존처럼 이름 + 개인 비밀번호가 모두 필요함.
+    if (!name && password) {
+      if (await isBusSeatAdminPassword(password)) {
+        const adminSession = {
+          code: "ADMIN",
+          name: "관리자",
+          role: "admin",
+          adminAccess: true,
+          loginAt: Date.now()
+        };
+        currentApprovedMemberSession = adminSession;
+        try { localStorage.removeItem(LOGIN_SESSION_KEY); sessionStorage.removeItem(LOGIN_SESSION_KEY); } catch (e) {}
+        unlockApp(adminSession);
+        if (typeof window.__busSeatEnterAdminFromMembership === "function") {
+          window.__busSeatEnterAdminFromMembership();
+        } else if (typeof window.__busSeatSwitchMode === "function") {
+          window.__busSeatSwitchMode("member");
+        }
+        setAuthMessage("관리자 비밀번호로 로그인되었습니다. 회원 입력 모드로 진입했습니다.", true);
+        return;
+      }
+      setAuthMessage("올바른 비밀번호 회원은 이름도 입력하세요.");
+      return;
+    }
+
+    if (!name || !password) {
+      setAuthMessage("아이디와 비밀번호를 입력하세요.");
+      return;
+    }
+    if (!/^[가-힣]/.test(name)) {
+      setAuthMessage("아이디는 한글 이름으로 시작해야 합니다.");
+      return;
+    }
+
+    setAuthMessage("로그인 확인중입니다...");
+
+    const members = await findMembersByName(name);
+    if (members.length === 0) {
+      setAuthMessage("등록된 회원이 없습니다. 회원가입을 먼저 진행하세요.");
+      return;
+    }
+
+    const passwordHash = await sha256Hex(password);
+    const matched = members.find((m) => String(m.passwordHash || "") === passwordHash);
+
+    if (!matched) {
+      setAuthMessage("비밀번호가 맞지 않습니다.");
+      return;
+    }
+
+    if (!matched.approved || matched.status === "pending") {
+      setAuthMessage(`관리자 승인 대기중입니다. 회원코드: ${matched.code}`);
+      return;
+    }
+    if (matched.status === "blocked") {
+      setAuthMessage("접근 차단된 회원입니다. 관리자에게 문의하세요.");
+      return;
+    }
+    if (matched.status === "withdrawn") {
+      setAuthMessage("탈퇴 처리된 회원입니다.");
+      return;
+    }
+    if (matched.status !== "active") {
+      setAuthMessage("사용 가능한 회원 상태가 아닙니다.");
+      return;
+    }
+
+    const session = {
+      code: matched.code,
+      name: matched.name,
+      role: matched.role || "member",
+      adminAccess: !!matched.adminAccess,
+      loginAt: Date.now()
+    };
+    currentApprovedMemberSession = session;
+    try { localStorage.removeItem(LOGIN_SESSION_KEY); sessionStorage.removeItem(LOGIN_SESSION_KEY); } catch (e) {}
+
+    unlockApp(session);
+  }
+
+  async function joinMember() {
+    const rawName = String(byId("memberJoinNameInput")?.value || "");
+    const rawPassword = String(byId("memberJoinPasswordInput")?.value || "");
+    const rawPhone = String(byId("memberJoinPhoneInput")?.value || "");
+    const rawDong = String(byId("memberJoinDongInput")?.value || "");
+
+    const name = normalizeName(rawName);
+    const password = rawPassword;
+    const gender = String(byId("memberJoinGenderInput")?.value || "").trim();
+    const birthYear = normalizeBirthYear(byId("memberJoinBirthInput")?.value);
+    const phoneDigits = normalizePhone(rawPhone);
+    const phone = formatPhone344(phoneDigits);
+    const dong = normalizeTextNoSpace(rawDong);
+
+    const spaceError = validateNoWhitespaceFields([
+      { label: "본명", value: rawName },
+      { label: "비밀번호", value: rawPassword },
+      { label: "거주지", value: rawDong }
+    ]);
+    if (spaceError) {
+      setAuthMessage(spaceError);
+      return;
+    }
+
+    if (!name || !password || !gender || !birthYear || !phoneDigits || !dong) {
+      setAuthMessage("본명, 비밀번호, 성별, 출생년도, 전화번호, 거주지를 모두 입력하세요.");
+      return;
+    }
+    if (hasInvalidPhoneChars(rawPhone)) {
+      setAuthMessage("전화번호는 숫자만 입력하세요. 저장 시 ### #### #### 형식으로 자동 정리됩니다.");
+      return;
+    }
+    if (!isValidKoreanMobileDigits(phoneDigits)) {
+      setAuthMessage("전화번호는 휴대폰 숫자 11자리로 입력하세요. 저장 시 ### #### #### 형식으로 자동 정리됩니다.");
+      return;
+    }
+    if (!/^[가-힣]{2,}$/.test(name)) {
+      setAuthMessage("아이디/본명은 띄어쓰기 없이 한글 이름으로 입력하세요.");
+      return;
+    }
+    if (password.length < 4) {
+      setAuthMessage("비밀번호는 4자리 이상 입력하세요.");
+      return;
+    }
+
+    setAuthMessage("기존 회원 중복 확인중입니다...");
+    const samePhoneMembers = await findMembersByPhoneDigits(phoneDigits);
+    const samePersonMembers = samePhoneMembers.filter((m) => normalizeName(m && m.name) === name);
+    if (samePersonMembers.length > 0) {
+      const detail = samePersonMembers.map(summarizeMemberForDuplicateCheck).join("\n");
+      const ok = confirm(`동일인으로 보이는 기존 가입 자료가 있습니다.\n\n${detail}\n\n변경된 정보가 있으면 새 가입 자료를 추가 등록한 뒤 멤버리스트에서 편집하세요.\n계속 추가 등록할까요?`);
+      if (!ok) {
+        setAuthMessage("동일인 자료가 있어 가입 추가를 취소했습니다.");
+        return;
+      }
+    } else if (samePhoneMembers.length > 0) {
+      const detail = samePhoneMembers.map(summarizeMemberForDuplicateCheck).join("\n");
+      const ok = confirm(`같은 전화번호를 사용하는 기존 자료가 있습니다.\n\n${detail}\n\n동명이인/가족 등 별도 회원이면 추가 등록하세요. 계속할까요?`);
+      if (!ok) {
+        setAuthMessage("같은 전화번호 자료가 있어 가입 추가를 취소했습니다.");
+        return;
+      }
+    }
+
+    setAuthMessage("가입 신청 저장중입니다...");
+
+    const code = await allocateMemberCode(phoneDigits);
+
+    const now = Date.now();
+    const passwordHash = await sha256Hex(password);
+    const payload = {
+      code,
+      name,
+      nameKey: name,
+      gender,
+      birthYear,
+      phone,
+      phoneDigits,
+      phoneLast4: phoneDigits.slice(-4),
+      dong,
+      passwordHash,
+      approved: false,
+      status: "pending",
+      role: "pending",
+      memberType: "new",
+      duplicateCheck: {
+        samePhoneCount: samePhoneMembers.length,
+        samePersonCount: samePersonMembers.length,
+        checkedAt: now
+      },
+      adminAccess: false,
+      apps: {
+        busSeat: false,
+        tripSchedule: false,
+        memberList: false,
+        busRute: false
+      },
+      createdAt: now,
+      updatedAt: now,
+      approvedAt: null,
+      approvedBy: null,
+      withdrawnAt: null,
+      withdrawnBy: null
+    };
+
+    await update(ref(membershipDb), {
+      [`${MEMBERS_ROOT}/members/${code}`]: payload,
+      [`${MEMBERS_ROOT}/nameIndex/${makeNameKey(name)}/${code}`]: true,
+      [`${MEMBERS_ROOT}/pending/${code}`]: true
+    });
+    await saveMemberListJoinCode(payload);
+
+    setAuthMessage(`가입 신청 완료. 관리자 승인 대기중입니다. 회원코드: ${code}`, true);
+    byId("memberSignupPanel")?.classList.remove("is-open");
+  }
+
+  function unlockApp(session) {
+    document.body.classList.remove("membership-locked");
+    const gate = byId("memberAuthGate");
+    if (gate) gate.classList.add("is-hidden");
+    const badge = byId("memberCurrentBadge");
+    if (badge) {
+      badge.textContent = "";
+      badge.style.display = "none";
+    }
+  }
+
+  async function restoreSessionIfValid() {
+    // 앱을 닫거나 새로고침/재접속하면 저장된 로그인 상태를 복구하지 않는다.
+    // 보안상 매 접속마다 반드시 아이디/비밀번호로 다시 로그인해야 한다.
+    currentApprovedMemberSession = null;
+    try {
+      localStorage.removeItem(LOGIN_SESSION_KEY);
+      sessionStorage.removeItem(LOGIN_SESSION_KEY);
+    } catch (e) {}
+    document.body.classList.add("membership-locked");
+    const gate = byId("memberAuthGate");
+    if (gate) gate.classList.remove("is-hidden");
+    const nameInput = byId("memberLoginNameInput");
+    const passwordInput = byId("memberLoginPasswordInput");
+    if (nameInput) {
+      nameInput.value = "";
+      nameInput.placeholder = "이  름";
+    }
+    if (passwordInput) {
+      passwordInput.value = "";
+      passwordInput.placeholder = "비밀번호 입력";
+    }
+    setAuthMessage("아이디와 비밀번호를 입력하세요.");
+  }
+
+  function clearApprovedMemberSession() {
+    currentApprovedMemberSession = null;
+    try {
+      localStorage.removeItem(LOGIN_SESSION_KEY);
+      sessionStorage.removeItem(LOGIN_SESSION_KEY);
+    } catch (e) {}
+  }
+
+  window.addEventListener("pagehide", clearApprovedMemberSession);
+  window.addEventListener("beforeunload", clearApprovedMemberSession);
+
+
+  let memberApprovalAdminAuthed = false;
+
+  async function isBusSeatAdminPassword(inputPassword) {
+    const normalizedInput = String(inputPassword || "").trim();
+    if (!normalizedInput) return false;
+    const inputHash = await sha256Hex(normalizedInput);
+
+    // 핵심 수정: 회원 로그인 화면의 관리자 로그인은 반드시 Firebase busSeatApp 최신 관리자 비밀번호를 먼저 확인한다.
+    // 이렇게 해야 다른 기기/관리자모드에서 변경한 bus-seat 관리자 비밀번호와 즉시 연동된다.
+    try {
+      const rootSnap = await get(ref(membershipDb, "busSeatApp"));
+      const root = rootSnap.exists() ? (rootSnap.val() || {}) : {};
+      const remoteHash = String(root.adminPasswordHash || "").trim();
+      const remotePlain = String(root.adminPassword || "").trim();
+      if (remoteHash && inputHash === remoteHash) return true;
+      if (remotePlain && normalizedInput === remotePlain) return true;
+    } catch (error) {
+      console.warn("bus-seat 관리자 비밀번호 원격 확인 오류:", error);
+    }
+
+    // 보조: 현재 bus-seat 앱 내부 검증 함수 확인
+    try {
+      if (typeof window.__busSeatVerifyAdminPassword === "function") {
+        const ok = await window.__busSeatVerifyAdminPassword(normalizedInput);
+        if (ok) return true;
+      }
+    } catch (error) {
+      console.warn("bus-seat 내부 관리자 비밀번호 확인 오류:", error);
+    }
+
+    // 보조: 기존 bus-seat 로컬 저장 해시 확인
+    try {
+      const localHash = String(localStorage.getItem("bus-seat-admin-password-hash-v1") || "").trim();
+      if (localHash && inputHash === localHash) return true;
+    } catch (error) {}
+
+    // 최초 설치 기본값
+    return normalizedInput === "1234";
+  }
+
+  function formatDateTime(ms) {
+    if (!ms) return "-";
+    try {
+      const d = new Date(Number(ms));
+      const yy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mi = String(d.getMinutes()).padStart(2, "0");
+      return `${yy}-${mm}-${dd} ${hh}:${mi}`;
+    } catch (error) {
+      return "-";
+    }
+  }
+
+  function statusLabelForMember(member) {
+    const status = String(member?.status || "");
+    if (status === "pending") return "승인대기";
+    if (status === "active") return member?.approved ? "승인완료" : "미승인";
+    if (status === "blocked") return "차단";
+    if (status === "withdrawn") return "탈퇴";
+    if (status === "rejected") return "거절";
+    return status || "-";
+  }
+
+  async function loadApprovalMembers() {
+    const listEl = byId("memberApprovalList");
+    if (!listEl) return;
+    listEl.innerHTML = '<div class="member-approval-empty">회원 목록 불러오는 중...</div>';
+    const snap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members`));
+    const all = snap.val() || {};
+    const members = Object.values(all).sort((a, b) => {
+      const rank = { pending: 0, active: 1, blocked: 2, withdrawn: 3, rejected: 4 };
+      return (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || String(a.code).localeCompare(String(b.code));
+    });
+    if (members.length === 0) {
+      listEl.innerHTML = '<div class="member-approval-empty">회원 데이터가 없습니다.</div>';
+      return;
+    }
+    listEl.innerHTML = members.map((m) => {
+      const adminText = m.adminAccess ? "관리자ON" : "관리자OFF";
+      return `
+        <div class="member-approval-card" data-member-code="${escapeHtml(m.code)}">
+          <div class="member-approval-card-title">${escapeHtml(m.name)} / ${escapeHtml(m.code)} / ${escapeHtml(statusLabelForMember(m))}</div>
+          <div>성별: ${escapeHtml(m.gender || '-')} · 출생년도: ${escapeHtml(m.birthYear || '-')} · 거주지: ${escapeHtml(m.dong || '-')}</div>
+          <div>전화: ${escapeHtml(m.phone || '-')}</div>
+          <div>역할: ${escapeHtml(m.role || '-')} · ${adminText} · 가입일: ${escapeHtml(formatDateTime(m.createdAt))}</div>
+          <div class="member-approval-card-actions">
+            <button class="approve" data-member-action="approve" data-code="${escapeHtml(m.code)}">승인</button>
+            <button class="block" data-member-action="block" data-code="${escapeHtml(m.code)}">차단</button>
+            <button class="admin" data-member-action="toggle-admin" data-code="${escapeHtml(m.code)}">관리자</button>
+            <button class="withdraw" data-member-action="withdraw" data-code="${escapeHtml(m.code)}">탈퇴</button>
+            <button class="delete" data-member-action="delete" data-code="${escapeHtml(m.code)}">삭제</button>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  window.__loadMembershipApprovalMembers = loadApprovalMembers;
+  window.__setMembershipAuthMessage = setAuthMessage;
+
+  async function updateMemberApprovalStatus(code, action) {
+    const snap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members/${code}`));
+    if (!snap.exists()) {
+      setAuthMessage("해당 회원을 찾을 수 없습니다.");
+      return;
+    }
+    const member = snap.val();
+    const now = Date.now();
+    const updates = {};
+    if (action === "approve") {
+      Object.assign(member, {
+        approved: true,
+        status: "active",
+        role: member.role === "admin" ? "admin" : "member",
+        apps: { busSeat: true, tripSchedule: true, memberList: false, busRute: true },
+        approvedAt: member.approvedAt || now,
+        approvedBy: "membership-admin",
+        updatedAt: now
+      });
+      updates[`${MEMBERS_ROOT}/pending/${code}`] = null;
+    } else if (action === "block") {
+      Object.assign(member, {
+        approved: false,
+        status: "blocked",
+        apps: { busSeat: false, tripSchedule: false, memberList: false, busRute: false },
+        adminAccess: false,
+        updatedAt: now
+      });
+    } else if (action === "toggle-admin") {
+      const nextAdmin = !member.adminAccess;
+      Object.assign(member, {
+        approved: true,
+        status: "active",
+        role: nextAdmin ? "admin" : "member",
+        adminAccess: nextAdmin,
+        apps: { ...(member.apps || {}), busSeat: true, tripSchedule: true, busRute: true, memberList: nextAdmin },
+        updatedAt: now
+      });
+      updates[`${MEMBERS_ROOT}/pending/${code}`] = null;
+    } else if (action === "withdraw") {
+      Object.assign(member, {
+        approved: false,
+        status: "withdrawn",
+        role: "withdrawn",
+        adminAccess: false,
+        passwordHash: null,
+        apps: { busSeat: false, tripSchedule: false, memberList: false, busRute: false },
+        withdrawnAt: now,
+        withdrawnBy: "membership-admin",
+        updatedAt: now
+      });
+      updates[`${MEMBERS_ROOT}/pending/${code}`] = null;
+    } else if (action === "delete") {
+      updates[`${MEMBERS_ROOT}/members/${code}`] = null;
+      updates[`${MEMBERS_ROOT}/pending/${code}`] = null;
+      if (member?.name) updates[`${MEMBERS_ROOT}/nameIndex/${makeNameKey(member.name)}/${code}`] = null;
+      updates[`${MEMBER_LIST_JOIN_CODES_PATH}/${code}`] = null;
+      await update(ref(membershipDb), updates);
+      setAuthMessage(`${member.name || code} / ${code} 삭제 완료`, true);
+      await loadApprovalMembers();
+      return;
+    }
+    updates[`${MEMBERS_ROOT}/members/${code}`] = member;
+    updates[`${MEMBER_LIST_JOIN_CODES_PATH}/${code}`] = {
+      code: member.code,
+      name: member.name,
+      gender: member.gender || "",
+      birthYear: member.birthYear || "",
+      phone: member.phone || "",
+      phoneLast4: member.phoneLast4 || "",
+      dong: member.dong || "",
+      status: member.status || "pending",
+      approved: !!member.approved,
+      role: member.role || "member",
+      adminAccess: !!member.adminAccess,
+      memberType: member.memberType || "",
+      createdAt: member.createdAt || now,
+      updatedAt: now
+    };
+    await update(ref(membershipDb), updates);
+    setAuthMessage(`${member.name} / ${code} 처리 완료`, true);
+    await loadApprovalMembers();
+  }
+
+  function bindApprovalAdminMode() {
+    const panel = byId("memberApprovalPanel");
+    function forceMembershipLogout() {
+      currentApprovedMemberSession = null;
+      memberApprovalAdminAuthed = false;
+
+      try {
+        localStorage.removeItem(LOGIN_SESSION_KEY);
+        sessionStorage.removeItem(LOGIN_SESSION_KEY);
+        // 기존 버전에서 다른 이름으로 남겼을 수 있는 로그인 흔적도 같이 제거
+        localStorage.removeItem("bus-seat-approved-member-session-v1");
+        sessionStorage.removeItem("bus-seat-approved-member-session-v1");
+      } catch (e) {}
+
+      // 앱 내부 관리자/시스템관리자 상태도 먼저 초기화한다.
+      if (typeof window.__busSeatForceFullLogoutFromMembership === "function") {
+        window.__busSeatForceFullLogoutFromMembership();
+      }
+
+      document.body.classList.add("membership-locked");
+      document.body.classList.remove("admin-mode", "member-manage-mode");
+
+      const gate = byId("memberAuthGate");
+      if (gate) gate.classList.remove("is-hidden");
+
+      const approvalPanel = byId("memberApprovalPanel");
+      if (approvalPanel) approvalPanel.classList.remove("is-open", "is-auth");
+      const approvalList = byId("memberApprovalList");
+      if (approvalList) approvalList.innerHTML = '<div class="member-approval-empty">관리자 로그인 후 회원관리를 사용할 수 있습니다.</div>';
+
+      const signupPanel = byId("memberSignupPanel");
+      if (signupPanel) signupPanel.classList.remove("is-open");
+
+      const nameInput = byId("memberLoginNameInput");
+      const passwordInput = byId("memberLoginPasswordInput");
+      if (nameInput) {
+        nameInput.value = "";
+        nameInput.placeholder = "이  름";
+      }
+      if (passwordInput) {
+        passwordInput.value = "";
+        passwordInput.placeholder = "비밀번호 입력";
+      }
+
+      // 앱 내부 패널도 화면상 초기화. 로그인 후에는 회원입력 화면부터 다시 보이도록 한다.
+      byId("memberPanel")?.classList.remove("hidden");
+      byId("adminLoginPanel")?.classList.add("hidden");
+      byId("adminPanel")?.classList.add("hidden");
+      byId("memberManagePanel")?.classList.add("hidden");
+      byId("memberTab")?.classList.add("active");
+      byId("adminTab")?.classList.remove("active");
+      byId("memberManageTab")?.classList.remove("active");
+
+      setAuthMessage("로그아웃 되었습니다. 다시 로그인하세요.", true);
+      setTimeout(() => nameInput?.focus(), 50);
+    }
+
+    byId("memberApprovalLoginMoveBtn")?.addEventListener("click", forceMembershipLogout);
+    // 버튼이 다시 렌더링되거나 위치가 바뀌어도 로그아웃이 작동하도록 보조 이벤트를 둔다.
+    document.addEventListener("click", (event) => {
+      const btn = event.target.closest("#memberApprovalLoginMoveBtn");
+      if (!btn) return;
+      event.preventDefault();
+      forceMembershipLogout();
+    });
+    byId("memberApprovalRefreshBtn")?.addEventListener("click", () => {
+      if (typeof window.__busSeatIsAdminAuthenticated === "function" && !window.__busSeatIsAdminAuthenticated()) {
+        alert("관리자 로그인 후 사용할 수 있습니다.");
+        return;
+      }
+      memberApprovalAdminAuthed = true;
+      loadApprovalMembers().catch((error) => {
+        console.error("회원 목록 새로고침 오류:", error);
+        setAuthMessage("회원 목록을 불러오지 못했습니다.");
+      });
+    });
+    byId("memberApprovalList")?.addEventListener("click", (event) => {
+      const btn = event.target.closest("button[data-member-action]");
+      if (!btn) return;
+      if (typeof window.__busSeatIsAdminAuthenticated === "function" && !window.__busSeatIsAdminAuthenticated()) return;
+      memberApprovalAdminAuthed = true;
+      const action = btn.getAttribute("data-member-action");
+      const code = btn.getAttribute("data-code");
+      if (!code) return;
+      if (action === "withdraw" && !confirm("이 회원을 탈퇴 처리하고 비밀번호 해시를 삭제할까요?")) return;
+      if (action === "delete" && !confirm("이 회원 데이터를 가입자 DB와 회원코드 DB에서 완전히 삭제할까요?")) return;
+      if (action === "block" && !confirm("이 회원의 앱 접근을 차단할까요?")) return;
+      updateMemberApprovalStatus(code, action).catch((error) => {
+        console.error("회원 승인 처리 오류:", error);
+        setAuthMessage("회원 처리 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
+      });
+    });
+  }
+
+  function bindKoreanFirstNameInput(inputId) {
+    const el = byId(inputId);
+    if (!el) return;
+    el.setAttribute("lang", "ko");
+    el.setAttribute("inputmode", "text");
+    el.setAttribute("autocomplete", "off");
+    // 중요: 한글 IME 조합 중에는 값을 강제로 바꾸면 키보드 입력이 막힌다.
+    // 따라서 입력 중 자동삭제는 하지 않고, 로그인/가입 버튼을 누를 때 한글 이름 여부를 검사한다.
+    let isComposing = false;
+    el.addEventListener("compositionstart", () => { isComposing = true; });
+    el.addEventListener("compositionend", () => { isComposing = false; });
+    el.addEventListener("input", () => {
+      if (isComposing) return;
+      // 입력은 자유롭게 허용한다. 앞 글자 한글 조건은 loginMember/joinMember에서 검증한다.
+    });
+    el.addEventListener("focus", () => {
+      el.setAttribute("lang", "ko");
+      el.setAttribute("inputmode", "text");
+    });
+  }
+
+  function bindPhone344Input(inputId) {
+    const el = byId(inputId);
+    if (!el) return;
+    el.setAttribute("inputmode", "numeric");
+    el.addEventListener("input", () => {
+      const digits = normalizePhone(el.value).slice(0, 11);
+      el.value = formatPhone344(digits);
+    });
+    el.addEventListener("blur", () => {
+      el.value = formatPhone344(normalizePhone(el.value));
+    });
+  }
+
+  function bindMembershipGate() {
+    bindApprovalAdminMode();
+    bindKoreanFirstNameInput("memberLoginNameInput");
+    bindKoreanFirstNameInput("memberJoinNameInput");
+    bindPhone344Input("memberJoinPhoneInput");
+
+    byId("memberLoginBtn")?.addEventListener("click", () => {
+      loginMember().catch((error) => {
+        console.error("회원 로그인 오류:", error);
+        setAuthMessage("로그인 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
+      });
+    });
+
+    byId("memberJoinOpenBtn")?.addEventListener("click", () => {
+      byId("memberSignupPanel")?.classList.add("is-open");
+      setAuthMessage("회원 정보를 입력 후 가입신청을 누르세요.");
+    });
+
+    byId("memberJoinCloseBtn")?.addEventListener("click", () => {
+      byId("memberSignupPanel")?.classList.remove("is-open");
+      setAuthMessage("아이디와 비밀번호를 입력하세요.");
+    });
+
+    byId("memberJoinSubmitBtn")?.addEventListener("click", () => {
+      joinMember().catch((error) => {
+        console.error("회원가입 저장 오류:", error);
+        setAuthMessage("회원가입 저장 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
+      });
+    });
+
+    byId("memberLoginPasswordInput")?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") loginMember().catch(console.error);
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      bindMembershipGate();
+      restoreSessionIfValid().catch((error) => {
+        console.error("회원 세션 복구 오류:", error);
+        setAuthMessage("회원정보 확인 오류: Firebase 연결을 확인하세요.");
+      });
+    });
+  } else {
+    bindMembershipGate();
+    restoreSessionIfValid().catch((error) => {
+      console.error("회원 세션 복구 오류:", error);
+      setAuthMessage("회원정보 확인 오류: Firebase 연결을 확인하세요.");
+    });
+  }
+
+  window.__busSeatMembershipGate = {
+    loginMember,
+    joinMember,
+    restoreSessionIfValid,
+    loadApprovalMembers,
+    updateMemberApprovalStatus
+  };
+</script>
+
+
+<script type="module" id="bus-seat-member-manage-forced-render-script">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+  const MANAGE_FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgwQ",
+    authDomain: "bus-seat-eb86c.firebaseapp.com",
+    databaseURL: "https://bus-seat-eb86c-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "bus-seat-eb86c",
+    storageBucket: "bus-seat-eb86c.firebasestorage.app",
+    messagingSenderId: "132111967366",
+    appId: "1:132111967366:web:e034a00f8c8cc4aa441d07"
+  };
+
+  const MANAGE_MEMBERS_ROOT = "busSeatApp/membership";
+  const MANAGE_JOIN_CODES_PATH = "memberList/joinCodes";
+  const manageApp = initializeApp(MANAGE_FIREBASE_CONFIG, "busSeatMemberManageForcedRenderApp");
+  const manageDb = getDatabase(manageApp);
+
+  function q(sel) { return document.querySelector(sel); }
+  function esc(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+  function fmt(ms) {
+    if (!ms) return "-";
+    const d = new Date(Number(ms));
+    if (Number.isNaN(d.getTime())) return "-";
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+  function label(m) {
+    const s = String(m?.status || "pending");
+    if (s === "pending") return "가입대기";
+    if (s === "active") return m?.approved ? "승인완료" : "미승인";
+    if (s === "blocked") return "차단";
+    if (s === "withdrawn") return "탈퇴";
+    if (s === "rejected") return "거절";
+    return s;
+  }
+  function listNode() {
+    return q('#memberManagePanel #memberApprovalList') || document.getElementById('memberApprovalList');
+  }
+  function setListMessage(text) {
+    const list = listNode();
+    if (list) list.innerHTML = `<div class="member-approval-empty">${esc(text)}</div>`;
+  }
+  function normalizeRecord(code, raw) {
+    const m = raw && typeof raw === "object" ? raw : {};
+    return {
+      code: String(m.code || code || ""),
+      name: String(m.name || m.displayName || ""),
+      gender: String(m.gender || ""),
+      birthYear: String(m.birthYear || ""),
+      phone: String(m.phone || ""),
+      phoneLast4: String(m.phoneLast4 || ""),
+      dong: String(m.dong || ""),
+      approved: !!m.approved,
+      status: String(m.status || (m.approved ? "active" : "pending")),
+      role: String(m.role || (m.approved ? "member" : "pending")),
+      adminAccess: !!m.adminAccess,
+      memberType: String(m.memberType || ""),
+      createdAt: m.createdAt || 0,
+      updatedAt: m.updatedAt || 0,
+      raw: m
+    };
+  }
+  async function readAllMembers() {
+    const [membersSnap, pendingSnap] = await Promise.all([
+      get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`)),
+      get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/pending`))
+    ]);
+    const map = new Map();
+    const members = membersSnap.val() || {};
+    Object.keys(members).forEach((code) => map.set(code, normalizeRecord(code, members[code])));
+
+    // pending 경로에 코드만 남아 있고 members 객체가 누락된 경우도 표시한다.
+    const pending = pendingSnap.val() || {};
+    Object.keys(pending).forEach((code) => {
+      if (!map.has(code)) {
+        map.set(code, normalizeRecord(code, { code, name: "가입정보 없음", approved: false, status: "pending", role: "pending" }));
+      } else {
+        const prev = map.get(code);
+        if (!prev.status) prev.status = "pending";
+      }
+    });
+    return Array.from(map.values()).sort((a,b) => {
+      const rank = { pending: 0, active: 1, blocked: 2, withdrawn: 3, rejected: 4 };
+      return (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || String(a.code).localeCompare(String(b.code));
+    });
+  }
+  function renderMembers(members) {
+    const list = listNode();
+    if (!list) return;
+    if (!members.length) {
+      list.innerHTML = '<div class="member-approval-empty">가입자 DB에 저장된 회원이 없습니다. 먼저 회원가입 신청을 테스트하세요.</div>';
+      return;
+    }
+    const pendingCount = members.filter(m => m.status === 'pending' || !m.approved).length;
+    list.innerHTML = `
+      <div class="member-approval-empty" style="background:#eef5ff;border-radius:10px;margin-bottom:6px;">
+        가입대기 ${pendingCount}명 / 전체 ${members.length}명 ·
+      </div>
+      ${members.map((m) => `
+        <div class="member-approval-card" data-member-code="${esc(m.code)}">
+          <div class="member-approval-card-title">${esc(m.name || '-')} / ${esc(m.code)} / ${esc(label(m))}</div>
+          <div>성별: ${esc(m.gender || '-')} · 출생년도: ${esc(m.birthYear || '-')} · 거주지: ${esc(m.dong || '-')}</div>
+          <div>전화: ${esc(m.phone || '-')}</div>
+          <div>역할: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자ON' : '관리자OFF'} · 가입일: ${esc(fmt(m.createdAt))}</div>
+          <div class="member-approval-card-actions">
+            <button class="approve" data-forced-member-action="approve" data-code="${esc(m.code)}">승인</button>
+            <button class="block" data-forced-member-action="block" data-code="${esc(m.code)}">차단</button>
+            <button class="admin" data-forced-member-action="toggle-admin" data-code="${esc(m.code)}">관리자</button>
+            <button class="withdraw" data-forced-member-action="withdraw" data-code="${esc(m.code)}">탈퇴</button>
+            <button class="delete" data-forced-member-action="delete" data-code="${esc(m.code)}">삭제</button>
+          </div>
+        </div>`).join('')}`;
+  }
+  async function forceLoadMemberManageList() {
+    setListMessage('가입자 DB 불러오는 중...');
+    try {
+      const members = await readAllMembers();
+      renderMembers(members);
+    } catch (error) {
+      console.error('강제 회원관리 리스트 불러오기 오류:', error);
+      setListMessage(`가입자 DB를 읽지 못했습니다. Firebase Rules 또는 연결을 확인하세요. (${error?.code || error?.message || error})`);
+    }
+  }
+  async function mirrorJoinCode(member) {
+    await update(ref(manageDb), {
+      [`${MANAGE_JOIN_CODES_PATH}/${member.code}`]: {
+        code: member.code,
+        name: member.name || '',
+        gender: member.gender || '',
+        birthYear: member.birthYear || '',
+        phone: member.phone || '',
+        phoneLast4: member.phoneLast4 || '',
+        dong: member.dong || '',
+        status: member.status || 'pending',
+        approved: !!member.approved,
+        role: member.role || 'member',
+        adminAccess: !!member.adminAccess,
+        memberType: member.memberType || '',
+        createdAt: member.createdAt || Date.now(),
+        updatedAt: Date.now()
+      }
+    });
+  }
+  async function forceUpdateMember(code, action) {
+    const snap = await get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members/${code}`));
+    if (!snap.exists()) {
+      alert('해당 회원코드를 members DB에서 찾지 못했습니다.');
+      return;
+    }
+    const member = snap.val() || {};
+    const now = Date.now();
+    const updates = {};
+    if (action === 'approve') {
+      Object.assign(member, {
+        code,
+        approved: true,
+        status: 'active',
+        role: member.adminAccess ? 'admin' : 'member',
+        apps: { busSeat: true, tripSchedule: true, memberList: !!member.adminAccess, busRute: true },
+        approvedAt: member.approvedAt || now,
+        approvedBy: 'bus-seat-admin',
+        updatedAt: now
+      });
+      updates[`${MANAGE_MEMBERS_ROOT}/pending/${code}`] = null;
+    } else if (action === 'block') {
+      Object.assign(member, {
+        code,
+        approved: false,
+        status: 'blocked',
+        role: 'blocked',
+        adminAccess: false,
+        apps: { busSeat: false, tripSchedule: false, memberList: false, busRute: false },
+        updatedAt: now
+      });
+      updates[`${MANAGE_MEMBERS_ROOT}/pending/${code}`] = null;
+    } else if (action === 'toggle-admin') {
+      const nextAdmin = !member.adminAccess;
+      Object.assign(member, {
+        code,
+        approved: true,
+        status: 'active',
+        role: nextAdmin ? 'admin' : 'member',
+        adminAccess: nextAdmin,
+        apps: { busSeat: true, tripSchedule: true, memberList: nextAdmin, busRute: true },
+        approvedAt: member.approvedAt || now,
+        approvedBy: member.approvedBy || 'bus-seat-admin',
+        updatedAt: now
+      });
+      updates[`${MANAGE_MEMBERS_ROOT}/pending/${code}`] = null;
+    } else if (action === 'withdraw') {
+      Object.assign(member, {
+        code,
+        approved: false,
+        status: 'withdrawn',
+        role: 'withdrawn',
+        adminAccess: false,
+        passwordHash: null,
+        apps: { busSeat: false, tripSchedule: false, memberList: false, busRute: false },
+        withdrawnAt: now,
+        withdrawnBy: 'bus-seat-admin',
+        updatedAt: now
+      });
+      updates[`${MANAGE_MEMBERS_ROOT}/pending/${code}`] = null;
+    } else if (action === 'delete') {
+      updates[`${MANAGE_MEMBERS_ROOT}/members/${code}`] = null;
+      updates[`${MANAGE_MEMBERS_ROOT}/pending/${code}`] = null;
+      if (member?.name) {
+        const nameKey = String(member.name || '').replace(/\s+/g, '').trim();
+        if (nameKey) updates[`${MANAGE_MEMBERS_ROOT}/nameIndex/${nameKey}/${code}`] = null;
+      }
+      updates[`${MANAGE_JOIN_CODES_PATH}/${code}`] = null;
+      await update(ref(manageDb), updates);
+      await forceLoadMemberManageList();
+      return;
+    }
+    updates[`${MANAGE_MEMBERS_ROOT}/members/${code}`] = member;
+    await update(ref(manageDb), updates);
+    await mirrorJoinCode(member);
+    await forceLoadMemberManageList();
+  }
+
+  window.__loadMembershipApprovalMembers = forceLoadMemberManageList;
+  window.__forceLoadMemberManageList = forceLoadMemberManageList;
+
+  document.addEventListener('click', (event) => {
+    const manageTab = event.target.closest('#memberManageTab');
+    if (manageTab) {
+      setTimeout(forceLoadMemberManageList, 180);
+      return;
+    }
+    const refresh = event.target.closest('#memberManagePanel #memberApprovalRefreshBtn');
+    if (refresh) {
+      event.preventDefault();
+      forceLoadMemberManageList();
+      return;
+    }
+    const actionBtn = event.target.closest('#memberManagePanel button[data-forced-member-action], #memberManagePanel button[data-member-action]');
+    if (actionBtn) {
+      event.preventDefault();
+      const action = actionBtn.getAttribute('data-forced-member-action') || actionBtn.getAttribute('data-member-action');
+      const code = actionBtn.getAttribute('data-code');
+      if (!code) return;
+      if (action === 'withdraw' && !confirm('이 회원을 탈퇴 처리하고 비밀번호 해시를 삭제할까요?')) return;
+      if (action === 'delete' && !confirm('이 회원 데이터를 가입자 DB와 회원코드 DB에서 완전히 삭제할까요?')) return;
+      if (action === 'block' && !confirm('이 회원의 앱 접근을 차단할까요?')) return;
+      forceUpdateMember(code, action).catch((error) => {
+        console.error('회원 처리 오류:', error);
+        alert(`회원 처리 오류: ${error?.code || error?.message || error}`);
+      });
+    }
+  }, true);
+
+  // 회원관리 탭이 이미 열려 있거나 관리자 모드에서 패널이 보이면 자동 표시한다.
+  setInterval(() => {
+    const panel = q('#memberManagePanel');
+    const list = listNode();
+    if (!panel || !list) return;
+    const panelVisible = !panel.classList.contains('hidden') && panel.offsetParent !== null;
+    const needsLoad = /회원관리 탭|관리자 로그인|불러옵니다|사용할 수 있습니다/.test(list.textContent || '');
+    if (panelVisible && needsLoad && !window.__memberManageAutoLoading) {
+      window.__memberManageAutoLoading = true;
+      forceLoadMemberManageList().finally(() => setTimeout(() => { window.__memberManageAutoLoading = false; }, 1000));
+    }
+  }, 1000);
 </script>
 
 </body>
