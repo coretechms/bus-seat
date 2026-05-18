@@ -1113,11 +1113,12 @@ body.membership-locked .app {
   ime-mode: active;
 }
 .member-auth-actions {
-  display: grid;
-  grid-template-columns: 92px 92px;
+  display: flex;
   justify-content: center;
+  align-items: center;
   gap: 6px;
   margin-top: 7px;
+  flex-wrap: nowrap;
 }
 .member-auth-actions button,
 .member-signup-actions button {
@@ -1141,13 +1142,31 @@ body.membership-locked .app {
   background: #0b7a28;
   color: #fff;
 }
-.member-signup-panel {
+#memberPasswordChangeOpenBtn {
+  border-color: #b45309;
+  background: #fff7ed;
+  color: #9a3412;
+}
+#memberPasswordChangeCloseBtn {
+  height: 28px;
+  border: 1px solid #999;
+  border-radius: 8px;
+  background: #f4f4f4;
+  color: #111;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.member-signup-panel,
+.member-password-change-panel {
   display: none;
   margin-top: 9px;
   padding-top: 9px;
   border-top: 1px solid #e0e0e0;
 }
-.member-signup-panel.is-open {
+.member-signup-panel.is-open,
+.member-password-change-panel.is-open {
   display: block;
 }
 .member-signup-actions {
@@ -1206,7 +1225,8 @@ body:not(.membership-locked) .member-current-badge {
 }
 
 /* 가입신청란 개인정보 기본 노출 방지: 회원가입 버튼을 누르기 전에는 표시하지 않고, 기본값은 비워둔다. */
-#memberSignupPanel:not(.is-open) {
+#memberSignupPanel:not(.is-open),
+#memberPasswordChangePanel:not(.is-open) {
   display: none !important;
 }
 
@@ -1296,15 +1316,41 @@ body:not(.membership-locked) .member-current-badge {
 }
 .member-approval-card-actions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(5, minmax(0, 0.82fr));
+  justify-content: center;
+  gap: 3px;
   margin-top: 6px;
+}
+.member-approval-card-actions button {
+  min-width: 0 !important;
+  padding: 0 3px !important;
+  font-size: 10px !important;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
 }
 .member-approval-card-actions .approve { background:#0b7a28; border-color:#0b7a28; color:#fff; }
 .member-approval-card-actions .block { background:#fff7ed; border-color:#fb923c; color:#9a3412; }
 .member-approval-card-actions .admin { background:#eef5ff; border-color:#2563eb; color:#1428c8; }
 .member-approval-card-actions .withdraw { background:#fff2f2; border-color:#d80000; color:#b30000; }
 .member-approval-card-actions .delete { background:#111827; border-color:#111827; color:#fff; }
+.member-approval-card.approved-member .member-approval-card-actions button,
+.member-approval-card-actions.approved-member-actions button {
+  background:#d1d5db !important;
+  border-color:#9ca3af !important;
+  color:#374151 !important;
+}
+@media (max-width: 760px) {
+  .member-approval-card-actions {
+    grid-template-columns: repeat(5, minmax(0, 0.78fr));
+    gap: 2px;
+  }
+  .member-approval-card-actions button {
+    font-size: 9px !important;
+    padding: 0 2px !important;
+  }
+}
 .member-approval-empty {
   text-align: center;
   color: #666;
@@ -1313,6 +1359,25 @@ body:not(.membership-locked) .member-current-badge {
   padding: 8px 0;
 }
 
+
+
+
+/* 로그인 전 화면 버튼 표시 규칙
+   - 기본 로그인 화면: 회원가입/로그인만 표시, 비번변경 버튼 숨김
+   - 가입신청 화면: 상단 회원가입 버튼 숨김, 비번변경/로그인 표시 */
+.member-auth-box:not(.signup-open) #memberPasswordChangeOpenBtn {
+  display: none !important;
+}
+.member-auth-box.signup-open #memberJoinOpenBtn {
+  display: none !important;
+}
+.member-auth-box.change-open #memberJoinOpenBtn,
+.member-auth-box.change-open #memberPasswordChangeOpenBtn {
+  display: none !important;
+}
+.member-auth-box.change-open .member-auth-actions {
+  justify-content: center !important;
+}
 
     /* 회원입력 / 관리자 / 회원관리 3항목 탭 */
     #memberManageTab {
@@ -1343,7 +1408,33 @@ body:not(.membership-locked) .member-current-badge {
 
       <div class="member-auth-actions">
         <button id="memberJoinOpenBtn" type="button">회원가입</button>
+        <button id="memberPasswordChangeOpenBtn" type="button">비번변경</button>
         <button id="memberLoginBtn" type="button">로그인</button>
+      </div>
+
+      <div id="memberPasswordChangePanel" class="member-password-change-panel">
+        <div class="member-auth-row">
+          <label for="memberChangeNameInput">아이디</label>
+          <input id="memberChangeNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" placeholder="이름" value="" />
+        </div>
+        <div class="member-auth-row">
+          <label for="memberChangeOldPasswordInput">기존비번</label>
+          <input id="memberChangeOldPasswordInput" type="password" autocomplete="current-password" placeholder="기존 비밀번호" value="" />
+        </div>
+        <div class="member-auth-row">
+          <label for="memberChangeNewPasswordInput">비번변경</label>
+          <input id="memberChangeNewPasswordInput" type="password" autocomplete="new-password" placeholder="변경 비밀번호" value="" />
+        </div>
+        <div class="member-auth-row">
+          <label for="memberChangeConfirmPasswordInput">비번확인</label>
+          <div style="display:flex; gap:6px; align-items:center; width:100%;">
+            <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="new-password" placeholder="비번 확인" value="" style="width:104px !important; max-width:104px !important;" />
+            <button id="memberChangePasswordSubmitBtn" type="button" style="width:48px; height:28px; border:1px solid #999; border-radius:8px; background:#b45309; color:#fff; font:inherit; font-size:12px; font-weight:800; cursor:pointer;">변경</button>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:center; margin-top:7px;">
+          <button id="memberPasswordChangeCloseBtn" type="button" style="width:92px;">나가기</button>
+        </div>
       </div>
 
       <div id="memberSignupPanel" class="member-signup-panel">
@@ -5468,6 +5559,88 @@ function renderAll() {
     byId("memberSignupPanel")?.classList.remove("is-open");
   }
 
+  async function changeMemberPassword() {
+    const rawName = String(byId("memberChangeNameInput")?.value || "");
+    const oldPassword = String(byId("memberChangeOldPasswordInput")?.value || "");
+    const newPassword = String(byId("memberChangeNewPasswordInput")?.value || "");
+    const confirmPassword = String(byId("memberChangeConfirmPasswordInput")?.value || "");
+
+    const spaceError = validateNoWhitespaceFields([
+      { label: "아이디", value: rawName },
+      { label: "기존비번", value: oldPassword },
+      { label: "변경비번", value: newPassword },
+      { label: "비번확인", value: confirmPassword }
+    ]);
+    if (spaceError) {
+      setAuthMessage(spaceError);
+      return;
+    }
+
+    const name = normalizeName(rawName);
+    if (!name || !oldPassword || !newPassword || !confirmPassword) {
+      setAuthMessage("아이디, 기존비번, 변경비번, 비번확인을 모두 입력하세요.");
+      return;
+    }
+    if (!/^[가-힣]{2,}$/.test(name)) {
+      setAuthMessage("아이디는 띄어쓰기 없이 한글 이름으로 입력하세요.");
+      return;
+    }
+    if (newPassword.length < 4) {
+      setAuthMessage("변경 비밀번호는 4자리 이상 입력하세요.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setAuthMessage("변경 비밀번호와 비번확인이 서로 다릅니다.");
+      return;
+    }
+    if (oldPassword === newPassword) {
+      setAuthMessage("기존 비밀번호와 다른 비밀번호를 입력하세요.");
+      return;
+    }
+
+    setAuthMessage("기존 비밀번호 확인중입니다...");
+    const members = await findMembersByName(name);
+    if (!members.length) {
+      setAuthMessage("등록된 회원이 없습니다. 회원가입을 먼저 진행하세요.");
+      return;
+    }
+
+    const oldHash = await sha256Hex(oldPassword);
+    const matches = members.filter((m) => String(m.passwordHash || "") === oldHash);
+    if (!matches.length) {
+      setAuthMessage("기존 비밀번호가 맞지 않습니다.");
+      return;
+    }
+    if (matches.length > 1) {
+      setAuthMessage("같은 이름과 비밀번호의 회원이 여러 명입니다. 관리자에게 문의하세요.");
+      return;
+    }
+
+    const member = matches[0];
+    if (member.status === "withdrawn") {
+      setAuthMessage("탈퇴 처리된 회원은 비밀번호를 변경할 수 없습니다.");
+      return;
+    }
+    if (member.status === "blocked") {
+      setAuthMessage("차단된 회원은 비밀번호를 변경할 수 없습니다. 관리자에게 문의하세요.");
+      return;
+    }
+
+    const newHash = await sha256Hex(newPassword);
+    await update(ref(membershipDb), {
+      [`${MEMBERS_ROOT}/members/${member.code}/passwordHash`]: newHash,
+      [`${MEMBERS_ROOT}/members/${member.code}/updatedAt`]: Date.now(),
+      [`${MEMBERS_ROOT}/members/${member.code}/passwordChangedAt`]: Date.now()
+    });
+
+    byId("memberChangeOldPasswordInput").value = "";
+    byId("memberChangeNewPasswordInput").value = "";
+    byId("memberChangeConfirmPasswordInput").value = "";
+    byId("memberPasswordChangePanel")?.classList.remove("is-open");
+    setMemberAuthViewMode("main");
+    setAuthMessage("비밀번호가 변경되었습니다. 새 비밀번호로 로그인하세요.", true);
+  }
+
   function unlockApp(session) {
     document.body.classList.remove("membership-locked");
     const gate = byId("memberAuthGate");
@@ -5500,6 +5673,7 @@ function renderAll() {
       passwordInput.value = "";
       passwordInput.placeholder = "비밀번호 입력";
     }
+    setMemberAuthViewMode("main");
     setAuthMessage("아이디와 비밀번호를 입력하세요.");
   }
 
@@ -5596,12 +5770,13 @@ function renderAll() {
     }
     listEl.innerHTML = members.map((m) => {
       const adminText = m.adminAccess ? "관리자ON" : "관리자OFF";
+      const approvedCardClass = (m.approved && m.status === "active") ? " approved-member" : "";
       return `
-        <div class="member-approval-card" data-member-code="${escapeHtml(m.code)}">
+        <div class="member-approval-card${approvedCardClass}" data-member-code="${escapeHtml(m.code)}">
           <div class="member-approval-card-title">${escapeHtml(m.name)} / ${escapeHtml(m.code)} / ${escapeHtml(statusLabelForMember(m))}</div>
           <div>성별: ${escapeHtml(m.gender || '-')} · 출생년도: ${escapeHtml(m.birthYear || '-')} · 거주지: ${escapeHtml(m.dong || '-')}</div>
           <div>전화: ${escapeHtml(m.phone || '-')}</div>
-          <div>역할: ${escapeHtml(m.role || '-')} · ${adminText} · 가입일: ${escapeHtml(formatDateTime(m.createdAt))}</div>
+          <div>역할: ${escapeHtml(m.role || '-')} · ${adminText} · 가입일: ${escapeHtml(formatDateTime(m.createdAt))} · 승인결과: ${escapeHtml(joinResultLabel(m))}</div>
           <div class="member-approval-card-actions">
             <button class="approve" data-member-action="approve" data-code="${escapeHtml(m.code)}">승인</button>
             <button class="block" data-member-action="block" data-code="${escapeHtml(m.code)}">차단</button>
@@ -5732,6 +5907,7 @@ function renderAll() {
 
       const signupPanel = byId("memberSignupPanel");
       if (signupPanel) signupPanel.classList.remove("is-open");
+      byId("memberPasswordChangePanel")?.classList.remove("is-open");
 
       const nameInput = byId("memberLoginNameInput");
       const passwordInput = byId("memberLoginPasswordInput");
@@ -5828,10 +6004,19 @@ function renderAll() {
     });
   }
 
+  function setMemberAuthViewMode(mode) {
+    const box = byId("memberAuthGate")?.querySelector(".member-auth-box");
+    if (!box) return;
+    box.classList.remove("signup-open", "change-open");
+    if (mode === "signup") box.classList.add("signup-open");
+    if (mode === "change") box.classList.add("change-open");
+  }
+
   function bindMembershipGate() {
     bindApprovalAdminMode();
     bindKoreanFirstNameInput("memberLoginNameInput");
     bindKoreanFirstNameInput("memberJoinNameInput");
+    bindKoreanFirstNameInput("memberChangeNameInput");
     bindPhone344Input("memberJoinPhoneInput");
 
     byId("memberLoginBtn")?.addEventListener("click", () => {
@@ -5842,13 +6027,40 @@ function renderAll() {
     });
 
     byId("memberJoinOpenBtn")?.addEventListener("click", () => {
+      byId("memberPasswordChangePanel")?.classList.remove("is-open");
       byId("memberSignupPanel")?.classList.add("is-open");
+      setMemberAuthViewMode("signup");
       setAuthMessage("회원 정보를 입력 후 가입신청을 누르세요.");
+    });
+
+    byId("memberPasswordChangeOpenBtn")?.addEventListener("click", () => {
+      byId("memberSignupPanel")?.classList.remove("is-open");
+      byId("memberPasswordChangePanel")?.classList.add("is-open");
+      setMemberAuthViewMode("change");
+      setAuthMessage("본인 확인 후 비밀번호를 변경하세요.");
+    });
+
+    byId("memberPasswordChangeCloseBtn")?.addEventListener("click", () => {
+      byId("memberPasswordChangePanel")?.classList.remove("is-open");
+      setMemberAuthViewMode("main");
+      ["memberChangeNameInput", "memberChangeOldPasswordInput", "memberChangeNewPasswordInput", "memberChangeConfirmPasswordInput"].forEach((id) => {
+        const el = byId(id);
+        if (el) el.value = "";
+      });
+      setAuthMessage("아이디와 비밀번호를 입력하세요.");
     });
 
     byId("memberJoinCloseBtn")?.addEventListener("click", () => {
       byId("memberSignupPanel")?.classList.remove("is-open");
+      setMemberAuthViewMode("main");
       setAuthMessage("아이디와 비밀번호를 입력하세요.");
+    });
+
+    byId("memberChangePasswordSubmitBtn")?.addEventListener("click", () => {
+      changeMemberPassword().catch((error) => {
+        console.error("회원 비밀번호 변경 오류:", error);
+        setAuthMessage("비밀번호 변경 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
+      });
     });
 
     byId("memberJoinSubmitBtn")?.addEventListener("click", () => {
@@ -5860,6 +6072,11 @@ function renderAll() {
 
     byId("memberLoginPasswordInput")?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") loginMember().catch(console.error);
+    });
+    ["memberChangeNameInput", "memberChangeOldPasswordInput", "memberChangeNewPasswordInput", "memberChangeConfirmPasswordInput"].forEach((id) => {
+      byId(id)?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") changeMemberPassword().catch(console.error);
+      });
     });
   }
 
@@ -5959,6 +6176,15 @@ function renderAll() {
       raw: m
     };
   }
+  function joinResultLabel(m) {
+    const status = String(m?.status || "");
+    if (status === "active") return m?.adminAccess ? "관리자" : "승인";
+    if (status === "blocked") return "차단";
+    if (status === "withdrawn") return "탈퇴";
+    if (status === "rejected") return "거절";
+    if (status === "pending") return "가입대기";
+    return status || (m?.approved ? "승인" : "가입대기");
+  }
   async function readAllMembers() {
     const [membersSnap, pendingSnap] = await Promise.all([
       get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`)),
@@ -5995,12 +6221,14 @@ function renderAll() {
       <div class="member-approval-empty" style="background:#eef5ff;border-radius:10px;margin-bottom:6px;">
         가입대기 ${pendingCount}명 / 전체 ${members.length}명 ·
       </div>
-      ${members.map((m) => `
-        <div class="member-approval-card" data-member-code="${esc(m.code)}">
+      ${members.map((m) => {
+        const approvedCardClass = (m.approved && m.status === 'active') ? ' approved-member' : '';
+        return `
+        <div class="member-approval-card${approvedCardClass}" data-member-code="${esc(m.code)}">
           <div class="member-approval-card-title">${esc(m.name || '-')} / ${esc(m.code)} / ${esc(label(m))}</div>
           <div>성별: ${esc(m.gender || '-')} · 출생년도: ${esc(m.birthYear || '-')} · 거주지: ${esc(m.dong || '-')}</div>
           <div>전화: ${esc(m.phone || '-')}</div>
-          <div>역할: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자ON' : '관리자OFF'} · 가입일: ${esc(fmt(m.createdAt))}</div>
+          <div>역할: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자ON' : '관리자OFF'} · 가입일: ${esc(fmt(m.createdAt))} · 승인결과: ${esc(joinResultLabel(m))}</div>
           <div class="member-approval-card-actions">
             <button class="approve" data-forced-member-action="approve" data-code="${esc(m.code)}">승인</button>
             <button class="block" data-forced-member-action="block" data-code="${esc(m.code)}">차단</button>
@@ -6008,7 +6236,8 @@ function renderAll() {
             <button class="withdraw" data-forced-member-action="withdraw" data-code="${esc(m.code)}">탈퇴</button>
             <button class="delete" data-forced-member-action="delete" data-code="${esc(m.code)}">삭제</button>
           </div>
-        </div>`).join('')}`;
+        </div>`;
+      }).join('')}`;
   }
   async function forceLoadMemberManageList() {
     setListMessage('가입자 DB 불러오는 중...');
@@ -6031,6 +6260,8 @@ function renderAll() {
         phoneLast4: member.phoneLast4 || '',
         dong: member.dong || '',
         status: member.status || 'pending',
+        approvalResult: joinResultLabel(member),
+        joinStatus: joinResultLabel(member),
         approved: !!member.approved,
         role: member.role || 'member',
         adminAccess: !!member.adminAccess,
