@@ -1560,6 +1560,11 @@
         busType,
         seats,
         busInfo: { ...defaultBusInfo },
+        shared: {
+          mainTitle: defaultBusInfo.titleMain,
+          titleFull: defaultBusInfo.titleMain,
+          updatedAt: Date.now()
+        },
         adminPassword: DEFAULT_ADMIN_PASSWORD,
         tripPlanPassword: DEFAULT_ADMIN_PASSWORD,
         systemAdminPassword: DEFAULT_SYSTEM_ADMIN_PASSWORD,
@@ -2819,9 +2824,19 @@ function renderAll() {
 
     async function saveBusInfoRemote() {
       if (!state.db) return false;
+      const nextTitleMain = String(state.busInfo?.titleMain || "").trim();
+      const now = Date.now();
       return safeUpdate(ref(state.db, ROOT_PATH), {
         busInfo: { ...state.busInfo },
-        "meta/updatedAt": Date.now()
+        // bus-route 구버전/신버전이 모두 읽을 수 있도록 제목을 호환 경로에도 동시 저장
+        "shared/mainTitle": nextTitleMain,
+        "shared/titleFull": nextTitleMain,
+        "shared/title": nextTitleMain,
+        "shared/updatedAt": now,
+        // 일부 파일이 루트 titleMain을 찾는 경우까지 대비
+        titleMain: nextTitleMain,
+        mainTitle: nextTitleMain,
+        "meta/updatedAt": now
       }, {
         label: "saveBusInfoRemote",
         permissionMessage: "하단 정보 저장 권한이 없습니다.",
