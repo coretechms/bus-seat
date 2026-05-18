@@ -423,6 +423,7 @@
         white-space: nowrap;
       }
       #boardImageModeBtn,
+      #captureBoardBtn,
       #boardingPointBtn {
         flex: 0 0 auto;
         padding: 0 10px !important;
@@ -962,7 +963,7 @@
     }
     .hiking-notice-actions {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
     }
     .hiking-notice-actions .btn:disabled {
@@ -1028,6 +1029,23 @@
   .seat-name-action-buttons button{height:36px;font-size:13px;}
 }
 
+
+    /* 회원 입력 모드 하단 버튼 재배치 */
+    .member-quick-row .btn {
+      min-width: 0;
+      padding: 0 6px;
+    }
+    @media (max-width: 760px) {
+      .member-quick-row {
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 6px !important;
+      }
+      .member-quick-row .btn {
+        font-size: 11px !important;
+        padding: 0 4px !important;
+      }
+    }
+
 </style>
 </head>
 <body>
@@ -1067,7 +1085,7 @@
             <div style="display:flex; align-items:center; gap:6px; min-width:0;">
               <div class="card-title" style="margin:0;">좌석 등록</div>
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
-              <button class="btn btn-outline" id="boardingPointBtn" type="button" style="height:28px; padding:0 13px; font-size:11px; white-space:nowrap;">탑승지</button>
+              <button class="btn btn-outline" id="captureBoardBtn" type="button" style="height:28px; padding:0 13px; font-size:12px; white-space:nowrap;">좌석캡처</button>
             </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
@@ -1093,19 +1111,21 @@
                 <span class="muted" id="projectText">프로젝트 미설정</span>
               </div>
             </div>
+            <div id="memberQuickButtonRow" class="member-quick-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px;">
+              <button class="btn btn-outline" id="boardingPointBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">탑승지</button>
+              <button class="btn btn-outline" id="hikingNoticeBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">공지확인</button>
+              <button class="btn btn-outline" id="tripScheduleBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행계획</button>
+            </div>
             <button class="btn btn-primary" id="memberSaveBtn" type="button" style="display:none;">저장</button>
           </div>
 
           <div class="help-text" style="margin-top:8px;"></div>
 
           <div id="adminLoginPanel" class="hidden">
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:6px; align-items:center;">
-              <button class="btn btn-outline" id="hikingNoticeBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행공지</button>
-              <button class="btn btn-outline" id="tripScheduleBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행계획</button>
+            <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:8px; margin-top:6px; align-items:center;">
               <button class="btn btn-outline" id="memberListBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">회원정보</button>
-              <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:100%; height:28px;">비번 초기화</button>
-              <button class="btn btn-outline" id="captureBoardBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">좌석캡쳐</button>
               <input id="adminPasswordInput" type="password" placeholder="비밀번호 입력" style="width:100%; height:28px;" />
+              <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:78px; height:24px; font-size:10px; padding:0 6px; border-radius:12px; white-space:nowrap;">비번초기화</button>
             </div>
           </div>
 
@@ -1266,7 +1286,6 @@
       </div>
       <textarea id="hikingNoticeText" placeholder="산행 공지 내용을 입력하세요."></textarea>
       <div class="hiking-notice-actions">
-        <button class="btn btn-outline" id="hikingNoticeEditBtn" type="button">편집</button>
         <button class="btn btn-outline" id="hikingNoticeLockBtn" type="button">잠금</button>
         <button class="btn btn-danger" id="hikingNoticeDeleteBtn" type="button">삭제</button>
       </div>
@@ -2163,7 +2182,6 @@
             <textarea id="seatMemoInput" placeholder="추가할 메모를 입력하세요. 기존 글은 편집할 수 없습니다."></textarea>
             <div class="seat-memo-hint">작성자 이름을 입력해야 메모를 추가할 수 있습니다. 기존 글은 보존되고 새 글만 아래에 추가됩니다.</div>
             <div class="yn-actions">
-              <button type="button" class="yn-btn" id="seatMemoCancel">나가기</button>
               <button type="button" class="yn-btn primary" id="seatMemoSave">입력</button>
             </div>
           </div>
@@ -2199,7 +2217,6 @@
         overlay.addEventListener("click", (e) => {
           if (e.target === overlay) e.stopPropagation();
         });
-        overlay.querySelector("#seatMemoCancel").addEventListener("click", () => exitDialog());
         deleteBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           if (!workingMemoText) return;
@@ -2733,7 +2750,6 @@ function renderAll() {
       const overlay = byId("hikingNoticeOverlay");
       const textEl = byId("hikingNoticeText");
       const stateEl = byId("hikingNoticeState");
-      const editBtn = byId("hikingNoticeEditBtn");
       const lockBtn = byId("hikingNoticeLockBtn");
       const deleteBtn = byId("hikingNoticeDeleteBtn");
       if (!overlay || !textEl) return;
@@ -2742,7 +2758,6 @@ function renderAll() {
       if (textEl.value !== String(state.hikingNotice?.text || "")) textEl.value = String(state.hikingNotice?.text || "");
       textEl.readOnly = !editing;
       if (stateEl) stateEl.textContent = locked ? "잠금 상태" : (editing ? "편집 가능" : "읽기 상태");
-      if (editBtn) editBtn.textContent = editing ? "편집중" : "편집";
       if (lockBtn) lockBtn.textContent = locked ? "잠금해제" : "잠금";
       if (deleteBtn) deleteBtn.disabled = locked;
     }
@@ -4041,13 +4056,6 @@ function renderAll() {
       bindIfPresent("preLoginResetPasswordBtn", "click", handleResetAdminPassword);
 
       bindIfPresent("hikingNoticeBtn", "click", openHikingNoticeDialog);
-      bindIfPresent("hikingNoticeEditBtn", "click", () => {
-        if (state.hikingNotice.locked) { alert("잠금 상태에서는 편집할 수 없습니다. 먼저 잠금해제 하세요."); return; }
-        state.hikingNotice.editing = true;
-        renderHikingNoticeDialog();
-        const textEl = byId("hikingNoticeText");
-        if (textEl) { textEl.focus(); textEl.setSelectionRange(textEl.value.length, textEl.value.length); }
-      });
       bindIfPresent("hikingNoticeLockBtn", "click", toggleHikingNoticeLock);
       bindIfPresent("hikingNoticeDeleteBtn", "click", deleteHikingNotice);
       bindIfPresent("hikingNoticeText", "input", (e) => {
@@ -4065,7 +4073,11 @@ function renderAll() {
       bindIfPresent("infoSeatGuideText", "input", async (e) => { autoResizeTextarea(e.target, 80, 420); state.busInfo.seatGuideText = e.target.value; renderPanels(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("resetInlineCancelBtn", "click", () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); });
       bindIfPresent("resetInlineConfirmBtn", "click", async () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); await executeReset(); });
-      bindIfPresent("captureBoardBtn", "click", captureBoardArea);
+      bindIfPresent("captureBoardBtn", "click", async () => {
+        const confirmed = await showRecoveryConfirmDialog("좌석을 캡쳐하시겠습니까?", "좌석캡쳐 확인");
+        if (!confirmed) return;
+        await captureBoardArea();
+      });
       bindIfPresent("tripScheduleBtn", "click", openTripPlanWithIndependentPassword);
       bindIfPresent("memberListBtn", "click", () => {
         window.location.href = "https://coretechms.github.io/memble-list/";
