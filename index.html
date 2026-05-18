@@ -1390,6 +1390,18 @@ body:not(.membership-locked) .member-current-badge {
         padding-right: 6px !important;
       }
     }
+
+
+/* 좌석등록 글자 삭제 후 화면반전/로그아웃 버튼 좌측 끝 정렬 */
+.card-title-row > div:first-child {
+  justify-content: flex-start !important;
+  margin-left: 0 !important;
+}
+#boardImageModeBtn,
+#memberTopLogoutBtn {
+  flex: 0 0 auto !important;
+}
+
 </style>
 </head>
 <body class="membership-locked">
@@ -1511,8 +1523,7 @@ body:not(.membership-locked) .member-current-badge {
         <div id="memberCurrentBadge" class="member-current-badge"></div>
         <div class="card">
           <div class="card-title-row">
-            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
-              <div class="card-title" style="margin:0;">좌석등록</div>
+            <div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; min-width:0; margin-left:0;">
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
               <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="height:28px; padding:0 13px; font-size:12px; white-space:nowrap;">로그아웃</button>
             </div>
@@ -5474,11 +5485,11 @@ function renderAll() {
       return;
     }
     if (hasInvalidPhoneChars(rawPhone)) {
-      setAuthMessage("전화번호는 숫자만 입력하세요. 저장 시 ### #### #### 형식으로 자동 정리됩니다.");
+      setAuthMessage("전화번호는 숫자만 입력하세요. 저장 시 010 1234 5678 형식으로 자동 정리됩니다.");
       return;
     }
     if (!isValidKoreanMobileDigits(phoneDigits)) {
-      setAuthMessage("전화번호는 휴대폰 숫자 11자리로 입력하세요. 저장 시 ### #### #### 형식으로 자동 정리됩니다.");
+      setAuthMessage("전화번호는 휴대폰 숫자 11자리로 입력하세요. 저장 시 010 1234 5678 형식으로 자동 정리됩니다.");
       return;
     }
     if (!/^[가-힣]{2,}$/.test(name)) {
