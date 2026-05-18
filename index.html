@@ -5824,8 +5824,25 @@ function renderAll() {
     const snap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members`));
     const all = snap.val() || {};
     const members = Object.values(all).sort((a, b) => {
-      const rank = { pending: 0, active: 1, blocked: 2, withdrawn: 3, rejected: 4 };
-      return (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || String(a.code).localeCompare(String(b.code));
+      // 회원관리 정렬:
+      // 1) 신규/가입대기 회원을 항상 상단에 표시
+      // 2) 승인완료(active + approved) 회원은 하단으로 이동
+      // 3) 같은 그룹 안에서는 신규순(createdAt 최신순), 생성일이 없으면 회원번호순
+      function approvalSortRank(member) {
+        const status = String(member?.status || "");
+        const approved = !!member?.approved;
+        if (status === "pending" || (!approved && status !== "blocked" && status !== "withdrawn" && status !== "rejected")) return 0;
+        if (status === "blocked") return 1;
+        if (status === "withdrawn") return 2;
+        if (status === "rejected") return 3;
+        if (status === "active" && approved) return 4;
+        return 5;
+      }
+      const rankDiff = approvalSortRank(a) - approvalSortRank(b);
+      if (rankDiff) return rankDiff;
+      const createdDiff = Number(b.createdAt || 0) - Number(a.createdAt || 0);
+      if (createdDiff) return createdDiff;
+      return String(a.name || a.code || "").localeCompare(String(b.name || b.code || ""), "ko");
     });
     if (members.length === 0) {
       listEl.innerHTML = '<div class="member-approval-empty">회원 데이터가 없습니다.</div>';
