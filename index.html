@@ -423,6 +423,7 @@
         white-space: nowrap;
       }
       #boardImageModeBtn,
+      #memberTopLogoutBtn,
       #captureBoardBtn,
       #boardingPointBtn {
         flex: 0 0 auto;
@@ -1513,7 +1514,7 @@ body:not(.membership-locked) .member-current-badge {
             <div style="display:flex; align-items:center; gap:6px; min-width:0;">
               <div class="card-title" style="margin:0;">좌석등록</div>
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
-              <button class="btn btn-outline" id="captureBoardBtn" type="button" style="height:28px; padding:0 13px; font-size:12px; white-space:nowrap;">캡처</button>
+              <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="height:28px; padding:0 13px; font-size:12px; white-space:nowrap;">로그아웃</button>
             </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
@@ -1551,7 +1552,8 @@ body:not(.membership-locked) .member-current-badge {
           <div class="help-text" style="margin-top:8px;"></div>
 
           <div id="adminLoginPanel" class="hidden">
-            <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:8px; margin-top:6px; align-items:center;">
+            <div style="display:grid; grid-template-columns:auto 1fr 1fr auto; gap:8px; margin-top:6px; align-items:center;">
+              <button class="btn btn-outline" id="captureBoardBtn" type="button" style="width:auto; min-width:64px; height:28px; padding:0 10px; font-size:12px; white-space:nowrap;">캡처</button>
               <button class="btn btn-outline" id="memberListBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">회원정보</button>
               <input id="adminPasswordInput" type="password" placeholder="비밀번호 입력" style="width:100%; height:28px;" />
               <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:78px; height:24px; font-size:10px; padding:0 6px; border-radius:12px; white-space:nowrap;">비번초기화</button>
@@ -5374,7 +5376,7 @@ function renderAll() {
           loginAt: Date.now()
         };
         currentApprovedMemberSession = adminSession;
-        try { localStorage.removeItem(LOGIN_SESSION_KEY); sessionStorage.removeItem(LOGIN_SESSION_KEY); } catch (e) {}
+        try { localStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(adminSession)); sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(adminSession)); } catch (e) {}
         unlockApp(adminSession);
         if (typeof window.__busSeatEnterAdminFromMembership === "function") {
           window.__busSeatEnterAdminFromMembership();
@@ -5438,7 +5440,7 @@ function renderAll() {
       loginAt: Date.now()
     };
     currentApprovedMemberSession = session;
-    try { localStorage.removeItem(LOGIN_SESSION_KEY); sessionStorage.removeItem(LOGIN_SESSION_KEY); } catch (e) {}
+    try { localStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(session)); sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(session)); } catch (e) {}
 
     unlockApp(session);
   }
@@ -5653,13 +5655,36 @@ function renderAll() {
   }
 
   async function restoreSessionIfValid() {
-    // 앱을 닫거나 새로고침/재접속하면 저장된 로그인 상태를 복구하지 않는다.
-    // 보안상 매 접속마다 반드시 아이디/비밀번호로 다시 로그인해야 한다.
-    currentApprovedMemberSession = null;
+    // 로그아웃 버튼을 누르기 전에는 로그인 상태를 유지한다.
+    // 새로고침/화면 이동 후에도 저장된 세션이 있으면 바로 회원 입력 화면으로 복귀한다.
+    let saved = null;
     try {
-      localStorage.removeItem(LOGIN_SESSION_KEY);
-      sessionStorage.removeItem(LOGIN_SESSION_KEY);
+      saved = sessionStorage.getItem(LOGIN_SESSION_KEY) || localStorage.getItem(LOGIN_SESSION_KEY);
     } catch (e) {}
+
+    if (saved) {
+      try {
+        const session = JSON.parse(saved);
+        if (session && session.code && session.name) {
+          currentApprovedMemberSession = session;
+          unlockApp(session);
+          if (session.adminAccess || session.role === "admin" || session.code === "ADMIN") {
+            if (typeof window.__busSeatEnterAdminFromMembership === "function") {
+              window.__busSeatEnterAdminFromMembership();
+            } else if (typeof window.__busSeatSwitchMode === "function") {
+              window.__busSeatSwitchMode("member");
+            }
+          } else if (typeof window.__busSeatSwitchMode === "function") {
+            window.__busSeatSwitchMode("member");
+          }
+          setAuthMessage("로그인 상태가 유지되었습니다.", true);
+          return;
+        }
+      } catch (e) {
+        try { localStorage.removeItem(LOGIN_SESSION_KEY); sessionStorage.removeItem(LOGIN_SESSION_KEY); } catch (_) {}
+      }
+    }
+
     document.body.classList.add("membership-locked");
     const gate = byId("memberAuthGate");
     if (gate) gate.classList.remove("is-hidden");
@@ -5685,8 +5710,35 @@ function renderAll() {
     } catch (e) {}
   }
 
-  window.addEventListener("pagehide", clearApprovedMemberSession);
-  window.addEventListener("beforeunload", clearApprovedMemberSession);
+  function showMembershipLoginScreenAfterLogout() {
+    clearApprovedMemberSession();
+    memberApprovalAdminAuthed = false;
+    try {
+      localStorage.removeItem("bus-seat-approved-member-session-v1");
+      sessionStorage.removeItem("bus-seat-approved-member-session-v1");
+    } catch (e) {}
+    if (typeof window.__busSeatForceFullLogoutFromMembership === "function") {
+      window.__busSeatForceFullLogoutFromMembership();
+    }
+    document.body.classList.add("membership-locked");
+    document.body.classList.remove("admin-mode", "member-manage-mode");
+    const gate = byId("memberAuthGate");
+    if (gate) gate.classList.remove("is-hidden");
+    byId("memberSignupPanel")?.classList.remove("is-open");
+    byId("memberPasswordChangePanel")?.classList.remove("is-open");
+    ["memberLoginNameInput", "memberLoginPasswordInput", "memberJoinNameInput", "memberJoinPasswordInput", "memberJoinPhoneInput", "memberJoinDongInput", "memberChangeNameInput", "memberChangeOldPasswordInput", "memberChangeNewPasswordInput", "memberChangeConfirmPasswordInput"].forEach((id) => {
+      const el = byId(id);
+      if (el) el.value = "";
+    });
+    setMemberAuthViewMode("main");
+    setAuthMessage("로그아웃되었습니다. 다시 로그인하세요.");
+  }
+
+  window.__busSeatMembershipLogout = showMembershipLoginScreenAfterLogout;
+
+  // 로그인 상태는 로그아웃 버튼을 누를 때만 해제한다.
+  // window.addEventListener("pagehide", clearApprovedMemberSession);
+  // window.addEventListener("beforeunload", clearApprovedMemberSession);
 
 
   let memberApprovalAdminAuthed = false;
@@ -6061,6 +6113,10 @@ function renderAll() {
         console.error("회원 비밀번호 변경 오류:", error);
         setAuthMessage("비밀번호 변경 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
       });
+    });
+
+    byId("memberTopLogoutBtn")?.addEventListener("click", () => {
+      if (confirm("로그아웃하시겠습니까?")) showMembershipLoginScreenAfterLogout();
     });
 
     byId("memberJoinSubmitBtn")?.addEventListener("click", () => {
