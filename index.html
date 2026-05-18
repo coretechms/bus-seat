@@ -1100,12 +1100,12 @@
 
           <div id="adminLoginPanel" class="hidden">
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:6px; align-items:center;">
-              <input id="adminPasswordInput" type="password" placeholder="비밀번호 입력" style="width:100%; height:28px;" />
+              <button class="btn btn-outline" id="hikingNoticeBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행공지</button>
               <button class="btn btn-outline" id="tripScheduleBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행계획</button>
               <button class="btn btn-outline" id="memberListBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">회원정보</button>
               <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:100%; height:28px;">비번 초기화</button>
               <button class="btn btn-outline" id="captureBoardBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">좌석캡쳐</button>
-              <button class="btn btn-outline" id="hikingNoticeBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행공지</button>
+              <input id="adminPasswordInput" type="password" placeholder="비밀번호 입력" style="width:100%; height:28px;" />
             </div>
           </div>
 
@@ -3322,50 +3322,7 @@ function renderAll() {
     }
 
     async function openTripPlanWithIndependentPassword() {
-      const pwInput = byId("adminPasswordInput");
-      const normalizedInput = pwInput?.value.trim() || "";
-      if (!normalizedInput) {
-        alert("산행계획 비밀번호를 입력하세요.");
-        if (pwInput) pwInput.focus();
-        return;
-      }
-
-      const typedHash = await sha256Hex(normalizedInput);
-      let loginOk = false;
-
-      if (state.isFirebaseReady && state.db) {
-        const serverHash = state.tripPlanPasswordHash || "";
-        if (serverHash) {
-          loginOk = (typedHash === serverHash);
-        } else {
-          loginOk = (normalizedInput === (state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD));
-        }
-      } else {
-        const localHash = getLocalTripPlanPasswordHash();
-        if (localHash) {
-          loginOk = (typedHash === localHash);
-        } else {
-          loginOk = (normalizedInput === (state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD));
-        }
-      }
-
-      if (!loginOk) {
-        alert("산행계획 비밀번호가 올바르지 않습니다.");
-        if (pwInput) {
-          pwInput.focus();
-          pwInput.select();
-        }
-        return;
-      }
-
-      try {
-        issueTripPlanAccessTicket();
-      } catch (error) {
-        console.warn("trip plan access ticket session save failed", error);
-        alert("산행계획 입장권 생성에 실패했습니다. 다시 시도하세요.");
-        return;
-      }
-
+      // 산행계획 버튼은 bus-seat 비밀번호 검사 없이 trip-schedule 로그인 화면으로 직접 이동합니다.
       window.location.href = "https://coretechms.github.io/trip-schedule/";
     }
 
