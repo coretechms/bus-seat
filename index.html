@@ -1469,6 +1469,31 @@ body.admin-entry-only #adminLoginPanel.hidden{
   display:block !important;
 }
 
+
+/* 요청 수정: 승인된 회원 재가입 요청 시 중복가입 빨간 깜빡임 표시 */
+.duplicate-join-badge{
+  display:inline-block;
+  margin-left:6px;
+  padding:1px 7px;
+  border-radius:999px;
+  color:#d80000;
+  background:#fff2f2;
+  border:1px solid #d80000;
+  font-size:11px;
+  font-weight:900;
+  line-height:1.35;
+  animation:duplicateJoinBlink .75s steps(2,start) infinite;
+  vertical-align:middle;
+}
+.member-approval-card.duplicate-join-person{
+  border-color:#d80000 !important;
+  box-shadow:0 0 0 2px rgba(216,0,0,.18) !important;
+}
+@keyframes duplicateJoinBlink{
+  0%,100%{opacity:1;}
+  50%{opacity:.18;}
+}
+
 </style>
 </head>
 <body class="membership-locked">
@@ -1485,7 +1510,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
       </div>
       <div class="member-auth-row">
         <label for="memberLoginPasswordInput">비밀번호</label>
-        <input id="memberLoginPasswordInput" type="password" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*">
+        <input id="memberLoginPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*">
       </div>
 
       <div class="member-auth-actions">
@@ -1501,16 +1526,16 @@ body.admin-entry-only #adminLoginPanel.hidden{
         </div>
         <div class="member-auth-row">
           <label for="memberChangeOldPasswordInput">기존비밀번호</label>
-          <input id="memberChangeOldPasswordInput" type="password" autocomplete="current-password" placeholder="기존 비밀번호" value="" inputmode="numeric" pattern="[0-9]*">
+          <input id="memberChangeOldPasswordInput" type="password" autocomplete="off" placeholder="기존 비밀번호" value="" inputmode="numeric" pattern="[0-9]*">
         </div>
         <div class="member-auth-row">
           <label for="memberChangeNewPasswordInput">비밀번호변경</label>
-          <input id="memberChangeNewPasswordInput" type="password" autocomplete="new-password" placeholder="변경 비밀번호" value="" inputmode="numeric" pattern="[0-9]*">
+          <input id="memberChangeNewPasswordInput" type="password" autocomplete="off" placeholder="변경 비밀번호" value="" inputmode="numeric" pattern="[0-9]*">
         </div>
         <div class="member-auth-row">
           <label for="memberChangeConfirmPasswordInput">비밀번호확인</label>
           <div style="display:flex; gap:6px; align-items:center; width:100%;">
-            <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="new-password" placeholder="비밀번호 확인" value="" style="width:104px !important; max-width:104px !important;" inputmode="numeric" pattern="[0-9]*">
+            <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 확인" value="" style="width:104px !important; max-width:104px !important;" inputmode="numeric" pattern="[0-9]*">
             <button id="memberChangePasswordSubmitBtn" type="button" style="width:48px; height:28px; border:1px solid #999; border-radius:8px; background:#b45309; color:#fff; font:inherit; font-size:12px; font-weight:800; cursor:pointer;">변경</button>
           </div>
         </div>
@@ -1526,7 +1551,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPasswordInput">비밀번호</label>
-          <input id="memberJoinPasswordInput" type="password" autocomplete="new-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*">
+          <input id="memberJoinPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*">
         </div>
         <div class="member-auth-row">
           <label for="memberJoinGenderInput">성 별</label>
@@ -5308,7 +5333,15 @@ function renderAll() {
 
 
   /* 요청 수정: 로그아웃 동작 분리 */
+  function clearLoginPersistencePatch(){
+    try{
+      localStorage.removeItem("bus-seat-approved-member-session-v1");
+      sessionStorage.removeItem("bus-seat-approved-member-session-v1");
+    }catch(e){}
+  }
+
   function showMemberLoginScreenPatch(){
+    clearLoginPersistencePatch();
     try{
       document.body.classList.add("membership-locked");
       document.body.classList.remove("member-mode");
@@ -5334,6 +5367,7 @@ function renderAll() {
   }
 
   function goToAdminEntryOnlyPatch(){
+    clearLoginPersistencePatch();
     try{
       document.body.classList.remove("membership-locked");
       document.body.classList.remove("member-mode");
@@ -5675,7 +5709,12 @@ function renderAll() {
           loginAt: Date.now()
         };
         currentApprovedMemberSession = adminSession;
-        try { localStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(adminSession)); sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(adminSession)); } catch (e) {}
+        try {
+          // 보안 수정: 로그인 세션은 현재 탭(sessionStorage)에만 저장한다.
+          // localStorage에 남기면 로그인 화면에서 새로고침 시 자동 진입되는 문제가 생긴다.
+          localStorage.removeItem(LOGIN_SESSION_KEY);
+          sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(adminSession));
+        } catch (e) {}
         unlockApp(adminSession);
         if (typeof window.__busSeatEnterAdminFromMembership === "function") {
           window.__busSeatEnterAdminFromMembership();
@@ -5739,7 +5778,12 @@ function renderAll() {
       loginAt: Date.now()
     };
     currentApprovedMemberSession = session;
-    try { localStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(session)); sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(session)); } catch (e) {}
+    try {
+      // 보안 수정: 로그인 세션은 현재 탭(sessionStorage)에만 저장한다.
+      // localStorage에 남기면 로그인 화면에서 새로고침 시 자동 진입되는 문제가 생긴다.
+      localStorage.removeItem(LOGIN_SESSION_KEY);
+      sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(session));
+    } catch (e) {}
 
     unlockApp(session);
   }
@@ -5944,6 +5988,50 @@ function renderAll() {
     setAuthMessage("비밀번호가 변경되었습니다. 새 비밀번호로 로그인하세요.", true);
   }
 
+  function clearMemberAuthInputValues() {
+    [
+      "memberLoginNameInput",
+      "memberLoginPasswordInput",
+      "memberJoinNameInput",
+      "memberJoinPasswordInput",
+      "memberJoinBirthInput",
+      "memberJoinPhoneInput",
+      "memberJoinDongInput",
+      "memberChangeNameInput",
+      "memberChangeOldPasswordInput",
+      "memberChangeNewPasswordInput",
+      "memberChangeConfirmPasswordInput",
+      "memberApprovalAdminPasswordInput"
+    ].forEach((id) => {
+      const el = byId(id);
+      if (el) {
+        el.value = "";
+        el.setAttribute("autocomplete", "off");
+      }
+    });
+
+    const genderInput = byId("memberJoinGenderInput");
+    if (genderInput) genderInput.value = "";
+  }
+
+
+  function clearMemberLoginTypingInputs() {
+    // 회원 로그인 화면에서 입력 중 다른 화면/탭으로 이동하면 아이디·비밀번호를 즉시 비운다.
+    ["memberLoginNameInput", "memberLoginPasswordInput"].forEach((id) => {
+      const el = byId(id);
+      if (el) {
+        el.value = "";
+        el.setAttribute("autocomplete", "off");
+      }
+    });
+  }
+
+  function clearMemberAuthTypingInputsOnScreenSwitch() {
+    // 로그인 박스 안에서 회원가입/비밀번호변경 화면으로 전환하거나,
+    // 브라우저 탭·앱 화면을 벗어날 때 임시 입력값이 남지 않도록 전체 입력값을 비운다.
+    clearMemberAuthInputValues();
+  }
+
   function unlockApp(session) {
     document.body.classList.remove("membership-locked");
     const gate = byId("memberAuthGate");
@@ -5960,7 +6048,10 @@ function renderAll() {
     // 새로고침/화면 이동 후에도 저장된 세션이 있으면 바로 회원 입력 화면으로 복귀한다.
     let saved = null;
     try {
-      saved = sessionStorage.getItem(LOGIN_SESSION_KEY) || localStorage.getItem(LOGIN_SESSION_KEY);
+      // 보안 수정: localStorage 세션은 사용하지 않는다.
+      // 이전 버전에서 남은 localStorage 값은 즉시 삭제하여 새로고침 자동진입을 차단한다.
+      localStorage.removeItem(LOGIN_SESSION_KEY);
+      saved = sessionStorage.getItem(LOGIN_SESSION_KEY);
     } catch (e) {}
 
     if (saved) {
@@ -5989,16 +6080,11 @@ function renderAll() {
     document.body.classList.add("membership-locked");
     const gate = byId("memberAuthGate");
     if (gate) gate.classList.remove("is-hidden");
+    clearMemberAuthInputValues();
     const nameInput = byId("memberLoginNameInput");
     const passwordInput = byId("memberLoginPasswordInput");
-    if (nameInput) {
-      nameInput.value = "";
-      nameInput.placeholder = "이  름";
-    }
-    if (passwordInput) {
-      passwordInput.value = "";
-      passwordInput.placeholder = "비밀번호 입력";
-    }
+    if (nameInput) nameInput.placeholder = "이  름";
+    if (passwordInput) passwordInput.placeholder = "비밀번호 입력";
     setMemberAuthViewMode("main");
     setAuthMessage("아이디와 비밀번호를 입력하세요.");
   }
@@ -6027,10 +6113,7 @@ function renderAll() {
     if (gate) gate.classList.remove("is-hidden");
     byId("memberSignupPanel")?.classList.remove("is-open");
     byId("memberPasswordChangePanel")?.classList.remove("is-open");
-    ["memberLoginNameInput", "memberLoginPasswordInput", "memberJoinNameInput", "memberJoinPasswordInput", "memberJoinPhoneInput", "memberJoinDongInput", "memberChangeNameInput", "memberChangeOldPasswordInput", "memberChangeNewPasswordInput", "memberChangeConfirmPasswordInput"].forEach((id) => {
-      const el = byId(id);
-      if (el) el.value = "";
-    });
+    clearMemberAuthInputValues();
     setMemberAuthViewMode("main");
     setAuthMessage("로그아웃되었습니다. 다시 로그인하세요.");
   }
@@ -6138,12 +6221,18 @@ function renderAll() {
       listEl.innerHTML = '<div class="member-approval-empty">회원 데이터가 없습니다.</div>';
       return;
     }
+    const approvedNamesForDuplicateJoin = new Set();
+    members.forEach((m) => {
+      const name = String(m?.name || "").replace(/\s+/g, "").trim();
+      if (name && m?.approved && m?.status === "active") approvedNamesForDuplicateJoin.add(name);
+    });
     listEl.innerHTML = members.map((m) => {
       const adminText = m.adminAccess ? "관리자ON" : "관리자OFF";
       const approvedCardClass = (m.approved && m.status === "active") ? " approved-member" : "";
+      const duplicateJoin = !!(String(m?.name || "").replace(/\s+/g, "").trim() && approvedNamesForDuplicateJoin.has(String(m?.name || "").replace(/\s+/g, "").trim()) && (m.status === "pending" || !m.approved));
       return `
-        <div class="member-approval-card${approvedCardClass}" data-member-code="${escapeHtml(m.code)}">
-          <div class="member-approval-card-title">${escapeHtml(m.name)} / ${escapeHtml(m.code)} / ${escapeHtml(statusLabelForMember(m))}</div>
+        <div class="member-approval-card${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${escapeHtml(m.code)}" data-member-name="${escapeHtml(m.name || '')}">
+          <div class="member-approval-card-title">${escapeHtml(m.name)} / ${escapeHtml(m.code)} / ${escapeHtml(statusLabelForMember(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
           <div>성별: ${escapeHtml(m.gender || '-')} · 출생년도: ${escapeHtml(m.birthYear || '-')} · 거주지: ${escapeHtml(m.dong || '-')}</div>
           <div>전화: ${escapeHtml(m.phone || '-')}</div>
           <div>역할: ${escapeHtml(m.role || '-')} · ${adminText} · 가입일: ${escapeHtml(formatDateTime(m.createdAt))} · 승인결과: ${escapeHtml(joinResultLabel(m))}</div>
@@ -6412,6 +6501,7 @@ function renderAll() {
     });
 
     byId("memberJoinOpenBtn")?.addEventListener("click", () => {
+      clearMemberAuthTypingInputsOnScreenSwitch();
       byId("memberPasswordChangePanel")?.classList.remove("is-open");
       byId("memberSignupPanel")?.classList.add("is-open");
       setMemberAuthViewMode("signup");
@@ -6419,6 +6509,7 @@ function renderAll() {
     });
 
     byId("memberPasswordChangeOpenBtn")?.addEventListener("click", () => {
+      clearMemberAuthTypingInputsOnScreenSwitch();
       byId("memberSignupPanel")?.classList.remove("is-open");
       byId("memberPasswordChangePanel")?.classList.add("is-open");
       setMemberAuthViewMode("change");
@@ -6426,16 +6517,14 @@ function renderAll() {
     });
 
     byId("memberPasswordChangeCloseBtn")?.addEventListener("click", () => {
+      clearMemberAuthTypingInputsOnScreenSwitch();
       byId("memberPasswordChangePanel")?.classList.remove("is-open");
       setMemberAuthViewMode("main");
-      ["memberChangeNameInput", "memberChangeOldPasswordInput", "memberChangeNewPasswordInput", "memberChangeConfirmPasswordInput"].forEach((id) => {
-        const el = byId(id);
-        if (el) el.value = "";
-      });
       setAuthMessage("아이디와 비밀번호를 입력하세요.");
     });
 
     byId("memberJoinCloseBtn")?.addEventListener("click", () => {
+      clearMemberAuthTypingInputsOnScreenSwitch();
       byId("memberSignupPanel")?.classList.remove("is-open");
       setMemberAuthViewMode("main");
       setAuthMessage("아이디와 비밀번호를 입력하세요.");
@@ -6469,8 +6558,36 @@ function renderAll() {
     });
   }
 
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && document.body.classList.contains("membership-locked")) {
+      clearMemberAuthTypingInputsOnScreenSwitch();
+    }
+  });
+
+  window.addEventListener("pagehide", () => {
+    if (document.body.classList.contains("membership-locked")) {
+      clearMemberAuthTypingInputsOnScreenSwitch();
+    }
+  });
+
+  window.addEventListener("blur", () => {
+    if (document.body.classList.contains("membership-locked")) {
+      clearMemberAuthTypingInputsOnScreenSwitch();
+    }
+  });
+
+  window.addEventListener("pageshow", () => {
+    if (document.body.classList.contains("membership-locked")) {
+      clearMemberAuthInputValues();
+      byId("memberSignupPanel")?.classList.remove("is-open");
+      byId("memberPasswordChangePanel")?.classList.remove("is-open");
+      setMemberAuthViewMode("main");
+    }
+  });
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
+      clearMemberAuthInputValues();
       bindMembershipGate();
       restoreSessionIfValid().catch((error) => {
         console.error("회원 세션 복구 오류:", error);
@@ -6478,6 +6595,7 @@ function renderAll() {
       });
     });
   } else {
+    clearMemberAuthInputValues();
     bindMembershipGate();
     restoreSessionIfValid().catch((error) => {
       console.error("회원 세션 복구 오류:", error);
@@ -6598,6 +6716,26 @@ function renderAll() {
       return (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || String(a.code).localeCompare(String(b.code));
     });
   }
+
+  function normalizeDuplicateJoinName(value) {
+    return String(value || "").replace(/\s+/g, "").trim();
+  }
+  function buildDuplicateJoinNameSet(members) {
+    const approvedNames = new Set();
+    (members || []).forEach((m) => {
+      const name = normalizeDuplicateJoinName(m && m.name);
+      if (!name) return;
+      const status = String(m && m.status || "");
+      if ((status === "active" && m && m.approved) || (m && m.approved === true)) approvedNames.add(name);
+    });
+    return approvedNames;
+  }
+  function isDuplicateJoinMember(m, approvedNames) {
+    const name = normalizeDuplicateJoinName(m && m.name);
+    if (!name || !approvedNames || !approvedNames.has(name)) return false;
+    const status = String(m && m.status || "");
+    return status === "pending" || !m.approved;
+  }
   function renderMembers(members) {
     const list = listNode();
     if (!list) return;
@@ -6606,15 +6744,20 @@ function renderAll() {
       return;
     }
     const pendingCount = members.filter(m => m.status === 'pending' || !m.approved).length;
+    const approvedCount = members.filter(m => m.status === 'active' && m.approved).length;
+    const duplicateJoinNames = buildDuplicateJoinNameSet(members);
+    const duplicateJoinCount = members.filter(m => isDuplicateJoinMember(m, duplicateJoinNames)).length;
     list.innerHTML = `
       <div class="member-approval-empty" style="background:#eef5ff;border-radius:10px;margin-bottom:6px;">
-        가입대기 ${pendingCount}명 / 전체 ${members.length}명 ·
+        승인완료 ${approvedCount}명 / 승인대기 ${pendingCount}명 / 전체 ${members.length}명
+        ${duplicateJoinCount ? `<span class="duplicate-join-badge">중복가입 ${duplicateJoinCount}명</span>` : ''}
       </div>
       ${members.map((m) => {
         const approvedCardClass = (m.approved && m.status === 'active') ? ' approved-member' : '';
+        const duplicateJoin = isDuplicateJoinMember(m, duplicateJoinNames);
         return `
-        <div class="member-approval-card${approvedCardClass}" data-member-code="${esc(m.code)}">
-          <div class="member-approval-card-title">${esc(m.name || '-')} / ${esc(m.code)} / ${esc(label(m))}</div>
+        <div class="member-approval-card${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${esc(m.code)}" data-member-name="${esc(m.name || '')}">
+          <div class="member-approval-card-title">${esc(m.name || '-')} / ${esc(m.code)} / ${esc(label(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
           <div>성별: ${esc(m.gender || '-')} · 출생년도: ${esc(m.birthYear || '-')} · 거주지: ${esc(m.dong || '-')}</div>
           <div>전화: ${esc(m.phone || '-')}</div>
           <div>역할: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자ON' : '관리자OFF'} · 가입일: ${esc(fmt(m.createdAt))} · 승인결과: ${esc(joinResultLabel(m))}</div>
