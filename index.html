@@ -2747,7 +2747,7 @@ const firebaseConfig = {
         deleteBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           if (!workingMemoText) return;
-          if (!confirm("이 좌석의 메모를 전체 삭제할까요?")) return;
+          
           workingMemoText = "";
           appendedLines.length = 0;
           hasChanged = true;
@@ -3472,7 +3472,7 @@ function renderAll() {
 
     async function deleteHikingNotice() {
       if (state.hikingNotice.locked) { alert("잠금 상태에서는 삭제할 수 없습니다."); return; }
-      if (!confirm("산행공지 내용을 삭제할까요?")) return;
+      
       state.hikingNotice.text = "";
       state.hikingNotice.editing = true;
       renderHikingNoticeDialog();
@@ -5283,6 +5283,53 @@ function renderAll() {
   document.addEventListener("DOMContentLoaded", startDuplicateWaitingObserverForPatch);
   setTimeout(startDuplicateWaitingObserverForPatch, 500);
   setTimeout(startDuplicateWaitingObserverForPatch, 1500);
+
+
+  /* 요청 수정: 로그아웃 버튼은 묻지 않고 즉시 로그아웃 */
+  function directLogoutWithoutConfirmPatch(){
+    try{
+      localStorage.removeItem("busSeat.currentMember");
+      localStorage.removeItem("busSeat.loginMember");
+      localStorage.removeItem("busSeat.memberSession");
+      sessionStorage.clear();
+    }catch(e){}
+
+    try{
+      document.body.classList.add("membership-locked");
+      document.body.classList.remove("member-mode");
+      document.body.classList.remove("admin-mode");
+      document.body.classList.remove("approval-admin-mode");
+    }catch(e){}
+
+    try{
+      const gate = document.getElementById("memberAuthGate");
+      if(gate) gate.classList.remove("is-hidden");
+      const msg = document.getElementById("memberAuthMessage");
+      if(msg){
+        msg.className = "member-auth-message";
+        msg.textContent = "아이디와 비밀번호를 입력하세요.";
+      }
+      const pw = document.getElementById("memberLoginPasswordInput");
+      if(pw) pw.value = "";
+    }catch(e){}
+
+    try{
+      if(typeof setMode === "function") setMode("member");
+    }catch(e){}
+
+    try{
+      window.scrollTo(0,0);
+    }catch(e){}
+  }
+
+  document.addEventListener("click", function(e){
+    const btn = e.target && e.target.closest ? e.target.closest("#adminLogoutBtn,#memberTopLogoutBtn,#memberApprovalLoginMoveBtn") : null;
+    if(!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    directLogoutWithoutConfirmPatch();
+  }, true);
 
 })();
 </script>
