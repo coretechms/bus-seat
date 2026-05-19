@@ -1405,7 +1405,7 @@ body:not(.membership-locked) .member-current-badge {
 </style>
 </head>
 <body class="membership-locked">
-  
+
   <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
       <h2 id="memberAuthTitle" class="member-auth-title">검 암 산 악 회</h2>
@@ -5571,7 +5571,9 @@ function renderAll() {
     await saveMemberListJoinCode(payload);
 
     setAuthMessage(`가입 신청 완료. 관리자 승인 대기중입니다. 회원코드: ${code}`, true);
+    clearMemberJoinInputs();
     byId("memberSignupPanel")?.classList.remove("is-open");
+    setMemberAuthViewMode("main");
   }
 
   async function changeMemberPassword() {
@@ -6092,6 +6094,21 @@ function renderAll() {
     box.classList.remove("signup-open", "change-open");
     if (mode === "signup") box.classList.add("signup-open");
     if (mode === "change") box.classList.add("change-open");
+  }
+
+
+  function clearMemberJoinInputs() {
+    [
+      "memberJoinNameInput",
+      "memberJoinPasswordInput",
+      "memberJoinGenderInput",
+      "memberJoinBirthInput",
+      "memberJoinPhoneInput",
+      "memberJoinDongInput"
+    ].forEach((id) => {
+      const el = byId(id);
+      if (el) el.value = "";
+    });
   }
 
   function bindMembershipGate() {
