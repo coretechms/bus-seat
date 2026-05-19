@@ -1447,6 +1447,28 @@ body:not(.membership-locked) .member-current-badge {
   50%{opacity:.18;}
 }
 
+
+/* 요청 수정: 로그아웃 동작 분리
+   - 회원입력 모드 로그아웃: 회원 로그인 화면으로 이동
+   - 관리자/회원관리 로그아웃: 로그인 화면 이동 없이 관리자 진입에서만 나가기 */
+
+
+/* 요청 수정: 관리자 로그아웃 후 관리자 진입 화면에서는 관리자 로그인 내용만 표시 */
+body.admin-entry-only #memberPanel,
+body.admin-entry-only #adminPanel,
+body.admin-entry-only #memberManagePanel,
+body.admin-entry-only .help-text,
+body.admin-entry-only .mode-divider,
+body.admin-entry-only #memberCurrentBadge{
+  display:none !important;
+}
+body.admin-entry-only #adminLoginPanel{
+  display:block !important;
+}
+body.admin-entry-only #adminLoginPanel.hidden{
+  display:block !important;
+}
+
 </style>
 </head>
 <body class="membership-locked">
@@ -1463,7 +1485,7 @@ body:not(.membership-locked) .member-current-badge {
       </div>
       <div class="member-auth-row">
         <label for="memberLoginPasswordInput">비밀번호</label>
-        <input id="memberLoginPasswordInput" type="password" autocomplete="current-password" placeholder="비밀번호 입력" value="" / inputmode="numeric" pattern="[0-9]*">
+        <input id="memberLoginPasswordInput" type="password" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*">
       </div>
 
       <div class="member-auth-actions">
@@ -1479,16 +1501,16 @@ body:not(.membership-locked) .member-current-badge {
         </div>
         <div class="member-auth-row">
           <label for="memberChangeOldPasswordInput">기존비밀번호</label>
-          <input id="memberChangeOldPasswordInput" type="password" autocomplete="current-password" placeholder="기존 비밀번호" value="" / inputmode="numeric" pattern="[0-9]*">
+          <input id="memberChangeOldPasswordInput" type="password" autocomplete="current-password" placeholder="기존 비밀번호" value="" inputmode="numeric" pattern="[0-9]*">
         </div>
         <div class="member-auth-row">
           <label for="memberChangeNewPasswordInput">비밀번호변경</label>
-          <input id="memberChangeNewPasswordInput" type="password" autocomplete="new-password" placeholder="변경 비밀번호" value="" / inputmode="numeric" pattern="[0-9]*">
+          <input id="memberChangeNewPasswordInput" type="password" autocomplete="new-password" placeholder="변경 비밀번호" value="" inputmode="numeric" pattern="[0-9]*">
         </div>
         <div class="member-auth-row">
           <label for="memberChangeConfirmPasswordInput">비밀번호확인</label>
           <div style="display:flex; gap:6px; align-items:center; width:100%;">
-            <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="new-password" placeholder="비밀번호 확인" value="" style="width:104px !important; max-width:104px !important;" / inputmode="numeric" pattern="[0-9]*">
+            <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="new-password" placeholder="비밀번호 확인" value="" style="width:104px !important; max-width:104px !important;" inputmode="numeric" pattern="[0-9]*">
             <button id="memberChangePasswordSubmitBtn" type="button" style="width:48px; height:28px; border:1px solid #999; border-radius:8px; background:#b45309; color:#fff; font:inherit; font-size:12px; font-weight:800; cursor:pointer;">변경</button>
           </div>
         </div>
@@ -1504,7 +1526,7 @@ body:not(.membership-locked) .member-current-badge {
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPasswordInput">비밀번호</label>
-          <input id="memberJoinPasswordInput" type="password" autocomplete="new-password" placeholder="비밀번호 입력" value="" / inputmode="numeric" pattern="[0-9]*">
+          <input id="memberJoinPasswordInput" type="password" autocomplete="new-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*">
         </div>
         <div class="member-auth-row">
           <label for="memberJoinGenderInput">성 별</label>
@@ -1613,7 +1635,7 @@ body:not(.membership-locked) .member-current-badge {
             <div style="display:grid; grid-template-columns:auto 1fr 1fr auto; gap:8px; margin-top:6px; align-items:center;">
               <button class="btn btn-outline" id="captureBoardBtn" type="button" style="width:auto;  height:28px; padding:0 10px; font-size:12px; white-space:nowrap;">캡처</button>
               <button class="btn btn-outline" id="memberListBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">회원정보</button>
-              <input id="adminPasswordInput" type="password" placeholder="비밀번호 입력" style="width:100%; height:28px;" / inputmode="numeric" pattern="[0-9]*">
+              <input id="adminPasswordInput" type="password" placeholder="비밀번호 입력" style="width:100%; height:28px;" inputmode="numeric" pattern="[0-9]*">
               <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:78px; height:24px; font-size:10px; padding:0 6px; border-radius:12px; white-space:nowrap;">비번초기화</button>
             </div>
           </div>
@@ -1679,20 +1701,20 @@ body:not(.membership-locked) .member-current-badge {
               </div>
               <div id="systemAdminPanel" class="hidden" style="margin-top:10px; border:1px solid #d4d4d4; border-radius:16px; padding:10px; background:#f8fafc;">
                 <div style="display:flex; gap:8px; align-items:center;">
-                  <input id="newSystemAdminPassword" type="password" placeholder="시스템 관리자 비밀번호 입력" style="flex:1;" / inputmode="numeric" pattern="[0-9]*">
+                  <input id="newSystemAdminPassword" type="password" placeholder="시스템 관리자 비밀번호 입력" style="flex:1;" inputmode="numeric" pattern="[0-9]*">
                   <button class="btn btn-outline" id="changeSystemAdminPasswordBtn" type="button" style="width:38%;">시스템 비번변경</button>
                 </div>
 
                 <div id="adminPasswordInline" style="margin-top:10px;">
                   <div style="display:flex; gap:8px; align-items:center;">
-                    <input id="newAdminPassword" type="password" placeholder="관리자 비밀번호 입력" style="flex:1;" / inputmode="numeric" pattern="[0-9]*">
+                    <input id="newAdminPassword" type="password" placeholder="관리자 비밀번호 입력" style="flex:1;" inputmode="numeric" pattern="[0-9]*">
                     <button class="btn btn-outline" id="changePasswordBtn" type="button" style="width:38%;">관리자비번변경</button>
                   </div>
                 </div>
 
                 <div id="tripPlanPasswordInline" style="margin-top:10px;">
                   <div style="display:flex; gap:8px; align-items:center;">
-                    <input id="newTripPlanPassword" type="password" placeholder="산행계획 비밀번호 입력" style="flex:1;" / inputmode="numeric" pattern="[0-9]*">
+                    <input id="newTripPlanPassword" type="password" placeholder="산행계획 비밀번호 입력" style="flex:1;" inputmode="numeric" pattern="[0-9]*">
                     <button class="btn btn-outline" id="changeTripPlanPasswordBtn" type="button" style="width:38%;">산행계획비번변경</button>
                   </div>
                 </div>
@@ -2747,7 +2769,7 @@ const firebaseConfig = {
         deleteBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           if (!workingMemoText) return;
-          
+          if (!confirm("이 좌석의 메모를 전체 삭제할까요?")) return;
           workingMemoText = "";
           appendedLines.length = 0;
           hasChanged = true;
@@ -3472,7 +3494,7 @@ function renderAll() {
 
     async function deleteHikingNotice() {
       if (state.hikingNotice.locked) { alert("잠금 상태에서는 삭제할 수 없습니다."); return; }
-      
+      if (!confirm("산행공지 내용을 삭제할까요?")) return;
       state.hikingNotice.text = "";
       state.hikingNotice.editing = true;
       renderHikingNoticeDialog();
@@ -5285,15 +5307,8 @@ function renderAll() {
   setTimeout(startDuplicateWaitingObserverForPatch, 1500);
 
 
-  /* 요청 수정: 로그아웃 버튼은 묻지 않고 즉시 로그아웃 */
-  function directLogoutWithoutConfirmPatch(){
-    try{
-      localStorage.removeItem("busSeat.currentMember");
-      localStorage.removeItem("busSeat.loginMember");
-      localStorage.removeItem("busSeat.memberSession");
-      sessionStorage.clear();
-    }catch(e){}
-
+  /* 요청 수정: 로그아웃 동작 분리 */
+  function showMemberLoginScreenPatch(){
     try{
       document.body.classList.add("membership-locked");
       document.body.classList.remove("member-mode");
@@ -5304,32 +5319,124 @@ function renderAll() {
     try{
       const gate = document.getElementById("memberAuthGate");
       if(gate) gate.classList.remove("is-hidden");
+
+      const pw = document.getElementById("memberLoginPasswordInput");
+      if(pw) pw.value = "";
+
       const msg = document.getElementById("memberAuthMessage");
       if(msg){
         msg.className = "member-auth-message";
         msg.textContent = "아이디와 비밀번호를 입력하세요.";
       }
-      const pw = document.getElementById("memberLoginPasswordInput");
+    }catch(e){}
+
+    try{ window.scrollTo(0,0); }catch(e){}
+  }
+
+  function goToAdminEntryOnlyPatch(){
+    try{
+      document.body.classList.remove("membership-locked");
+      document.body.classList.remove("member-mode");
+      document.body.classList.remove("approval-admin-mode");
+      document.body.classList.add("admin-entry-only");
+    }catch(e){}
+
+    try{
+      window.__adminAuthenticated = false;
+      window.adminAuthenticated = false;
+      window.isAdminLoggedIn = false;
+      window.__memberManageAuthenticated = false;
+      window.memberManageAuthenticated = false;
+    }catch(e){}
+
+    try{
+      if(typeof state === "object" && state){
+        if("isAdmin" in state) state.isAdmin = false;
+        if("adminMode" in state) state.adminMode = false;
+        if("adminAuthed" in state) state.adminAuthed = false;
+      }
+    }catch(e){}
+
+    try{
+      const memberTab = document.getElementById("memberTab");
+      const adminTab = document.getElementById("adminTab");
+      const memberManageTab = document.getElementById("memberManageTab");
+
+      if(memberTab) memberTab.classList.remove("active");
+      if(adminTab) adminTab.classList.add("active");
+      if(memberManageTab) memberManageTab.classList.remove("active");
+
+      const memberPanel = document.getElementById("memberPanel");
+      const adminLoginPanel = document.getElementById("adminLoginPanel");
+      const adminPanel = document.getElementById("adminPanel");
+      const memberManagePanel = document.getElementById("memberManagePanel");
+      const busInfoEditor = document.getElementById("busInfoEditor");
+
+      if(memberPanel) memberPanel.classList.add("hidden");
+      if(adminLoginPanel) adminLoginPanel.classList.remove("hidden");
+      if(adminPanel) adminPanel.classList.add("hidden");
+      if(memberManagePanel) memberManagePanel.classList.add("hidden");
+      if(busInfoEditor) busInfoEditor.classList.add("hidden");
+
+      const pw = document.getElementById("adminPasswordInput");
       if(pw) pw.value = "";
     }catch(e){}
 
-    try{
-      if(typeof setMode === "function") setMode("member");
-    }catch(e){}
-
-    try{
-      window.scrollTo(0,0);
-    }catch(e){}
+    try{ window.scrollTo(0,0); }catch(e){}
   }
 
   document.addEventListener("click", function(e){
-    const btn = e.target && e.target.closest ? e.target.closest("#adminLogoutBtn,#memberTopLogoutBtn,#memberApprovalLoginMoveBtn") : null;
-    if(!btn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    directLogoutWithoutConfirmPatch();
+    const memberLogout = e.target && e.target.closest ? e.target.closest("#memberTopLogoutBtn") : null;
+    if(memberLogout){
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      showMemberLoginScreenPatch();
+      return;
+    }
+
+    const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel #adminLogoutBtn") : null;
+    if(adminLogout){
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      goToAdminEntryOnlyPatch();
+      return;
+    }
+
+    const manageLogout = e.target && e.target.closest ? e.target.closest("#memberApprovalLoginMoveBtn") : null;
+    if(manageLogout){
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      goToAdminEntryOnlyPatch();
+      return;
+    }
   }, true);
+
+
+  /* 요청 수정: 관리자 진입 전용 표시 상태 해제 */
+  document.addEventListener("click", function(e){
+    const target = e.target && e.target.closest ? e.target.closest("#memberTab,#adminTab,#memberManageTab,#memberLoginBtn,#adminPasswordInput") : null;
+    if(!target) return;
+
+    if(target.id === "memberTab" || target.id === "memberLoginBtn"){
+      document.body.classList.remove("admin-entry-only");
+    }
+  }, true);
+
+
+  /* 요청 수정: 관리자 패널이 열리면 관리자 진입 전용 숨김 상태 해제 */
+  const adminEntryOnlyObserverPatch = new MutationObserver(()=>{
+    const adminPanel = document.getElementById("adminPanel");
+    if(adminPanel && !adminPanel.classList.contains("hidden")){
+      document.body.classList.remove("admin-entry-only");
+    }
+  });
+  setTimeout(()=>{
+    const adminPanel = document.getElementById("adminPanel");
+    if(adminPanel) adminEntryOnlyObserverPatch.observe(adminPanel, {attributes:true, attributeFilter:["class"]});
+  }, 300);
 
 })();
 </script>
