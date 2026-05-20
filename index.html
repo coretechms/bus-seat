@@ -1494,6 +1494,31 @@ body.admin-entry-only #adminLoginPanel.hidden{
   50%{opacity:.18;}
 }
 
+
+/* 회원관리 상단 JSON 백업/복구 버튼 */
+.member-manage-json-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  margin-bottom:7px;
+}
+.member-manage-json-row .btn{
+  height:22px !important;
+  min-height:22px !important;
+  padding:0 8px !important;
+  border-radius:10px !important;
+  font-size:10px !important;
+  line-height:1 !important;
+}
+@media(max-width:760px){
+  .member-manage-json-row .btn{
+    height:21px !important;
+    min-height:21px !important;
+    font-size:10px !important;
+    padding:0 5px !important;
+  }
+}
+
 </style>
 </head>
 <body class="membership-locked">
@@ -1775,6 +1800,11 @@ body.admin-entry-only #adminLoginPanel.hidden{
                   <button class="btn btn-outline" id="memberApprovalLoginMoveBtn" type="button" style="width:auto; padding:0 10px;">로그아웃</button>
                   <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button" style="width:auto; padding:0 10px;">새로고침</button>
                 </div>
+              </div>
+              <div class="member-manage-json-row" aria-label="회원가입자 JSON 백업 복구">
+                <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">회원JSON 백업</button>
+                <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">회원JSON 복구</button>
+                <input id="memberJsonRestoreFileInput" type="file" accept="application/json,.json" class="hidden" />
               </div>
               <div style="font-size:11px; color:#555; line-height:1.5; margin-bottom:8px;">
 
@@ -6615,7 +6645,7 @@ function renderAll() {
 
 <script type="module" id="bus-seat-member-manage-forced-render-script">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+  import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
   const MANAGE_FIREBASE_CONFIG = {
     apiKey: "AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgwQ",
@@ -6771,6 +6801,122 @@ function renderAll() {
         </div>`;
       }).join('')}`;
   }
+  function makeMemberJsonBackupFileName() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `회원가입백업_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  }
+
+  function downloadMemberJsonBackup(payload) {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = makeMemberJsonBackupFileName();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function readMemberJsonFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try { resolve(JSON.parse(String(reader.result || "{}"))); }
+        catch (error) { reject(error); }
+      };
+      reader.onerror = () => reject(reader.error || new Error("파일 읽기 실패"));
+      reader.readAsText(file, "utf-8");
+    });
+  }
+
+  async function handleMemberJsonBackup() {
+    try {
+      const [membersSnap, pendingSnap, nameIndexSnap, joinCodesSnap] = await Promise.all([
+        get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`)),
+        get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/pending`)),
+        get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/nameIndex`)),
+        get(ref(manageDb, MANAGE_JOIN_CODES_PATH))
+      ]);
+      const payload = {
+        backupType: "bus-seat-membership-backup",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        data: {
+          membership: {
+            members: membersSnap.exists() ? membersSnap.val() : null,
+            pending: pendingSnap.exists() ? pendingSnap.val() : null,
+            nameIndex: nameIndexSnap.exists() ? nameIndexSnap.val() : null
+          },
+          memberList: {
+            joinCodes: joinCodesSnap.exists() ? joinCodesSnap.val() : null
+          }
+        }
+      };
+      downloadMemberJsonBackup(payload);
+      const btn = q('#memberJsonBackupBtn');
+      if (btn) {
+        btn.classList.add('btn-success-flash');
+        setTimeout(() => btn.classList.remove('btn-success-flash'), 900);
+      }
+    } catch (error) {
+      console.error('회원 JSON 백업 실패:', error);
+      alert('회원 JSON 백업 실패: Firebase 연결 또는 읽기 권한을 확인하세요.');
+    }
+  }
+
+  function normalizeRestoredMemberBackup(backup) {
+    const data = backup?.data || backup || {};
+    const membership = data?.membership || data?.busSeatApp?.membership || data?.[MANAGE_MEMBERS_ROOT] || {};
+    const joinCodes = data?.memberList?.joinCodes || backup?.memberList?.joinCodes || null;
+    return {
+      members: membership?.members ?? data?.members ?? null,
+      pending: membership?.pending ?? data?.pending ?? null,
+      nameIndex: membership?.nameIndex ?? data?.nameIndex ?? null,
+      joinCodes
+    };
+  }
+
+  async function handleMemberJsonRestoreFile(event) {
+    const input = event.target;
+    const file = input?.files?.[0];
+    if (input) input.value = '';
+    if (!file) return;
+    try {
+      const backup = await readMemberJsonFile(file);
+      const restored = normalizeRestoredMemberBackup(backup);
+      if (!restored.members || typeof restored.members !== 'object') {
+        alert('복구할 회원가입자 members 데이터가 없는 JSON 파일입니다.');
+        return;
+      }
+      const ok = confirm('현재 회원가입자 정보를 JSON 파일 내용으로 복구할까요?\n\n회원목록/승인대기/nameIndex/회원번호 DB가 백업 파일 기준으로 덮어쓰기 됩니다.');
+      if (!ok) return;
+      await Promise.all([
+        set(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`), restored.members || null),
+        set(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/pending`), restored.pending || null),
+        set(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/nameIndex`), restored.nameIndex || null),
+        restored.joinCodes && typeof restored.joinCodes === 'object'
+          ? set(ref(manageDb, MANAGE_JOIN_CODES_PATH), restored.joinCodes)
+          : Promise.resolve()
+      ]);
+      await forceLoadMemberManageList();
+      const btn = q('#memberJsonRestoreBtn');
+      if (btn) {
+        btn.classList.add('btn-success-flash');
+        setTimeout(() => btn.classList.remove('btn-success-flash'), 900);
+      }
+      alert('회원 JSON 복구 완료');
+    } catch (error) {
+      console.error('회원 JSON 복구 실패:', error);
+      alert('회원 JSON 복구 실패: 올바른 회원 백업 JSON 파일인지 확인하세요.');
+    }
+  }
+
+  function handleMemberJsonRestoreClick() {
+    q('#memberJsonRestoreFileInput')?.click();
+  }
+
   async function forceLoadMemberManageList() {
     setListMessage('가입자 DB 불러오는 중...');
     try {
@@ -6894,6 +7040,18 @@ function renderAll() {
     if (refresh) {
       event.preventDefault();
       forceLoadMemberManageList();
+      return;
+    }
+    const memberBackup = event.target.closest('#memberManagePanel #memberJsonBackupBtn');
+    if (memberBackup) {
+      event.preventDefault();
+      handleMemberJsonBackup();
+      return;
+    }
+    const memberRestore = event.target.closest('#memberManagePanel #memberJsonRestoreBtn');
+    if (memberRestore) {
+      event.preventDefault();
+      handleMemberJsonRestoreClick();
       return;
     }
     const actionBtn = event.target.closest('#memberManagePanel button[data-forced-member-action], #memberManagePanel button[data-member-action]');
