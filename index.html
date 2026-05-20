@@ -1495,27 +1495,51 @@ body.admin-entry-only #adminLoginPanel.hidden{
 }
 
 
-/* 회원관리 상단 JSON 백업/복구 버튼 */
-.member-manage-json-row{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:6px;
-  margin-bottom:7px;
+/* 회원관리 상단 JSON 백업/복구 버튼: 상단 우측 배치 */
+.member-manage-header-actions{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:4px !important;
+  flex-wrap:nowrap !important;
+  min-width:0 !important;
 }
-.member-manage-json-row .btn{
+.member-manage-header-actions .btn{
+  width:auto !important;
+  min-width:0 !important;
   height:22px !important;
   min-height:22px !important;
-  padding:0 8px !important;
+  padding:0 7px !important;
   border-radius:10px !important;
   font-size:10px !important;
   line-height:1 !important;
+  white-space:nowrap !important;
+}
+#memberJsonBackupBtn,
+#memberJsonRestoreBtn{
+  flex:0 0 40px !important;
+  max-width:40px !important;
+  padding-left:0 !important;
+  padding-right:0 !important;
+}
+#memberApprovalRefreshBtn{
+  flex:0 0 auto !important;
+}
+.member-manage-json-row{
+  display:none !important;
 }
 @media(max-width:760px){
-  .member-manage-json-row .btn{
+  .member-manage-header-actions{gap:3px !important;}
+  .member-manage-header-actions .btn{
     height:21px !important;
     min-height:21px !important;
-    font-size:10px !important;
+    font-size:9px !important;
     padding:0 5px !important;
+  }
+  #memberJsonBackupBtn,
+  #memberJsonRestoreBtn{
+    flex-basis:34px !important;
+    max-width:34px !important;
   }
 }
 
@@ -1795,16 +1819,13 @@ body.admin-entry-only #adminLoginPanel.hidden{
           <div id="memberManagePanel" class="hidden" style="margin-top:10px;">
             <div style="border:1px solid #cfd8ff; border-radius:16px; padding:10px; background:#f7f9ff;">
               <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
-                <div style="font-size:13px; font-weight:800; color:#1428c8;">회원관리</div>
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <button class="btn btn-outline" id="memberApprovalLoginMoveBtn" type="button" style="width:auto; padding:0 10px;">로그아웃</button>
-                  <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button" style="width:auto; padding:0 10px;">새로고침</button>
+                <div style="font-size:13px; font-weight:800; color:#1428c8; white-space:nowrap;">회원관리</div>
+                <div class="member-manage-header-actions">
+                  <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
+                  <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
+                  <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button">새로고침</button>
+                  <input id="memberJsonRestoreFileInput" type="file" accept="application/json,.json" class="hidden" />
                 </div>
-              </div>
-              <div class="member-manage-json-row" aria-label="회원가입자 JSON 백업 복구">
-                <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">회원JSON 백업</button>
-                <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">회원JSON 복구</button>
-                <input id="memberJsonRestoreFileInput" type="file" accept="application/json,.json" class="hidden" />
               </div>
               <div style="font-size:11px; color:#555; line-height:1.5; margin-bottom:8px;">
 
