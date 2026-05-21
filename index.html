@@ -3092,7 +3092,7 @@ const firebaseConfig = {
         memberCancelBtn.title = isMemberLocked ? "관리자가 전체 입력을 제한했습니다." : "";
       }
       if (toggleNameEntryLockBtn) {
-        toggleNameEntryLockBtn.textContent = state.nameEntryLocked ? "전체 입력 해제" : "전체 입력 제한";
+        toggleNameEntryLockBtn.textContent = state.nameEntryLocked ? "전체 입력제한 해제" : "전체 입력 제한";
       }
       if (nameEntryLockStatus) {
         nameEntryLockStatus.innerHTML = `<strong>${state.nameEntryLocked ? "이름 입력 제한됨" : "이름 입력 가능"}</strong>`;
@@ -7619,6 +7619,26 @@ function renderAll() {
   const MANAGE_MEMBERS_ROOT = "busSeatApp/membership";
   const MANAGE_JOIN_CODES_PATH = "memberList/joinCodes";
   const MANAGE_MEMBER_LIST_MAIN_PATH = "memberList/main";
+
+  /* 로그인 복구형 회원 JSON 백업/복구 대상 경로
+     - 회원관리 표시용 joinCodes만 백업하면 로그인 복구가 불가능하므로
+       passwordHash가 들어있는 members DB를 함께 백업/복구한다. */
+  const MEMBERSHIP_ROOT_PATHS_FOR_BACKUP = [
+    "busSeatApp/membership",
+    "membership"
+  ];
+  const ROOT_MEMBER_PATHS_FOR_BACKUP = [
+    "members",
+    "busSeatApp/members"
+  ];
+  const ROOT_PENDING_PATHS_FOR_BACKUP = [
+    "pending",
+    "busSeatApp/pending"
+  ];
+  const ROOT_NAME_INDEX_PATHS_FOR_BACKUP = [
+    "nameIndex",
+    "busSeatApp/nameIndex"
+  ];
   const manageApp = initializeApp(MANAGE_FIREBASE_CONFIG, "busSeatMemberManageForcedRenderApp");
   const manageDb = getDatabase(manageApp);
 
@@ -7801,15 +7821,41 @@ function renderAll() {
   function makeMemberJsonBackupFileName() {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
-    return `회원가입백업_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+    return `회원로그인백업_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
   }
 
-  function downloadMemberJsonBackup(payload) {
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  async function prepareMemberBackupSaveHandle() {
+    const fileName = makeMemberJsonBackupFileName();
+    if (!window.showSaveFilePicker) return { handle: null, fileName };
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: fileName,
+        types: [{
+          description: "회원 로그인 복구용 JSON 백업",
+          accept: { "application/json": [".json"] }
+        }]
+      });
+      return { handle, fileName };
+    } catch (error) {
+      if (error && error.name === "AbortError") return { cancelled: true, fileName };
+      console.warn("저장 위치 선택창을 열 수 없어 일반 다운로드로 전환합니다.", error);
+      return { handle: null, fileName };
+    }
+  }
+
+  async function downloadMemberJsonBackup(payload, saveTarget = {}) {
+    const jsonText = JSON.stringify(payload, null, 2);
+    if (saveTarget && saveTarget.handle) {
+      const writable = await saveTarget.handle.createWritable();
+      await writable.write(new Blob([jsonText], { type: "application/json;charset=utf-8" }));
+      await writable.close();
+      return;
+    }
+    const blob = new Blob([jsonText], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = makeMemberJsonBackupFileName();
+    a.download = saveTarget.fileName || makeMemberJsonBackupFileName();
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -7828,30 +7874,164 @@ function renderAll() {
     });
   }
 
+  function isPlainObject(value) {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function normalizeMemberNameKey(name) {
+    return String(name || "").replace(/\s+/g, "").trim();
+  }
+
+  function mergeObjectsByCode(...sources) {
+    const merged = {};
+    sources.forEach((source) => {
+      if (!isPlainObject(source)) return;
+      Object.entries(source).forEach(([code, value]) => {
+        if (!code || !isPlainObject(value)) return;
+        const key = String(value.code || code).trim();
+        if (!key) return;
+        merged[key] = { ...(merged[key] || {}), ...value, code: key };
+      });
+    });
+    return Object.keys(merged).length ? merged : null;
+  }
+
+  function buildNameIndexFromMembers(members) {
+    const index = {};
+    if (!isPlainObject(members)) return null;
+    Object.entries(members).forEach(([code, member]) => {
+      if (!isPlainObject(member)) return;
+      const key = String(member.code || code).trim();
+      const nameKey = normalizeMemberNameKey(member.name || member.memberName || member.userName || member.displayName);
+      if (!key || !nameKey) return;
+      if (!index[nameKey]) index[nameKey] = {};
+      index[nameKey][key] = true;
+      const lower = nameKey.toLowerCase();
+      if (lower !== nameKey) {
+        if (!index[lower]) index[lower] = {};
+        index[lower][key] = true;
+      }
+    });
+    return Object.keys(index).length ? index : null;
+  }
+
+  function buildJoinCodesFromMembers(members, existingJoinCodes = null) {
+    const result = isPlainObject(existingJoinCodes) ? { ...existingJoinCodes } : {};
+    if (!isPlainObject(members)) return Object.keys(result).length ? result : null;
+    Object.entries(members).forEach(([code, member]) => {
+      if (!isPlainObject(member)) return;
+      const key = String(member.code || code).trim();
+      if (!key) return;
+      result[key] = {
+        ...(result[key] || {}),
+        code: key,
+        name: member.name || result[key]?.name || "",
+        gender: member.gender || result[key]?.gender || "",
+        birthYear: member.birthYear || result[key]?.birthYear || "",
+        phone: member.phone || result[key]?.phone || "",
+        phoneLast4: member.phoneLast4 || result[key]?.phoneLast4 || "",
+        dong: member.dong || result[key]?.dong || "",
+        status: member.status || result[key]?.status || "pending",
+        approvalResult: joinResultLabel(member),
+        joinStatus: joinResultLabel(member),
+        approved: !!member.approved,
+        role: member.role || result[key]?.role || "member",
+        adminAccess: !!member.adminAccess,
+        memberType: member.memberType || result[key]?.memberType || "",
+        createdAt: member.createdAt || result[key]?.createdAt || Date.now(),
+        updatedAt: Date.now()
+      };
+    });
+    return Object.keys(result).length ? result : null;
+  }
+
+  function hasLoginPasswordData(members) {
+    if (!isPlainObject(members)) return false;
+    return Object.values(members).some((member) => {
+      if (!isPlainObject(member)) return false;
+      return !!(member.passwordHash || member.password || member.passHash || member.pwHash);
+    });
+  }
+
+  async function readPathSafe(path) {
+    const snap = await get(ref(manageDb, path)).catch(() => null);
+    return snap && snap.exists() ? snap.val() : null;
+  }
+
   async function handleMemberJsonBackup() {
     try {
-      const [membersSnap, pendingSnap, nameIndexSnap, joinCodesSnap] = await Promise.all([
-        get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`)),
-        get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/pending`)),
-        get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/nameIndex`)),
-        get(ref(manageDb, MANAGE_JOIN_CODES_PATH))
-      ]);
+      const proceed = confirm(
+        '회원 로그인 복구용 JSON 백업을 진행할까요?\n\n' +
+        '백업에는 로그인 복구에 필요한 members/passwordHash, pending, nameIndex, joinCodes가 함께 포함됩니다.'
+      );
+      if (!proceed) return;
+
+      const saveTarget = await prepareMemberBackupSaveHandle();
+      if (saveTarget && saveTarget.cancelled) return;
+
+      const busSeatMembership = {
+        members: await readPathSafe("busSeatApp/membership/members"),
+        pending: await readPathSafe("busSeatApp/membership/pending"),
+        nameIndex: await readPathSafe("busSeatApp/membership/nameIndex")
+      };
+      const legacyMembership = {
+        members: await readPathSafe("membership/members"),
+        pending: await readPathSafe("membership/pending"),
+        nameIndex: await readPathSafe("membership/nameIndex")
+      };
+      const rootMembers = await readPathSafe("members");
+      const rootPending = await readPathSafe("pending");
+      const rootNameIndex = await readPathSafe("nameIndex");
+      const busSeatRootMembers = await readPathSafe("busSeatApp/members");
+      const busSeatRootPending = await readPathSafe("busSeatApp/pending");
+      const busSeatRootNameIndex = await readPathSafe("busSeatApp/nameIndex");
+      const joinCodes = await readPathSafe(MANAGE_JOIN_CODES_PATH);
+      const memberListMain = await readPathSafe(MANAGE_MEMBER_LIST_MAIN_PATH);
+
+      const mergedMembers = mergeObjectsByCode(busSeatMembership.members, legacyMembership.members, rootMembers, busSeatRootMembers);
+      const mergedPending = mergeObjectsByCode(busSeatMembership.pending, legacyMembership.pending, rootPending, busSeatRootPending);
+      const mergedNameIndex = busSeatMembership.nameIndex || legacyMembership.nameIndex || rootNameIndex || busSeatRootNameIndex || buildNameIndexFromMembers(mergedMembers);
+      const mergedJoinCodes = buildJoinCodesFromMembers(mergedMembers, joinCodes);
+
       const payload = {
-        backupType: "bus-seat-membership-backup",
-        version: 1,
+        backupType: "bus-seat-membership-login-recovery-backup",
+        version: 2,
         exportedAt: new Date().toISOString(),
+        note: "로그인 복구용 전체 백업: members/passwordHash, pending, nameIndex, memberList/joinCodes를 함께 포함합니다.",
         data: {
           membership: {
-            members: membersSnap.exists() ? membersSnap.val() : null,
-            pending: pendingSnap.exists() ? pendingSnap.val() : null,
-            nameIndex: nameIndexSnap.exists() ? nameIndexSnap.val() : null
+            members: mergedMembers,
+            pending: mergedPending,
+            nameIndex: mergedNameIndex
           },
           memberList: {
-            joinCodes: joinCodesSnap.exists() ? joinCodesSnap.val() : null
+            joinCodes: mergedJoinCodes,
+            main: memberListMain || null
+          },
+          rawPaths: {
+            busSeatAppMembership: busSeatMembership,
+            legacyMembership,
+            rootMembers,
+            rootPending,
+            rootNameIndex,
+            busSeatRootMembers,
+            busSeatRootPending,
+            busSeatRootNameIndex
           }
         }
       };
-      downloadMemberJsonBackup(payload);
+
+      if (!hasLoginPasswordData(mergedMembers)) {
+        const ok = confirm(
+          '주의: 현재 DB에서 로그인용 passwordHash가 있는 members 데이터를 찾지 못했습니다.\n\n' +
+          '이 백업은 회원관리 표시 정보 복구에는 사용할 수 있지만, 회원 로그인 복구에는 부족할 수 있습니다.\n\n' +
+          '그래도 JSON 백업 파일을 만들까요?'
+        );
+        if (!ok) return;
+      }
+
+      await downloadMemberJsonBackup(payload, saveTarget);
+      alert('회원 로그인 복구용 JSON 백업이 완료되었습니다.');
       const btn = q('#memberJsonBackupBtn');
       if (btn) {
         btn.classList.add('btn-success-flash');
@@ -7865,14 +8045,54 @@ function renderAll() {
 
   function normalizeRestoredMemberBackup(backup) {
     const data = backup?.data || backup || {};
+    const raw = data?.rawPaths || {};
     const membership = data?.membership || data?.busSeatApp?.membership || data?.[MANAGE_MEMBERS_ROOT] || {};
-    const joinCodes = data?.memberList?.joinCodes || backup?.memberList?.joinCodes || null;
-    return {
-      members: membership?.members ?? data?.members ?? null,
-      pending: membership?.pending ?? data?.pending ?? null,
-      nameIndex: membership?.nameIndex ?? data?.nameIndex ?? null,
-      joinCodes
-    };
+    const legacyMembership = data?.legacyMembership || raw?.legacyMembership || {};
+    const busSeatMembership = raw?.busSeatAppMembership || {};
+
+    const members = mergeObjectsByCode(
+      membership?.members,
+      busSeatMembership?.members,
+      legacyMembership?.members,
+      data?.members,
+      data?.rootMembers,
+      raw?.rootMembers,
+      raw?.busSeatRootMembers,
+      backup?.members
+    );
+
+    const pending = mergeObjectsByCode(
+      membership?.pending,
+      busSeatMembership?.pending,
+      legacyMembership?.pending,
+      data?.pending,
+      data?.rootPending,
+      raw?.rootPending,
+      raw?.busSeatRootPending,
+      backup?.pending
+    );
+
+    const nameIndex =
+      membership?.nameIndex ||
+      busSeatMembership?.nameIndex ||
+      legacyMembership?.nameIndex ||
+      data?.nameIndex ||
+      data?.rootNameIndex ||
+      raw?.rootNameIndex ||
+      raw?.busSeatRootNameIndex ||
+      backup?.nameIndex ||
+      buildNameIndexFromMembers(members);
+
+    const joinCodes =
+      data?.memberList?.joinCodes ||
+      backup?.memberList?.joinCodes ||
+      data?.joinCodes ||
+      backup?.joinCodes ||
+      buildJoinCodesFromMembers(members);
+
+    const memberListMain = data?.memberList?.main || backup?.memberList?.main || null;
+
+    return { members, pending, nameIndex, joinCodes, memberListMain };
   }
 
   async function handleMemberJsonRestoreFile(event) {
@@ -7884,26 +8104,53 @@ function renderAll() {
       const backup = await readMemberJsonFile(file);
       const restored = normalizeRestoredMemberBackup(backup);
       if (!restored.members || typeof restored.members !== 'object') {
-        alert('복구할 회원가입자 members 데이터가 없는 JSON 파일입니다.');
+        alert('복구할 로그인용 members 데이터가 없는 JSON 파일입니다.\n\nmemberList/joinCodes만 있는 백업은 회원관리 표시는 가능하지만 비밀번호 정보가 없어 로그인 복구가 불가능합니다.');
         return;
       }
-      const ok = confirm('현재 회원가입자 정보를 JSON 파일 내용으로 복구할까요?\n\n회원목록/승인대기/nameIndex/회원번호 DB가 백업 파일 기준으로 덮어쓰기 됩니다.');
+      if (!hasLoginPasswordData(restored.members)) {
+        const okNoHash = confirm(
+          '이 JSON 안의 members 데이터에 passwordHash가 보이지 않습니다.\n\n' +
+          '복구하면 회원관리 목록은 복원될 수 있지만, 회원 로그인은 계속 안 될 수 있습니다.\n\n' +
+          '그래도 복구할까요?'
+        );
+        if (!okNoHash) return;
+      }
+      const ok = confirm(
+        '회원 JSON 전체복구를 실행할까요?\n\n' +
+        '- 로그인 DB: members/passwordHash 복구\n' +
+        '- 승인대기 DB: pending 복구\n' +
+        '- 이름색인 DB: nameIndex 복구\n' +
+        '- 회원관리 표시 DB: memberList/joinCodes 복구\n\n' +
+        '현재 회원가입 DB가 백업 파일 기준으로 덮어쓰기 됩니다.'
+      );
       if (!ok) return;
-      await Promise.all([
-        set(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`), restored.members || null),
-        set(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/pending`), restored.pending || null),
-        set(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/nameIndex`), restored.nameIndex || null),
-        restored.joinCodes && typeof restored.joinCodes === 'object'
-          ? set(ref(manageDb, MANAGE_JOIN_CODES_PATH), restored.joinCodes)
-          : Promise.resolve()
-      ]);
+
+      const nameIndex = restored.nameIndex || buildNameIndexFromMembers(restored.members);
+      const joinCodes = restored.joinCodes || buildJoinCodesFromMembers(restored.members);
+      const updates = {
+        'busSeatApp/membership/members': restored.members || null,
+        'busSeatApp/membership/pending': restored.pending || null,
+        'busSeatApp/membership/nameIndex': nameIndex || null,
+        'membership/members': restored.members || null,
+        'membership/pending': restored.pending || null,
+        'membership/nameIndex': nameIndex || null,
+        'members': restored.members || null,
+        'pending': restored.pending || null,
+        'nameIndex': nameIndex || null,
+        'busSeatApp/members': restored.members || null,
+        'busSeatApp/pending': restored.pending || null,
+        'busSeatApp/nameIndex': nameIndex || null,
+        [MANAGE_JOIN_CODES_PATH]: joinCodes || null
+      };
+      if (restored.memberListMain) updates[MANAGE_MEMBER_LIST_MAIN_PATH] = restored.memberListMain;
+      await update(ref(manageDb), updates);
       await forceLoadMemberManageList();
       const btn = q('#memberJsonRestoreBtn');
       if (btn) {
         btn.classList.add('btn-success-flash');
         setTimeout(() => btn.classList.remove('btn-success-flash'), 900);
       }
-      alert('회원 JSON 복구 완료');
+      alert('회원 JSON 전체복구 완료\n\n회원 로그인 DB와 회원관리 DB를 함께 복구했습니다.');
     } catch (error) {
       console.error('회원 JSON 복구 실패:', error);
       alert('회원 JSON 복구 실패: 올바른 회원 백업 JSON 파일인지 확인하세요.');
