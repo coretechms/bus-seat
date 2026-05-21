@@ -1850,6 +1850,51 @@ body.admin-entry-only #adminLoginPanel.hidden{
   #memberManagePanel.member-admin-group-open .member-manage-header-actions{max-width:66% !important;}
 }
 
+
+
+/* 요청 수정: 가입신청 닫기 버튼은 로그인 버튼과 같은 가로 사이즈 */
+#memberJoinCloseBtn {
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+  justify-self: center !important;
+}
+
+/* 요청 수정: 비밀번호 변경 박스 버튼 정렬 및 확인 칸 사이즈 통일 */
+#memberChangeConfirmPasswordInput {
+  width: 158px !important;
+  max-width: 158px !important;
+  justify-self: start !important;
+}
+.member-password-change-actions {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-top: 7px !important;
+  flex-wrap: nowrap !important;
+}
+.member-password-change-actions button {
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+  height: 28px !important;
+  border: 1px solid #999 !important;
+  border-radius: 8px !important;
+  font: inherit !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+}
+#memberChangePasswordSubmitBtn {
+  background: #b45309 !important;
+  color: #fff !important;
+}
+#memberPasswordChangeCloseBtn {
+  background: #f4f4f4 !important;
+  color: #111 !important;
+}
+
 </style>
 </head>
 <body class="membership-locked">
@@ -1890,13 +1935,11 @@ body.admin-entry-only #adminLoginPanel.hidden{
         </div>
         <div class="member-auth-row">
           <label for="memberChangeConfirmPasswordInput">비밀번호확인</label>
-          <div style="display:flex; gap:6px; align-items:center; width:100%;">
-            <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 확인" value="" style="width:104px !important; max-width:104px !important;" inputmode="numeric" pattern="[0-9]*">
-            <button id="memberChangePasswordSubmitBtn" type="button" style="width:48px; height:28px; border:1px solid #999; border-radius:8px; background:#b45309; color:#fff; font:inherit; font-size:12px; font-weight:800; cursor:pointer;">변경</button>
-          </div>
+          <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 확인" value="" inputmode="numeric" pattern="[0-9]*">
         </div>
-        <div style="display:flex; justify-content:center; margin-top:7px;">
-          <button id="memberPasswordChangeCloseBtn" type="button" style="width:92px;">나가기</button>
+        <div class="member-password-change-actions">
+          <button id="memberChangePasswordSubmitBtn" type="button">변경</button>
+          <button id="memberPasswordChangeCloseBtn" type="button">나가기</button>
         </div>
       </div>
 
@@ -2031,7 +2074,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
 
             <div style="display:flex; gap:8px; margin-top:10px;">
               <select id="adminSeat" style="flex:1; min-width:0;"></select>
-              <input id="adminMemberName" type="text" placeholder="이름 수정" style="flex:1;" />
+              <input id="adminMemberName" type="text" placeholder="이름" style="flex:1;" />
               <select id="adminStatus" style="flex:1;">
                 <option value="paid">완납</option>
                 <option value="waiting">입금대기</option>
@@ -3091,10 +3134,10 @@ const firebaseConfig = {
         memberCancelBtn.title = isMemberLocked ? "관리자가 전체 입력을 제한했습니다." : "";
       }
       if (toggleNameEntryLockBtn) {
-        toggleNameEntryLockBtn.textContent = state.nameEntryLocked ? "전체 입력제한 해제" : "전체 입력 제한";
+        toggleNameEntryLockBtn.textContent = state.nameEntryLocked ? "입력 제한 해제" : "입력 제한 설정";
       }
       if (nameEntryLockStatus) {
-        nameEntryLockStatus.innerHTML = `<strong>${state.nameEntryLocked ? "이름 입력 제한됨" : "이름 입력 가능"}</strong>`;
+        nameEntryLockStatus.innerHTML = `<strong>${state.nameEntryLocked ? "이름 입력이 제한됨" : "이름 입력 가능"}</strong>`;
       }
 
       if (memberSeat) {
@@ -6577,7 +6620,7 @@ function renderAll() {
         setAuthMessage("관리자 비밀번호로 로그인되었습니다. 회원 입력 모드로 진입했습니다.", true);
         return;
       }
-      setAuthMessage("이름을 입력하세요.");
+      setAuthMessage("올바른 비밀번호 회원은 이름도 입력하세요.");
       return;
     }
 
@@ -6586,7 +6629,7 @@ function renderAll() {
       return;
     }
     if (!/^[가-힣]/.test(name)) {
-      setAuthMessage("아이디는 한글 이름을 입력해야 합니다.");
+      setAuthMessage("아이디는 한글 이름으로 시작해야 합니다.");
       return;
     }
 
@@ -6594,7 +6637,7 @@ function renderAll() {
 
     const members = await findMembersByName(name);
     if (members.length === 0) {
-      setAuthMessage("회원 목록에서 이름을 찾지 못했습니다.");
+      setAuthMessage("DB에서 이름을 찾지 못했습니다. 회원관리 목록과 로그인 DB 경로가 다르거나 Firebase 읽기 권한이 막혀 있습니다.");
       return;
     }
 
@@ -6706,7 +6749,7 @@ function renderAll() {
     const samePersonMembers = samePhoneMembers.filter((m) => normalizeName(m && m.name) === name);
     if (samePersonMembers.length > 0) {
       const detail = samePersonMembers.map(summarizeMemberForDuplicateCheck).join("\n");
-      const ok = confirm(`동일인으로 보이는 기존 가입 자료가 있습니다.\n\n${detail}\n\n변경된 정보가 있으면 가입신청 등록 하세요.\n계속 추가 등록할까요?`);
+      const ok = confirm(`동일인으로 보이는 기존 가입 자료가 있습니다.\n\n${detail}\n\n변경된 정보가 있으면 새 가입 자료를 추가 등록한 뒤 멤버리스트에서 편집하세요.\n계속 추가 등록할까요?`);
       if (!ok) {
         setAuthMessage("동일인 자료가 있어 가입 추가를 취소했습니다.");
         return;
@@ -6816,7 +6859,7 @@ function renderAll() {
     setAuthMessage("기존 비밀번호 확인중입니다...");
     const members = await findMembersByName(name);
     if (!members.length) {
-      setAuthMessage("등록된 정보가 없습니다. 회원가입을 먼저 진행하세요.");
+      setAuthMessage("등록된 회원이 없습니다. 회원가입을 먼저 진행하세요.");
       return;
     }
 
@@ -6825,7 +6868,7 @@ function renderAll() {
     if (!matches.length) {
       const hasNoPasswordData = members.every((m) => !memberHasLoginPasswordData(m));
       setAuthMessage(hasNoPasswordData
-        ? "회원 이름은 찾았지만 기존 비밀번호 정보가 없어 비밀번호 변경을 할 수 없습니다. 회원백업 복구가 필요합니다."
+        ? "회원 이름은 찾았지만 기존 비밀번호 정보가 없어 비밀번호 변경을 할 수 없습니다. 회원 JSON 복구가 필요합니다."
         : "기존 비밀번호가 맞지 않습니다.");
       return;
     }
