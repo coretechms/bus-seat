@@ -5703,6 +5703,62 @@ function renderAll() {
   const membershipApp = initializeApp(MEMBERSHIP_FIREBASE_CONFIG, "busSeatMembershipGateApp");
   const membershipDb = getDatabase(membershipApp);
 
+  /* 회원 DB 경로 호환 보강
+     24인승 구조 추가/이전 파일 혼용 과정에서 회원 데이터가
+     busSeatApp/membership 또는 membership 아래에 남아 있을 수 있으므로
+     로그인/회원관리 조회는 두 경로를 모두 확인한다. */
+  const MEMBERS_ROOT_CANDIDATES = Array.from(new Set([MEMBERS_ROOT, "membership"]));
+
+  async function getAllMembersFromAnyRoot() {
+    const merged = {};
+    for (const rootPath of MEMBERS_ROOT_CANDIDATES) {
+      try {
+        const snap = await get(ref(membershipDb, `${rootPath}/members`));
+        if (snap.exists()) {
+          const value = snap.val() || {};
+          Object.keys(value).forEach((code) => {
+            if (!merged[code]) merged[code] = { ...(value[code] || {}), code: (value[code] && value[code].code) || code, __memberRoot: rootPath };
+          });
+        }
+      } catch (error) {
+        console.warn("회원 DB 전체 조회 실패:", rootPath, error);
+      }
+    }
+    return merged;
+  }
+
+  async function getMemberRecordByCodeAnyRoot(code) {
+    const key = String(code || "").trim();
+    if (!key) return null;
+    for (const rootPath of MEMBERS_ROOT_CANDIDATES) {
+      try {
+        const snap = await get(ref(membershipDb, `${rootPath}/members/${key}`));
+        if (snap.exists()) {
+          const member = snap.val() || {};
+          return { rootPath, member: { ...member, code: member.code || key, __memberRoot: rootPath } };
+        }
+      } catch (error) {
+        console.warn("회원 DB 코드 조회 실패:", rootPath, key, error);
+      }
+    }
+    return null;
+  }
+
+  async function getNameIndexCodesAnyRoot(nameKey) {
+    const codeSet = new Set();
+    const key = String(nameKey || "").trim();
+    if (!key) return [];
+    for (const rootPath of MEMBERS_ROOT_CANDIDATES) {
+      try {
+        const snap = await get(ref(membershipDb, `${rootPath}/nameIndex/${key}`));
+        if (snap.exists()) Object.keys(snap.val() || {}).forEach((code) => codeSet.add(String(code)));
+      } catch (error) {
+        console.warn("회원 이름 인덱스 조회 실패:", rootPath, key, error);
+      }
+    }
+    return Array.from(codeSet);
+  }
+
   // 회원 로그인/가입 모듈은 별도 type=module 스코프이므로 필요한 공통 함수를 내부에 포함한다.
   // 이 함수들이 없으면 ReferenceError로 로그인/회원가입 버튼 이벤트가 전부 멈춘다.
   function byId(id) { return document.getElementById(id); }
@@ -5768,8 +5824,7 @@ function renderAll() {
   async function findMembersByPhoneDigits(phoneDigits) {
     const target = String(phoneDigits || "");
     if (!target) return [];
-    const allSnap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members`)).catch(() => null);
-    const all = allSnap && allSnap.exists() ? allSnap.val() || {} : {};
+    const all = await getAllMembersFromAnyRoot();
     return Object.keys(all)
       .map((code) => all[code])
       .filter((m) => String((m && m.phoneDigits) || normalizePhone(m && m.phone)) === target);
@@ -5801,20 +5856,17 @@ function renderAll() {
   }
 
   async function memberExists(code) {
-    if (!code) return false;
-    const snap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members/${code}`));
-    return snap.exists();
+    return !!(await getMemberRecordByCodeAnyRoot(code));
   }
 
   async function getExistingMemberCodes() {
     const codeSet = new Set();
-    const [membersSnap, joinCodesSnap] = await Promise.all([
-      get(ref(membershipDb, `${MEMBERS_ROOT}/members`)).catch(() => null),
+    const [members, joinCodesSnap] = await Promise.all([
+      getAllMembersFromAnyRoot(),
       get(ref(membershipDb, MEMBER_LIST_JOIN_CODES_PATH)).catch(() => null)
     ]);
-    const members = membersSnap && membersSnap.exists() ? membersSnap.val() || {} : {};
     const joinCodes = joinCodesSnap && joinCodesSnap.exists() ? joinCodesSnap.val() || {} : {};
-    Object.keys(members).forEach((code) => codeSet.add(String(code)));
+    Object.keys(members || {}).forEach((code) => codeSet.add(String(code)));
     Object.keys(joinCodes).forEach((code) => codeSet.add(String(code)));
     return codeSet;
   }
@@ -6078,23 +6130,25 @@ function renderAll() {
 
   async function findMembersByName(name) {
     const key = makeNameKey(name);
-    const idxSnap = await get(ref(membershipDb, `${MEMBERS_ROOT}/nameIndex/${key}`));
-    const codes = idxSnap.exists() ? Object.keys(idxSnap.val() || {}) : [];
-    const members = [];
+    const membersByCode = new Map();
+
+    // 1) 이름 인덱스가 있는 경우: 모든 호환 경로의 nameIndex를 확인
+    const codes = await getNameIndexCodesAnyRoot(key);
     for (const code of codes) {
-      const snap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members/${code}`));
-      if (snap.exists()) members.push(snap.val());
+      const record = await getMemberRecordByCodeAnyRoot(code);
+      if (record && record.member) membersByCode.set(String(record.member.code || code), record.member);
     }
-    // 구버전/초기 데이터 대비: 인덱스가 없으면 전체 검색
-    if (members.length === 0) {
-      const allSnap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members`));
-      const all = allSnap.val() || {};
-      Object.keys(all).forEach((code) => {
-        const m = all[code];
-        if (normalizeName(m && m.name) === normalizeName(name)) members.push(m);
-      });
-    }
-    return members;
+
+    // 2) 인덱스가 없거나 누락된 경우: 모든 회원 DB를 전체 검색
+    const all = await getAllMembersFromAnyRoot();
+    Object.keys(all).forEach((code) => {
+      const m = all[code];
+      if (normalizeName(m && m.name) === normalizeName(name)) {
+        membersByCode.set(String((m && m.code) || code), { ...m, code: (m && m.code) || code });
+      }
+    });
+
+    return Array.from(membersByCode.values());
   }
 
   async function loginMember() {
@@ -6634,8 +6688,7 @@ function renderAll() {
     const listEl = byId("memberApprovalList");
     if (!listEl) return;
     listEl.innerHTML = '<div class="member-approval-empty">회원 목록 불러오는 중...</div>';
-    const snap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members`));
-    const all = snap.val() || {};
+    const all = await getAllMembersFromAnyRoot();
     const members = Object.values(all).sort((a, b) => {
       // 회원관리 정렬:
       // 1) 신규/가입대기 회원을 항상 상단에 표시
@@ -6700,12 +6753,13 @@ function renderAll() {
   }
 
   async function updateMemberApprovalStatus(code, action) {
-    const snap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members/${code}`));
-    if (!snap.exists()) {
+    const record = await getMemberRecordByCodeAnyRoot(code);
+    if (!record || !record.member) {
       setAuthMessage("해당 회원을 찾을 수 없습니다.");
       return;
     }
-    const member = snap.val();
+    const memberRootForUpdate = record.rootPath || MEMBERS_ROOT;
+    const member = record.member;
     const now = Date.now();
     const updates = {};
     if (action === "approve") {
@@ -6718,7 +6772,7 @@ function renderAll() {
         approvedBy: "membership-admin",
         updatedAt: now
       });
-      updates[`${MEMBERS_ROOT}/pending/${code}`] = null;
+      updates[`${memberRootForUpdate}/pending/${code}`] = null;
     } else if (action === "block") {
       Object.assign(member, {
         approved: false,
@@ -6737,7 +6791,7 @@ function renderAll() {
         apps: { ...(member.apps || {}), busSeat: true, tripSchedule: true, busRute: true, memberList: nextAdmin },
         updatedAt: now
       });
-      updates[`${MEMBERS_ROOT}/pending/${code}`] = null;
+      updates[`${memberRootForUpdate}/pending/${code}`] = null;
     } else if (action === "withdraw") {
       Object.assign(member, {
         approved: false,
@@ -6750,18 +6804,18 @@ function renderAll() {
         withdrawnBy: "membership-admin",
         updatedAt: now
       });
-      updates[`${MEMBERS_ROOT}/pending/${code}`] = null;
+      updates[`${memberRootForUpdate}/pending/${code}`] = null;
     } else if (action === "delete") {
-      updates[`${MEMBERS_ROOT}/members/${code}`] = null;
-      updates[`${MEMBERS_ROOT}/pending/${code}`] = null;
-      if (member?.name) updates[`${MEMBERS_ROOT}/nameIndex/${makeNameKey(member.name)}/${code}`] = null;
+      updates[`${memberRootForUpdate}/members/${code}`] = null;
+      updates[`${memberRootForUpdate}/pending/${code}`] = null;
+      if (member?.name) updates[`${memberRootForUpdate}/nameIndex/${makeNameKey(member.name)}/${code}`] = null;
       updates[`${MEMBER_LIST_JOIN_CODES_PATH}/${code}`] = null;
       await update(ref(membershipDb), updates);
       setAuthMessage(`${member.name || code} / ${code} 삭제 완료`, true);
       await loadApprovalMembers();
       return;
     }
-    updates[`${MEMBERS_ROOT}/members/${code}`] = member;
+    updates[`${memberRootForUpdate}/members/${code}`] = member;
     updates[`${MEMBER_LIST_JOIN_CODES_PATH}/${code}`] = {
       code: member.code,
       name: member.name,
