@@ -2128,7 +2128,6 @@ body.admin-entry-only #adminLoginPanel.hidden{
             <div style="border:1px solid #cfd8ff; border-radius:16px; padding:10px; background:#f7f9ff;">
               <div class="member-manage-topbar">
                 <div class="member-manage-title-search">
-                  <div class="member-manage-title-text">회원관리</div>
                   <input id="memberApprovalSearchInput" type="search" autocomplete="off" placeholder="이름검색" aria-label="회원 이름 검색" />
                 </div>
                 <div class="member-manage-header-actions">
@@ -7821,7 +7820,7 @@ function renderAll() {
   function makeMemberJsonBackupFileName() {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
-    return `회원로그인백업_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+    return `회원가입백업_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
   }
 
   async function prepareMemberBackupSaveHandle() {
@@ -8095,6 +8094,35 @@ function renderAll() {
     return { members, pending, nameIndex, joinCodes, memberListMain };
   }
 
+  function chooseMemberRestoreMode(restored) {
+    const hasMembers = !!(restored && restored.members && typeof restored.members === 'object' && Object.keys(restored.members).length);
+    const hasJoinCodes = !!(restored && restored.joinCodes && typeof restored.joinCodes === 'object' && Object.keys(restored.joinCodes).length);
+    const text =
+      '복구 방식을 선택하세요.\n\n' +
+      '1 = 전체복구\n' +
+      '    members/passwordHash + pending + nameIndex + memberList/joinCodes 모두 복구\n\n' +
+      '2 = 로그인DB만 복구\n' +
+      '    members/passwordHash + pending + nameIndex만 복구\n\n' +
+      '3 = 표시DB만 복구\n' +
+      '    memberList/joinCodes만 복구\n\n' +
+      `현재 JSON 상태: 로그인DB ${hasMembers ? '있음' : '없음'} / 표시DB ${hasJoinCodes ? '있음' : '없음'}\n\n` +
+      '취소하려면 빈칸 또는 취소를 누르세요.';
+    const choice = prompt(text, '1');
+    const value = String(choice || '').trim();
+    if (!value) return null;
+    if (value === '1' || value === '전체' || value === '전체복구') return 'full';
+    if (value === '2' || value === '로그인' || value === '로그인DB' || value === '로그인DB만') return 'login';
+    if (value === '3' || value === '표시' || value === '표시DB' || value === '표시DB만') return 'display';
+    alert('복구 방식은 1, 2, 3 중에서 선택해야 합니다.');
+    return null;
+  }
+
+  function describeMemberRestoreMode(mode) {
+    if (mode === 'login') return '로그인DB만 복구';
+    if (mode === 'display') return '표시DB만 복구';
+    return '전체복구';
+  }
+
   async function handleMemberJsonRestoreFile(event) {
     const input = event.target;
     const file = input?.files?.[0];
@@ -8103,46 +8131,75 @@ function renderAll() {
     try {
       const backup = await readMemberJsonFile(file);
       const restored = normalizeRestoredMemberBackup(backup);
-      if (!restored.members || typeof restored.members !== 'object') {
-        alert('복구할 로그인용 members 데이터가 없는 JSON 파일입니다.\n\nmemberList/joinCodes만 있는 백업은 회원관리 표시는 가능하지만 비밀번호 정보가 없어 로그인 복구가 불가능합니다.');
+      const preselectedMode = window.__memberJsonRestoreSelectedMode || null;
+      window.__memberJsonRestoreSelectedMode = null;
+      const restoreMode = preselectedMode || chooseMemberRestoreMode(restored);
+      if (!restoreMode) return;
+
+      const hasMembers = !!(restored.members && typeof restored.members === 'object' && Object.keys(restored.members).length);
+      const hasJoinCodes = !!(restored.joinCodes && typeof restored.joinCodes === 'object' && Object.keys(restored.joinCodes).length);
+
+      if ((restoreMode === 'full' || restoreMode === 'login') && !hasMembers) {
+        alert('선택한 복구 방식에는 로그인용 members 데이터가 필요합니다.\n\n이 JSON에는 members/passwordHash 데이터가 없어 로그인DB 복구를 할 수 없습니다.\n표시DB만 복구하려면 복구 방식 3번을 선택하세요.');
         return;
       }
-      if (!hasLoginPasswordData(restored.members)) {
+      if (restoreMode === 'display' && !hasJoinCodes && !hasMembers) {
+        alert('표시DB로 복구할 memberList/joinCodes 데이터가 없습니다.');
+        return;
+      }
+
+      if ((restoreMode === 'full' || restoreMode === 'login') && !hasLoginPasswordData(restored.members)) {
         const okNoHash = confirm(
           '이 JSON 안의 members 데이터에 passwordHash가 보이지 않습니다.\n\n' +
-          '복구하면 회원관리 목록은 복원될 수 있지만, 회원 로그인은 계속 안 될 수 있습니다.\n\n' +
+          '복구하면 회원 코드/이름은 복원될 수 있지만, 회원 로그인은 계속 안 될 수 있습니다.\n\n' +
           '그래도 복구할까요?'
         );
         if (!okNoHash) return;
       }
+
+      const modeLabel = describeMemberRestoreMode(restoreMode);
       const ok = confirm(
-        '회원 JSON 전체복구를 실행할까요?\n\n' +
-        '- 로그인 DB: members/passwordHash 복구\n' +
-        '- 승인대기 DB: pending 복구\n' +
-        '- 이름색인 DB: nameIndex 복구\n' +
-        '- 회원관리 표시 DB: memberList/joinCodes 복구\n\n' +
-        '현재 회원가입 DB가 백업 파일 기준으로 덮어쓰기 됩니다.'
+        `${modeLabel}를 실행할까요?\n\n` +
+        (restoreMode === 'full'
+          ? '- 로그인 DB: members/passwordHash 복구\n- 승인대기 DB: pending 복구\n- 이름색인 DB: nameIndex 복구\n- 회원관리 표시 DB: memberList/joinCodes 복구\n\n'
+          : restoreMode === 'login'
+            ? '- 로그인 DB: members/passwordHash 복구\n- 승인대기 DB: pending 복구\n- 이름색인 DB: nameIndex 복구\n- 회원관리 표시 DB는 건드리지 않음\n\n'
+            : '- 회원관리 표시 DB: memberList/joinCodes 복구\n- 로그인 DB는 건드리지 않음\n\n') +
+        '현재 해당 DB 경로가 백업 파일 기준으로 덮어쓰기 됩니다.'
       );
       if (!ok) return;
 
       const nameIndex = restored.nameIndex || buildNameIndexFromMembers(restored.members);
       const joinCodes = restored.joinCodes || buildJoinCodesFromMembers(restored.members);
-      const updates = {
-        'busSeatApp/membership/members': restored.members || null,
-        'busSeatApp/membership/pending': restored.pending || null,
-        'busSeatApp/membership/nameIndex': nameIndex || null,
-        'membership/members': restored.members || null,
-        'membership/pending': restored.pending || null,
-        'membership/nameIndex': nameIndex || null,
-        'members': restored.members || null,
-        'pending': restored.pending || null,
-        'nameIndex': nameIndex || null,
-        'busSeatApp/members': restored.members || null,
-        'busSeatApp/pending': restored.pending || null,
-        'busSeatApp/nameIndex': nameIndex || null,
-        [MANAGE_JOIN_CODES_PATH]: joinCodes || null
-      };
-      if (restored.memberListMain) updates[MANAGE_MEMBER_LIST_MAIN_PATH] = restored.memberListMain;
+      const updates = {};
+
+      if (restoreMode === 'full' || restoreMode === 'login') {
+        Object.assign(updates, {
+          'busSeatApp/membership/members': restored.members || null,
+          'busSeatApp/membership/pending': restored.pending || null,
+          'busSeatApp/membership/nameIndex': nameIndex || null,
+          'membership/members': restored.members || null,
+          'membership/pending': restored.pending || null,
+          'membership/nameIndex': nameIndex || null,
+          'members': restored.members || null,
+          'pending': restored.pending || null,
+          'nameIndex': nameIndex || null,
+          'busSeatApp/members': restored.members || null,
+          'busSeatApp/pending': restored.pending || null,
+          'busSeatApp/nameIndex': nameIndex || null
+        });
+      }
+
+      if (restoreMode === 'full' || restoreMode === 'display') {
+        updates[MANAGE_JOIN_CODES_PATH] = joinCodes || null;
+        if (restored.memberListMain) updates[MANAGE_MEMBER_LIST_MAIN_PATH] = restored.memberListMain;
+      }
+
+      if (!Object.keys(updates).length) {
+        alert('복구할 데이터가 없습니다.');
+        return;
+      }
+
       await update(ref(manageDb), updates);
       await forceLoadMemberManageList();
       const btn = q('#memberJsonRestoreBtn');
@@ -8150,15 +8207,63 @@ function renderAll() {
         btn.classList.add('btn-success-flash');
         setTimeout(() => btn.classList.remove('btn-success-flash'), 900);
       }
-      alert('회원 JSON 전체복구 완료\n\n회원 로그인 DB와 회원관리 DB를 함께 복구했습니다.');
+      alert(`${modeLabel} 완료`);
     } catch (error) {
       console.error('회원 JSON 복구 실패:', error);
       alert('회원 JSON 복구 실패: 올바른 회원 백업 JSON 파일인지 확인하세요.');
     }
   }
 
-  function handleMemberJsonRestoreClick() {
-    q('#memberJsonRestoreFileInput')?.click();
+  function showMemberRestoreModeDialogBeforeFile() {
+    return new Promise((resolve) => {
+      const old = document.getElementById('memberRestoreModeChoiceOverlay');
+      if (old) old.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'memberRestoreModeChoiceOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;padding:14px;font-family:Arial,\"Malgun Gothic\",sans-serif;';
+      overlay.innerHTML = `
+        <div style="width:min(420px,calc(100vw - 24px));background:#fff;border-radius:18px;border:1px solid #d4d4d4;box-shadow:0 12px 36px rgba(0,0,0,.24);padding:16px;text-align:center;">
+          <div style="font-size:16px;font-weight:900;color:#1428c8;margin-bottom:8px;">복구 방식 선택</div>
+          <div style="font-size:12px;line-height:1.55;color:#333;margin-bottom:12px;text-align:left;">
+            JSON 파일을 선택하기 전에 복구 방식을 먼저 선택하세요.<br>
+            <b>전체복구</b>: 로그인DB + 회원관리 표시DB 모두 복구<br>
+            <b>로그인DB만</b>: members/passwordHash, nameIndex 중심 복구<br>
+            <b>표시DB만</b>: memberList/joinCodes만 복구
+          </div>
+          <div style="display:grid;grid-template-columns:1fr;gap:7px;">
+            <button data-restore-mode="full" style="height:34px;border-radius:10px;border:1px solid #1428c8;background:#1428c8;color:#fff;font-weight:900;cursor:pointer;">전체복구</button>
+            <button data-restore-mode="login" style="height:34px;border-radius:10px;border:1px solid #0b7a28;background:#0b7a28;color:#fff;font-weight:900;cursor:pointer;">로그인DB만 복구</button>
+            <button data-restore-mode="display" style="height:34px;border-radius:10px;border:1px solid #999;background:#f4f4f4;color:#111;font-weight:900;cursor:pointer;">표시DB만 복구</button>
+            <button data-restore-mode="cancel" style="height:30px;border-radius:10px;border:1px solid #999;background:#fff;color:#555;font-weight:800;cursor:pointer;">취소</button>
+          </div>
+        </div>`;
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+          overlay.remove();
+          resolve(null);
+          return;
+        }
+        const btn = event.target.closest('button[data-restore-mode]');
+        if (!btn) return;
+        const mode = btn.getAttribute('data-restore-mode');
+        overlay.remove();
+        resolve(mode === 'cancel' ? null : mode);
+      });
+      document.body.appendChild(overlay);
+    });
+  }
+
+  async function handleMemberJsonRestoreClick() {
+    const mode = await showMemberRestoreModeDialogBeforeFile();
+    if (!mode) return;
+    window.__memberJsonRestoreSelectedMode = mode;
+    const input = q('#memberJsonRestoreFileInput');
+    if (!input) {
+      alert('복구 파일 선택 입력창을 찾지 못했습니다.');
+      return;
+    }
+    input.value = '';
+    input.click();
   }
 
   async function forceLoadMemberManageList() {
@@ -8526,6 +8631,10 @@ function renderAll() {
   }
 
   window.__loadMembershipApprovalMembers = forceLoadMemberManageList;
+
+  // 복구 파일 선택 후 실제 복구가 실행되도록 change 이벤트를 명시적으로 연결한다.
+  q('#memberJsonRestoreFileInput')?.addEventListener('change', handleMemberJsonRestoreFile);
+
   window.__forceLoadMemberManageList = forceLoadMemberManageList;
 
   document.addEventListener('click', (event) => {
