@@ -5,6 +5,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>탑승좌석 실시간 공유</title>
+  <script>
+    /* 새로고침 순간 회원 로그인 화면이 깜빡이지 않도록 관리자/회원관리 세션을 HTML 로딩 초기에 감지 */
+    (function () {
+      try {
+        const savedSession = sessionStorage.getItem("bus-seat-approved-member-session-v1");
+        const savedMode = sessionStorage.getItem("bus-seat-admin-refresh-mode-v1");
+        if (savedSession && (savedMode === "admin" || savedMode === "memberManage")) {
+          document.documentElement.classList.add("restore-admin-session");
+        }
+      } catch (error) {}
+    })();
+  </script>
   <style>
     :root {
       --bg: #dcdcdc;
@@ -1053,6 +1065,15 @@ body.membership-locked .app {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+/* 새로고침 복구 중에는 회원 로그인 게이트를 보여주지 않고, 기존 관리자/회원관리 화면만 유지 */
+html.restore-admin-session body.membership-locked .member-auth-gate {
+  display: none !important;
+}
+html.restore-admin-session body.membership-locked .app {
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
 .member-auth-gate {
   position: fixed;
   inset: 0;
@@ -1587,6 +1608,29 @@ body.admin-entry-only #adminLoginPanel.hidden{
 }
 
 
+/* 요청 수정: 회원관리 통계 줄 높이/간격 축소 + 승인대기 빨강 표시 */
+.member-approval-summary-line{
+  background:#eef5ff !important;
+  border-radius:8px !important;
+  margin-bottom:3px !important;
+  padding:2px 6px !important;
+  min-height:18px !important;
+  line-height:1.15 !important;
+  font-size:10px !important;
+  font-weight:800 !important;
+}
+.member-approval-summary-line .pending-count.has-pending{
+  color:#d80000 !important;
+  font-weight:900 !important;
+}
+.member-approval-summary-line .duplicate-join-badge{
+  margin-left:4px !important;
+  padding:0 5px !important;
+  font-size:10px !important;
+  line-height:1.2 !important;
+}
+
+
 /* 요청 수정: 회원관리 모드에서 승인완료 회원은 승인 버튼 숨김 */
 .member-approval-card.approved-member .member-approval-card-actions .approve {
   display: none !important;
@@ -1764,7 +1808,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
             <div style="display:grid; grid-template-columns:auto 1fr 1fr auto; gap:8px; margin-top:6px; align-items:center;">
               <button class="btn btn-outline" id="captureBoardBtn" type="button" style="width:auto;  height:28px; padding:0 10px; font-size:12px; white-space:nowrap;">캡처</button>
               <button class="btn btn-outline" id="memberListBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">회원정보</button>
-              <input id="adminPasswordInput" type="password" placeholder="비밀번호 입력" style="width:100%; height:28px;" inputmode="numeric" pattern="[0-9]*">
+              <input id="adminPasswordInput" type="password" placeholder="비밀번호" style="width:100%; height:28px;" inputmode="numeric" pattern="[0-9]*">
               <button class="btn btn-danger" id="preLoginResetPasswordBtn" type="button" style="width:78px; height:24px; font-size:10px; padding:0 6px; border-radius:12px; white-space:nowrap;">비번초기화</button>
             </div>
           </div>
@@ -1982,6 +2026,7 @@ const firebaseConfig = {
 
     const DEFAULT_ADMIN_PASSWORD = "1234";
     const DEFAULT_SYSTEM_ADMIN_PASSWORD = "1234";
+    const ADMIN_REFRESH_MODE_SESSION_KEY = "bus-seat-admin-refresh-mode-v1";
     const RECOVERY_CODE_STORAGE_KEY = "bus-seat-recovery-code-hash-v1";
     const ADMIN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-admin-password-hash-v1";
     const TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-trip-plan-password-hash-v1";
@@ -4146,6 +4191,7 @@ function renderAll() {
       }
 
       state.isAdminAuthenticated = true;
+      saveAdminRefreshMode("admin");
       const pwInput = byId("adminPasswordInput");
       if (pwInput) pwInput.value = "";
       renderAll();
@@ -4171,6 +4217,7 @@ function renderAll() {
     function handleAdminLogout() {
       state.isAdminAuthenticated = false;
       state.isSystemAdminAuthenticated = false;
+      try { sessionStorage.removeItem(ADMIN_REFRESH_MODE_SESSION_KEY); } catch (error) {}
       state.mode = "member";
       state.adminSeat = "";
       state.editingSeat = null;
@@ -4663,12 +4710,32 @@ function renderAll() {
 
 
 
+    function saveAdminRefreshMode(nextMode) {
+      try {
+        if (nextMode === "admin" || nextMode === "memberManage") {
+          sessionStorage.setItem(ADMIN_REFRESH_MODE_SESSION_KEY, nextMode);
+        } else {
+          sessionStorage.removeItem(ADMIN_REFRESH_MODE_SESSION_KEY);
+        }
+      } catch (error) {}
+    }
+
+    function getAdminRefreshMode() {
+      try {
+        const saved = sessionStorage.getItem(ADMIN_REFRESH_MODE_SESSION_KEY);
+        return (saved === "admin" || saved === "memberManage") ? saved : "member";
+      } catch (error) {
+        return "member";
+      }
+    }
+
     function switchMode(nextMode) {
       if (nextMode !== "member" && nextMode !== "admin" && nextMode !== "memberManage") return;
       if (nextMode === "memberManage" && !state.isAdminAuthenticated) {
         alert("회원관리는 관리자 로그인 후 사용할 수 있습니다.");
         nextMode = "admin";
       }
+      saveAdminRefreshMode(nextMode);
       if (state.mode === nextMode) return;
       state.mode = nextMode;
       state.editingSeat = null;
@@ -4728,12 +4795,13 @@ function renderAll() {
       if (normalizedInput === String(state.adminPassword || DEFAULT_ADMIN_PASSWORD).trim()) return true;
       return false;
     };
-    window.__busSeatEnterAdminFromMembership = function() {
-      // 회원 로그인 화면에서 관리자 비밀번호로 진입해도 시작 화면은 반드시 회원 입력 모드로 연다.
-      // 관리자 권한만 부여하고, 시스템관리자 모드는 반드시 [시스템관리자] 버튼에서 별도 인증 후 진입한다.
+    window.__busSeatEnterAdminFromMembership = function(desiredMode) {
+      // 관리자 권한은 유지하되, 새로고침 후에는 직전 관리자/회원관리 화면을 그대로 복구한다.
+      // 저장된 모드가 없을 때만 기본 회원 입력 화면으로 연다.
       state.isAdminAuthenticated = true;
       state.isSystemAdminAuthenticated = false;
-      switchMode("member");
+      const restoreMode = (desiredMode === "admin" || desiredMode === "memberManage") ? desiredMode : getAdminRefreshMode();
+      switchMode(restoreMode);
       renderAll();
     };
 
@@ -6370,7 +6438,12 @@ function renderAll() {
           unlockApp(session);
           if (session.adminAccess || session.role === "admin" || session.code === "ADMIN") {
             if (typeof window.__busSeatEnterAdminFromMembership === "function") {
-              window.__busSeatEnterAdminFromMembership();
+              let restoreMode = "member";
+              try {
+                const savedMode = sessionStorage.getItem("bus-seat-admin-refresh-mode-v1");
+                restoreMode = (savedMode === "admin" || savedMode === "memberManage") ? savedMode : "member";
+              } catch (error) {}
+              window.__busSeatEnterAdminFromMembership(restoreMode);
             } else if (typeof window.__busSeatSwitchMode === "function") {
               window.__busSeatSwitchMode("member");
             }
@@ -6385,6 +6458,7 @@ function renderAll() {
       }
     }
 
+    try { document.documentElement.classList.remove("restore-admin-session"); } catch (_) {}
     document.body.classList.add("membership-locked");
     const gate = byId("memberAuthGate");
     if (gate) gate.classList.remove("is-hidden");
@@ -6402,6 +6476,7 @@ function renderAll() {
     try {
       localStorage.removeItem(LOGIN_SESSION_KEY);
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
+      sessionStorage.removeItem("bus-seat-admin-refresh-mode-v1");
     } catch (e) {}
   }
 
@@ -6567,12 +6642,14 @@ function renderAll() {
       const adminText = m.adminAccess ? "관리자ON" : "관리자OFF";
       const approvedCardClass = (m.approved && m.status === "active") ? " approved-member" : "";
       const duplicateJoin = !!(String(m?.name || "").replace(/\s+/g, "").trim() && approvedNamesForDuplicateJoin.has(String(m?.name || "").replace(/\s+/g, "").trim()) && (m.status === "pending" || !m.approved));
+      const resultText = joinResultLabel(m);
+      const resultSegment = resultText === "승인" ? "" : ` · 승인결과: ${escapeHtml(resultText)}`;
       return `
         <div class="member-approval-card${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${escapeHtml(m.code)}" data-member-name="${escapeHtml(m.name || '')}">
           <div class="member-approval-card-title">${escapeHtml(m.name)} / ${escapeHtml(m.code)} / ${escapeHtml(statusLabelForMember(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
           <div>성별: ${escapeHtml(m.gender || '-')} · 출생년도: ${escapeHtml(m.birthYear || '-')} · 거주지: ${escapeHtml(m.dong || '-')}</div>
           <div>전화: ${escapeHtml(m.phone || '-')}</div>
-          <div>역할: ${escapeHtml(m.role || '-')} · ${adminText} · 가입일: ${escapeHtml(formatDateTime(m.createdAt))} · 승인결과: ${escapeHtml(joinResultLabel(m))}</div>
+          <div>등급: ${escapeHtml(m.role || '-')} · ${adminText} · 가입일: ${escapeHtml(formatDateTime(m.createdAt))}${resultSegment}</div>
           <div class="member-approval-card-actions">
             ${(m.approved && m.status === "active") ? "" : `<button class="approve" data-member-action="approve" data-code="${escapeHtml(m.code)}">승인</button>`}
             <button class="block" data-member-action="block" data-code="${escapeHtml(m.code)}">차단</button>
@@ -7094,19 +7171,21 @@ function renderAll() {
     const duplicateJoinNames = buildDuplicateJoinNameSet(members);
     const duplicateJoinCount = members.filter(m => isDuplicateJoinMember(m, duplicateJoinNames)).length;
     list.innerHTML = `
-      <div class="member-approval-empty" style="background:#eef5ff;border-radius:10px;margin-bottom:6px;">
-        승인완료 ${approvedCount}명 / 승인대기 ${pendingCount}명 / 전체 ${members.length}명
+      <div class="member-approval-empty member-approval-summary-line">
+        <span>승인완료 ${approvedCount}명</span> / <span class="pending-count ${pendingCount > 0 ? 'has-pending' : ''}">승인대기 ${pendingCount}명</span> / <span>전체 ${members.length}명</span>
         ${duplicateJoinCount ? `<span class="duplicate-join-badge">중복가입 ${duplicateJoinCount}명</span>` : ''}
       </div>
       ${members.map((m) => {
         const approvedCardClass = (m.approved && m.status === 'active') ? ' approved-member' : '';
         const duplicateJoin = isDuplicateJoinMember(m, duplicateJoinNames);
+        const resultText = joinResultLabel(m);
+        const resultSegment = resultText === "승인" ? "" : ` · 승인결과: ${esc(resultText)}`;
         return `
         <div class="member-approval-card${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${esc(m.code)}" data-member-name="${esc(m.name || '')}">
           <div class="member-approval-card-title">${esc(m.name || '-')} / ${esc(m.code)} / ${esc(label(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
           <div>성별: ${esc(m.gender || '-')} · 출생년도: ${esc(m.birthYear || '-')} · 거주지: ${esc(m.dong || '-')}</div>
           <div>전화: ${esc(m.phone || '-')}</div>
-          <div>역할: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자ON' : '관리자OFF'} · 가입일: ${esc(fmt(m.createdAt))} · 승인결과: ${esc(joinResultLabel(m))}</div>
+          <div>역할: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자ON' : '관리자OFF'} · 가입일: ${esc(fmt(m.createdAt))}${resultSegment}</div>
           <div class="member-approval-card-actions">
             ${(m.approved && m.status === "active") ? "" : `<button class="approve" data-forced-member-action="approve" data-code="${esc(m.code)}">승인</button>`}
             <button class="block" data-forced-member-action="block" data-code="${esc(m.code)}">차단</button>
