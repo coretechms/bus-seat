@@ -1543,6 +1543,18 @@ body.admin-entry-only #adminLoginPanel.hidden{
   }
 }
 
+
+/* 요청 수정: 회원관리 모드에서 승인완료 회원은 승인 버튼 숨김 */
+.member-approval-card.approved-member .member-approval-card-actions .approve {
+  display: none !important;
+}
+
+
+/* 요청 수정: 회원관리 승인완료 회원은 승인 버튼 숨김 */
+.member-approval-card.approved-member .member-approval-card-actions .approve,
+.member-approval-card-actions.approved-member-actions .approve {
+  display: none !important;
+}
 </style>
 </head>
 <body class="membership-locked">
@@ -5543,6 +5555,7 @@ function renderAll() {
 
   const MEMBERS_ROOT = "busSeatApp/membership";
   const MEMBER_LIST_JOIN_CODES_PATH = "memberList/joinCodes";
+  const MEMBER_LIST_MAIN_PATH = "memberList/main";
   const LOGIN_SESSION_KEY = "bus-seat-approved-member-session-v1";
   let currentApprovedMemberSession = null;
 
@@ -5719,6 +5732,205 @@ function renderAll() {
     };
     await update(ref(membershipDb), { [`${MEMBER_LIST_JOIN_CODES_PATH}/${member.code}`]: payload });
   }
+
+
+  /* 회원가입/승인 정보 → 기존 멤버리스트(memberList/main)에 추가 병합
+     중요: memberList/main 전체를 새 가입자 목록으로 재작성하지 않고,
+     기존 표 데이터를 읽은 뒤 회원UID 또는 이름+전화번호 기준으로 한 행만 추가/갱신한다. */
+  const MEMBER_LIST_TABLE_HEADERS = ["직 책","이 름","성별","출생년도","주민번호","연락처","비상연락처<br>( 가족 )","구","거주지","집","배우자","닉네임","버스타는곳","참석  ○ △ Χ","연관검색","연관검색","연관검색","전임직책","전임총무","가입:승인","회원UID","가입일","승인결과"];
+  const MEMBER_LIST_TABLE_WIDTHS = [72,78,45,57,78,118,118,54,86,133,72,94,141,86,70,110,62,70,94,86,170,94,86];
+
+  function makeMemberListCell(value = "", tag = "td") {
+    return {
+      html: String(value || ""),
+      tag,
+      className: tag === "th" ? "header-cell" : "",
+      style: tag === "th"
+        ? "font-weight:700;font-size:12px;text-align:center;vertical-align:middle;white-space:nowrap;overflow-wrap:normal;word-break:keep-all;"
+        : "font-size:12px;text-align:center;vertical-align:middle;white-space:nowrap;overflow-wrap:normal;word-break:keep-all;"
+    };
+  }
+
+  function makeDefaultMemberListData() {
+    const rows = [];
+    rows.push(MEMBER_LIST_TABLE_HEADERS.map((h) => makeMemberListCell(h, "th")));
+    for (let i = 0; i < 20; i += 1) rows.push(MEMBER_LIST_TABLE_HEADERS.map(() => makeMemberListCell("")));
+    return { cols: MEMBER_LIST_TABLE_WIDTHS.map((w) => `width:${w}px`), rows };
+  }
+
+  function stripMemberListHtml(value) {
+    const div = document.createElement("div");
+    div.innerHTML = String(value || "");
+    return String(div.textContent || div.innerText || "").trim();
+  }
+
+  function normalizeMemberListLabel(value) {
+    return stripMemberListHtml(value).replace(/\s+/g, "");
+  }
+
+  function normalizeMemberListPhone(value) {
+    return String(value || "").replace(/\D/g, "");
+  }
+
+  function formatMemberListPhone344(value) {
+    const digits = normalizeMemberListPhone(value).slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7, 11)}`;
+  }
+
+  function formatMemberListDate(ms) {
+    if (!ms) return "";
+    const d = new Date(Number(ms));
+    if (Number.isNaN(d.getTime())) return "";
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function memberListJoinResult(member) {
+    const status = String(member?.status || "");
+    if (status === "active") return member?.adminAccess ? "관리자" : "승인";
+    if (status === "blocked") return "차단";
+    if (status === "withdrawn") return "탈퇴";
+    if (status === "rejected") return "거절";
+    if (status === "pending") return "가입대기";
+    return member?.approved ? "승인" : "가입대기";
+  }
+
+  function normalizeMemberListMainPayload(rawValue) {
+    const payload = rawValue && typeof rawValue === "object" ? { ...rawValue } : {};
+    let data = payload.data && typeof payload.data === "object" ? payload.data : payload;
+    if (!data || !Array.isArray(data.rows)) data = makeDefaultMemberListData();
+    if (!Array.isArray(data.cols)) data.cols = MEMBER_LIST_TABLE_WIDTHS.map((w) => `width:${w}px`);
+    if (!Array.isArray(data.rows) || !data.rows.length) data.rows = makeDefaultMemberListData().rows;
+    data.rows = data.rows.map((row, rIdx) => {
+      const sourceRow = Array.isArray(row) ? row : [];
+      const nextRow = [];
+      const colCount = Math.max(MEMBER_LIST_TABLE_HEADERS.length, data.cols.length || 0, sourceRow.length || 0);
+      for (let c = 0; c < colCount; c += 1) {
+        const cell = sourceRow[c] && typeof sourceRow[c] === "object" ? { ...sourceRow[c] } : makeMemberListCell("", rIdx === 0 ? "th" : "td");
+        if (cell.html == null) cell.html = "";
+        if (!cell.tag) cell.tag = rIdx === 0 ? "th" : "td";
+        if (rIdx === 0) cell.className = "header-cell";
+        nextRow.push(cell);
+      }
+      return nextRow;
+    });
+    return { payload, data };
+  }
+
+  function getMemberListHeaderIndex(data, label, fallback) {
+    const header = data.rows?.[0] || [];
+    const target = normalizeMemberListLabel(label);
+    for (let i = 0; i < header.length; i += 1) {
+      const text = normalizeMemberListLabel(header[i]?.html || "");
+      if (text === target || text.includes(target)) return i;
+    }
+    return fallback;
+  }
+
+  function getMemberListCellText(row, index) {
+    if (!row || index < 0 || !row[index]) return "";
+    return stripMemberListHtml(row[index].html || "");
+  }
+
+  function setMemberListCellText(row, index, value) {
+    if (!row || index < 0) return;
+    while (row.length <= index) row.push(makeMemberListCell(""));
+    row[index].html = String(value || "");
+    if (!row[index].tag) row[index].tag = "td";
+  }
+
+  function findMemberListRowByUid(data, uidIdx, code) {
+    const key = String(code || "").trim();
+    if (!key) return null;
+    return (data.rows || []).slice(1).find((row) => getMemberListCellText(row, uidIdx) === key) || null;
+  }
+
+  function findMemberListRowByNamePhone(data, nameIdx, phoneIdx, name, phone) {
+    const nameKey = normalizeMemberListLabel(name);
+    const phoneKey = normalizeMemberListPhone(phone);
+    if (!nameKey || !phoneKey) return null;
+    return (data.rows || []).slice(1).find((row) => {
+      return normalizeMemberListLabel(getMemberListCellText(row, nameIdx)) === nameKey &&
+        normalizeMemberListPhone(getMemberListCellText(row, phoneIdx)) === phoneKey;
+    }) || null;
+  }
+
+  function findFirstEmptyMemberListRow(data, nameIdx, phoneIdx, uidIdx) {
+    return (data.rows || []).slice(1).find((row) => {
+      return !getMemberListCellText(row, nameIdx) && !getMemberListCellText(row, phoneIdx) && !getMemberListCellText(row, uidIdx);
+    }) || null;
+  }
+
+  function applyMemberToMemberListData(data, member) {
+    const code = String(member?.code || "").trim();
+    if (!code) return false;
+    const idx = {
+      name: getMemberListHeaderIndex(data, "이 름", 1),
+      gender: getMemberListHeaderIndex(data, "성별", 2),
+      birth: getMemberListHeaderIndex(data, "출생년도", 3),
+      phone: getMemberListHeaderIndex(data, "연락처", 5),
+      dong: getMemberListHeaderIndex(data, "거주지", 8),
+      approval: getMemberListHeaderIndex(data, "가입:승인", 19),
+      uid: getMemberListHeaderIndex(data, "회원UID", 20),
+      joinDate: getMemberListHeaderIndex(data, "가입일", 21),
+      result: getMemberListHeaderIndex(data, "승인결과", 22)
+    };
+    const incomingName = String(member.name || "").trim();
+    const incomingPhone = formatMemberListPhone344(member.phone || member.phoneDigits || "");
+    const resultLabel = memberListJoinResult(member);
+    const joinDate = formatMemberListDate(member.approvedAt || member.createdAt || member.updatedAt);
+
+    let row = findMemberListRowByUid(data, idx.uid, code);
+    let metadataOnly = !!row;
+    if (!row) {
+      row = findMemberListRowByNamePhone(data, idx.name, idx.phone, incomingName, incomingPhone);
+      metadataOnly = !!row;
+    }
+    if (!row) {
+      row = findFirstEmptyMemberListRow(data, idx.name, idx.phone, idx.uid);
+    }
+    if (!row) {
+      row = MEMBER_LIST_TABLE_HEADERS.map(() => makeMemberListCell(""));
+      data.rows.push(row);
+    }
+
+    if (!metadataOnly) {
+      setMemberListCellText(row, idx.name, incomingName);
+      setMemberListCellText(row, idx.gender, member.gender || "");
+      setMemberListCellText(row, idx.birth, member.birthYear || "");
+      setMemberListCellText(row, idx.phone, incomingPhone);
+      setMemberListCellText(row, idx.dong, member.dong || "");
+    }
+    setMemberListCellText(row, idx.approval, (resultLabel === "승인" || resultLabel === "관리자") ? "승인" : resultLabel);
+    setMemberListCellText(row, idx.uid, code);
+    setMemberListCellText(row, idx.joinDate, joinDate);
+    setMemberListCellText(row, idx.result, resultLabel);
+    return true;
+  }
+
+  async function mergeMemberIntoMemberListMain(member) {
+    if (!member || !member.code) return;
+    const snap = await get(ref(membershipDb, MEMBER_LIST_MAIN_PATH));
+    const currentValue = snap.exists() ? snap.val() : null;
+    const normalized = normalizeMemberListMainPayload(currentValue);
+    const changed = applyMemberToMemberListData(normalized.data, member);
+    if (!changed) return;
+    const nextPayload = {
+      ...(currentValue && typeof currentValue === "object" && currentValue.data ? currentValue : {}),
+      type: "member-list-table-data",
+      version: "membel-list-realtime-2.0",
+      source: "bus-seat-approval-merge",
+      reason: "bus-seat-member-approval-merge",
+      updatedBy: "bus-seat-approval",
+      clientId: "bus-seat-approval",
+      updatedAt: Date.now(),
+      updatedAtISO: new Date().toISOString(),
+      data: normalized.data
+    };
+    await update(ref(membershipDb), { [MEMBER_LIST_MAIN_PATH]: nextPayload });
+  }
+
 
   /* 테스트 회원 자동 생성 기능 제거됨.
      실제 회원 데이터는 Firebase DB 또는 JSON 복구 데이터만 사용한다. */
@@ -6288,7 +6500,7 @@ function renderAll() {
           <div>전화: ${escapeHtml(m.phone || '-')}</div>
           <div>역할: ${escapeHtml(m.role || '-')} · ${adminText} · 가입일: ${escapeHtml(formatDateTime(m.createdAt))} · 승인결과: ${escapeHtml(joinResultLabel(m))}</div>
           <div class="member-approval-card-actions">
-            <button class="approve" data-member-action="approve" data-code="${escapeHtml(m.code)}">승인</button>
+            ${(m.approved && m.status === "active") ? "" : `<button class="approve" data-member-action="approve" data-code="${escapeHtml(m.code)}">승인</button>`}
             <button class="block" data-member-action="block" data-code="${escapeHtml(m.code)}">차단</button>
             <button class="admin" data-member-action="toggle-admin" data-code="${escapeHtml(m.code)}">관리자</button>
             <button class="withdraw" data-member-action="withdraw" data-code="${escapeHtml(m.code)}">탈퇴</button>
@@ -6381,6 +6593,7 @@ function renderAll() {
       updatedAt: now
     };
     await update(ref(membershipDb), updates);
+    await mergeMemberIntoMemberListMain(member);
     setAuthMessage(`${member.name} / ${code} 처리 완료`, true);
     await loadApprovalMembers();
   }
@@ -6680,6 +6893,7 @@ function renderAll() {
 
   const MANAGE_MEMBERS_ROOT = "busSeatApp/membership";
   const MANAGE_JOIN_CODES_PATH = "memberList/joinCodes";
+  const MANAGE_MEMBER_LIST_MAIN_PATH = "memberList/main";
   const manageApp = initializeApp(MANAGE_FIREBASE_CONFIG, "busSeatMemberManageForcedRenderApp");
   const manageDb = getDatabase(manageApp);
 
@@ -6813,7 +7027,7 @@ function renderAll() {
           <div>전화: ${esc(m.phone || '-')}</div>
           <div>역할: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자ON' : '관리자OFF'} · 가입일: ${esc(fmt(m.createdAt))} · 승인결과: ${esc(joinResultLabel(m))}</div>
           <div class="member-approval-card-actions">
-            <button class="approve" data-forced-member-action="approve" data-code="${esc(m.code)}">승인</button>
+            ${(m.approved && m.status === "active") ? "" : `<button class="approve" data-forced-member-action="approve" data-code="${esc(m.code)}">승인</button>`}
             <button class="block" data-forced-member-action="block" data-code="${esc(m.code)}">차단</button>
             <button class="admin" data-forced-member-action="toggle-admin" data-code="${esc(m.code)}">관리자</button>
             <button class="withdraw" data-forced-member-action="withdraw" data-code="${esc(m.code)}">탈퇴</button>
@@ -6970,6 +7184,177 @@ function renderAll() {
       }
     });
   }
+
+  /* 회원관리 강제 렌더 모듈에서도 승인 처리 시 기존 memberList/main 표에 병합한다. */
+  const MANAGE_MEMBER_LIST_TABLE_HEADERS = ["직 책","이 름","성별","출생년도","주민번호","연락처","비상연락처<br>( 가족 )","구","거주지","집","배우자","닉네임","버스타는곳","참석  ○ △ Χ","연관검색","연관검색","연관검색","전임직책","전임총무","가입:승인","회원UID","가입일","승인결과"];
+  const MANAGE_MEMBER_LIST_TABLE_WIDTHS = [72,78,45,57,78,118,118,54,86,133,72,94,141,86,70,110,62,70,94,86,170,94,86];
+
+  function makeManageMemberListCell(value = "", tag = "td") {
+    return {
+      html: String(value || ""),
+      tag,
+      className: tag === "th" ? "header-cell" : "",
+      style: tag === "th"
+        ? "font-weight:700;font-size:12px;text-align:center;vertical-align:middle;white-space:nowrap;overflow-wrap:normal;word-break:keep-all;"
+        : "font-size:12px;text-align:center;vertical-align:middle;white-space:nowrap;overflow-wrap:normal;word-break:keep-all;"
+    };
+  }
+
+  function makeDefaultManageMemberListData() {
+    const rows = [];
+    rows.push(MANAGE_MEMBER_LIST_TABLE_HEADERS.map((h) => makeManageMemberListCell(h, "th")));
+    for (let i = 0; i < 20; i += 1) rows.push(MANAGE_MEMBER_LIST_TABLE_HEADERS.map(() => makeManageMemberListCell("")));
+    return { cols: MANAGE_MEMBER_LIST_TABLE_WIDTHS.map((w) => `width:${w}px`), rows };
+  }
+
+  function stripManageMemberListHtml(value) {
+    const div = document.createElement("div");
+    div.innerHTML = String(value || "");
+    return String(div.textContent || div.innerText || "").trim();
+  }
+  function normalizeManageMemberListLabel(value) {
+    return stripManageMemberListHtml(value).replace(/\s+/g, "");
+  }
+  function normalizeManageMemberListPhone(value) {
+    return String(value || "").replace(/\D/g, "");
+  }
+  function formatManageMemberListPhone344(value) {
+    const digits = normalizeManageMemberListPhone(value).slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7, 11)}`;
+  }
+  function formatManageMemberListDate(ms) {
+    if (!ms) return "";
+    const d = new Date(Number(ms));
+    if (Number.isNaN(d.getTime())) return "";
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  function normalizeManageMemberListMainPayload(rawValue) {
+    const payload = rawValue && typeof rawValue === "object" ? { ...rawValue } : {};
+    let data = payload.data && typeof payload.data === "object" ? payload.data : payload;
+    if (!data || !Array.isArray(data.rows)) data = makeDefaultManageMemberListData();
+    if (!Array.isArray(data.cols)) data.cols = MANAGE_MEMBER_LIST_TABLE_WIDTHS.map((w) => `width:${w}px`);
+    if (!Array.isArray(data.rows) || !data.rows.length) data.rows = makeDefaultManageMemberListData().rows;
+    data.rows = data.rows.map((row, rIdx) => {
+      const sourceRow = Array.isArray(row) ? row : [];
+      const nextRow = [];
+      const colCount = Math.max(MANAGE_MEMBER_LIST_TABLE_HEADERS.length, data.cols.length || 0, sourceRow.length || 0);
+      for (let c = 0; c < colCount; c += 1) {
+        const cell = sourceRow[c] && typeof sourceRow[c] === "object" ? { ...sourceRow[c] } : makeManageMemberListCell("", rIdx === 0 ? "th" : "td");
+        if (cell.html == null) cell.html = "";
+        if (!cell.tag) cell.tag = rIdx === 0 ? "th" : "td";
+        if (rIdx === 0) cell.className = "header-cell";
+        nextRow.push(cell);
+      }
+      return nextRow;
+    });
+    return { payload, data };
+  }
+  function getManageMemberListHeaderIndex(data, label, fallback) {
+    const header = data.rows?.[0] || [];
+    const target = normalizeManageMemberListLabel(label);
+    for (let i = 0; i < header.length; i += 1) {
+      const text = normalizeManageMemberListLabel(header[i]?.html || "");
+      if (text === target || text.includes(target)) return i;
+    }
+    return fallback;
+  }
+  function getManageMemberListCellText(row, index) {
+    if (!row || index < 0 || !row[index]) return "";
+    return stripManageMemberListHtml(row[index].html || "");
+  }
+  function setManageMemberListCellText(row, index, value) {
+    if (!row || index < 0) return;
+    while (row.length <= index) row.push(makeManageMemberListCell(""));
+    row[index].html = String(value || "");
+    if (!row[index].tag) row[index].tag = "td";
+  }
+  function findManageMemberListRowByUid(data, uidIdx, code) {
+    const key = String(code || "").trim();
+    if (!key) return null;
+    return (data.rows || []).slice(1).find((row) => getManageMemberListCellText(row, uidIdx) === key) || null;
+  }
+  function findManageMemberListRowByNamePhone(data, nameIdx, phoneIdx, name, phone) {
+    const nameKey = normalizeManageMemberListLabel(name);
+    const phoneKey = normalizeManageMemberListPhone(phone);
+    if (!nameKey || !phoneKey) return null;
+    return (data.rows || []).slice(1).find((row) => {
+      return normalizeManageMemberListLabel(getManageMemberListCellText(row, nameIdx)) === nameKey &&
+        normalizeManageMemberListPhone(getManageMemberListCellText(row, phoneIdx)) === phoneKey;
+    }) || null;
+  }
+  function findFirstEmptyManageMemberListRow(data, nameIdx, phoneIdx, uidIdx) {
+    return (data.rows || []).slice(1).find((row) => {
+      return !getManageMemberListCellText(row, nameIdx) && !getManageMemberListCellText(row, phoneIdx) && !getManageMemberListCellText(row, uidIdx);
+    }) || null;
+  }
+  function applyManageMemberToMemberListData(data, member) {
+    const code = String(member?.code || "").trim();
+    if (!code) return false;
+    const idx = {
+      name: getManageMemberListHeaderIndex(data, "이 름", 1),
+      gender: getManageMemberListHeaderIndex(data, "성별", 2),
+      birth: getManageMemberListHeaderIndex(data, "출생년도", 3),
+      phone: getManageMemberListHeaderIndex(data, "연락처", 5),
+      dong: getManageMemberListHeaderIndex(data, "거주지", 8),
+      approval: getManageMemberListHeaderIndex(data, "가입:승인", 19),
+      uid: getManageMemberListHeaderIndex(data, "회원UID", 20),
+      joinDate: getManageMemberListHeaderIndex(data, "가입일", 21),
+      result: getManageMemberListHeaderIndex(data, "승인결과", 22)
+    };
+    const incomingName = String(member.name || "").trim();
+    const incomingPhone = formatManageMemberListPhone344(member.phone || member.phoneDigits || "");
+    const resultLabel = joinResultLabel(member);
+    const joinDate = formatManageMemberListDate(member.approvedAt || member.createdAt || member.updatedAt);
+
+    let row = findManageMemberListRowByUid(data, idx.uid, code);
+    let metadataOnly = !!row;
+    if (!row) {
+      row = findManageMemberListRowByNamePhone(data, idx.name, idx.phone, incomingName, incomingPhone);
+      metadataOnly = !!row;
+    }
+    if (!row) row = findFirstEmptyManageMemberListRow(data, idx.name, idx.phone, idx.uid);
+    if (!row) {
+      row = MANAGE_MEMBER_LIST_TABLE_HEADERS.map(() => makeManageMemberListCell(""));
+      data.rows.push(row);
+    }
+    if (!metadataOnly) {
+      setManageMemberListCellText(row, idx.name, incomingName);
+      setManageMemberListCellText(row, idx.gender, member.gender || "");
+      setManageMemberListCellText(row, idx.birth, member.birthYear || "");
+      setManageMemberListCellText(row, idx.phone, incomingPhone);
+      setManageMemberListCellText(row, idx.dong, member.dong || "");
+    }
+    setManageMemberListCellText(row, idx.approval, (resultLabel === "승인" || resultLabel === "관리자") ? "승인" : resultLabel);
+    setManageMemberListCellText(row, idx.uid, code);
+    setManageMemberListCellText(row, idx.joinDate, joinDate);
+    setManageMemberListCellText(row, idx.result, resultLabel);
+    return true;
+  }
+  async function mergeManageMemberIntoMemberListMain(member) {
+    if (!member || !member.code) return;
+    const snap = await get(ref(manageDb, MANAGE_MEMBER_LIST_MAIN_PATH));
+    const currentValue = snap.exists() ? snap.val() : null;
+    const normalized = normalizeManageMemberListMainPayload(currentValue);
+    const changed = applyManageMemberToMemberListData(normalized.data, member);
+    if (!changed) return;
+    const nextPayload = {
+      ...(currentValue && typeof currentValue === "object" && currentValue.data ? currentValue : {}),
+      type: "member-list-table-data",
+      version: "membel-list-realtime-2.0",
+      source: "bus-seat-member-manage-merge",
+      reason: "bus-seat-member-approval-merge",
+      updatedBy: "bus-seat-member-manage",
+      clientId: "bus-seat-member-manage",
+      updatedAt: Date.now(),
+      updatedAtISO: new Date().toISOString(),
+      data: normalized.data
+    };
+    await update(ref(manageDb), { [MANAGE_MEMBER_LIST_MAIN_PATH]: nextPayload });
+  }
+
+
   async function forceUpdateMember(code, action) {
     const snap = await get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members/${code}`));
     if (!snap.exists()) {
@@ -7045,6 +7430,7 @@ function renderAll() {
     updates[`${MANAGE_MEMBERS_ROOT}/members/${code}`] = member;
     await update(ref(manageDb), updates);
     await mirrorJoinCode(member);
+    await mergeManageMemberIntoMemberListMain(member);
     await forceLoadMemberManageList();
   }
 
