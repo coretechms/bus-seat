@@ -11,8 +11,9 @@
       try {
         const savedSession = sessionStorage.getItem("bus-seat-approved-member-session-v1");
         const savedMode = sessionStorage.getItem("bus-seat-admin-refresh-mode-v1");
-        const savedAdminEntry = sessionStorage.getItem("bus-seat-admin-entry-refresh-v1") === "1";
-        if (savedAdminEntry || (savedSession && (savedMode === "admin" || savedMode === "memberManage" || savedMode === "adminEntry"))) {
+        const savedAdminEntry = sessionStorage.getItem("bus-seat-admin-entry-refresh-v1") === "1" ||
+          localStorage.getItem("bus-seat-admin-entry-persist-v1") === "1";
+        if (savedAdminEntry || savedMode === "adminEntry" || (savedSession && (savedMode === "admin" || savedMode === "memberManage"))) {
           document.documentElement.classList.add("restore-admin-session");
         }
       } catch (error) {}
@@ -1638,6 +1639,87 @@ body.admin-entry-only #adminLoginPanel.hidden{
 }
 
 
+
+/* 요청 수정: 회원관리 관리자 그룹 - 이름검색 옆 같은 행 정렬 */
+.member-manage-header-actions{
+  flex:1 1 auto !important;
+  justify-content:flex-end !important;
+  overflow:hidden !important;
+}
+#memberManageAdminToggleBtn{
+  flex:0 0 auto !important;
+  background:#1737c9 !important;
+  border-color:#1737c9 !important;
+  color:#fff !important;
+}
+#memberManageAdminToggleBtn.is-open{
+  background:#0b7a28 !important;
+  border-color:#0b7a28 !important;
+}
+.member-manage-admin-group-panel{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:3px !important;
+  flex:0 1 auto !important;
+  min-width:0 !important;
+  max-width:128px !important;
+  width:auto !important;
+  box-sizing:border-box !important;
+  margin:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+}
+.member-manage-admin-group-panel[hidden]{
+  display:none !important;
+}
+.member-manage-admin-group-panel .btn{
+  flex:1 1 0 !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+  height:22px !important;
+  min-height:22px !important;
+  padding:0 3px !important;
+  border-radius:10px !important;
+  font-size:10px !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:clip !important;
+}
+#memberManagePanel.member-admin-group-open #memberApprovalRefreshBtn{
+  display:none !important;
+}
+#memberDbCleanupBtn{
+  background:#fff7ed !important;
+  border-color:#fb923c !important;
+  color:#9a3412 !important;
+  font-weight:900 !important;
+}
+@media(max-width:760px){
+  .member-manage-header-actions{gap:2px !important;}
+  #memberApprovalSearchInput{
+    flex:0 1 70px !important;
+    width:70px !important;
+    max-width:70px !important;
+    min-width:52px !important;
+  }
+  .member-manage-admin-group-panel{
+    gap:2px !important;
+    max-width:104px !important;
+  }
+  .member-manage-admin-group-panel .btn{
+    height:21px !important;
+    min-height:21px !important;
+    font-size:9px !important;
+    padding:0 1px !important;
+  }
+}
+
 /* 요청 수정: 회원관리 모드에서 승인완료 회원은 승인 버튼 숨김 */
 .member-approval-card.approved-member .member-approval-card-actions .approve {
   display: none !important;
@@ -1649,6 +1731,125 @@ body.admin-entry-only #adminLoginPanel.hidden{
 .member-approval-card-actions.approved-member-actions .approve {
   display: none !important;
 }
+
+
+/* 요청 수정: 이름검색을 회원관리 제목 옆으로 이동 + 관리자 그룹 화면 이탈 방지 */
+.member-manage-topbar{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:4px !important;
+  margin-bottom:6px !important;
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  overflow:hidden !important;
+}
+.member-manage-title-search{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:4px !important;
+  flex:0 1 auto !important;
+  min-width:0 !important;
+  max-width:45% !important;
+  overflow:hidden !important;
+}
+.member-manage-title-text{
+  flex:0 0 auto !important;
+  font-size:13px !important;
+  font-weight:800 !important;
+  color:#1428c8 !important;
+  white-space:nowrap !important;
+}
+.member-manage-title-search #memberApprovalSearchInput{
+  flex:1 1 80px !important;
+  width:80px !important;
+  min-width:54px !important;
+  max-width:96px !important;
+}
+.member-manage-topbar .member-manage-header-actions{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:3px !important;
+  flex:1 1 0 !important;
+  min-width:0 !important;
+  max-width:55% !important;
+  overflow:hidden !important;
+  flex-wrap:nowrap !important;
+}
+.member-manage-topbar .member-manage-header-actions .btn{
+  flex:0 1 auto !important;
+  min-width:0 !important;
+  height:22px !important;
+  min-height:22px !important;
+  padding:0 5px !important;
+  font-size:10px !important;
+  border-radius:10px !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:clip !important;
+}
+.member-manage-topbar #memberApprovalRefreshBtn{flex:0 1 50px !important; max-width:54px !important;}
+.member-manage-topbar #memberManageAdminToggleBtn{flex:0 1 44px !important; max-width:48px !important;}
+.member-manage-topbar .member-manage-admin-group-panel{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:2px !important;
+  flex:1 1 0 !important;
+  min-width:0 !important;
+  max-width:126px !important;
+  overflow:hidden !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+  background:transparent !important;
+}
+.member-manage-topbar .member-manage-admin-group-panel[hidden]{display:none !important;}
+.member-manage-topbar .member-manage-admin-group-panel .btn{
+  flex:1 1 0 !important;
+  min-width:0 !important;
+  max-width:none !important;
+  padding:0 2px !important;
+}
+.member-manage-topbar #memberDbCleanupBtn{
+  flex:1.35 1 0 !important;
+  font-size:9px !important;
+}
+#memberManagePanel.member-admin-group-open .member-manage-title-search{max-width:38% !important;}
+#memberManagePanel.member-admin-group-open .member-manage-header-actions{max-width:62% !important;}
+@media(max-width:760px){
+  .member-manage-topbar{gap:2px !important;}
+  .member-manage-title-search{gap:2px !important; max-width:42% !important;}
+  .member-manage-title-text{font-size:12px !important;}
+  .member-manage-title-search #memberApprovalSearchInput{
+    flex-basis:58px !important;
+    width:58px !important;
+    min-width:46px !important;
+    max-width:66px !important;
+    height:21px !important;
+    min-height:21px !important;
+    font-size:9px !important;
+    padding:0 3px !important;
+  }
+  .member-manage-topbar .member-manage-header-actions{gap:2px !important; max-width:58% !important;}
+  .member-manage-topbar .member-manage-header-actions .btn{
+    height:21px !important;
+    min-height:21px !important;
+    padding:0 3px !important;
+    font-size:9px !important;
+  }
+  .member-manage-topbar #memberApprovalRefreshBtn{max-width:42px !important;}
+  .member-manage-topbar #memberManageAdminToggleBtn{max-width:38px !important;}
+  .member-manage-topbar .member-manage-admin-group-panel{max-width:102px !important; gap:1px !important;}
+  .member-manage-topbar .member-manage-admin-group-panel .btn{padding:0 1px !important; font-size:8px !important;}
+  .member-manage-topbar #memberDbCleanupBtn{font-size:7.5px !important;}
+  #memberManagePanel.member-admin-group-open .member-manage-title-search{max-width:34% !important;}
+  #memberManagePanel.member-admin-group-open .member-manage-header-actions{max-width:66% !important;}
+}
+
 </style>
 </head>
 <body class="membership-locked">
@@ -1925,13 +2126,19 @@ body.admin-entry-only #adminLoginPanel.hidden{
 
           <div id="memberManagePanel" class="hidden" style="margin-top:10px;">
             <div style="border:1px solid #cfd8ff; border-radius:16px; padding:10px; background:#f7f9ff;">
-              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
-                <div style="font-size:13px; font-weight:800; color:#1428c8; white-space:nowrap;">회원관리</div>
-                <div class="member-manage-header-actions">
+              <div class="member-manage-topbar">
+                <div class="member-manage-title-search">
+                  <div class="member-manage-title-text">회원관리</div>
                   <input id="memberApprovalSearchInput" type="search" autocomplete="off" placeholder="이름검색" aria-label="회원 이름 검색" />
-                  <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
-                  <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
+                </div>
+                <div class="member-manage-header-actions">
                   <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button">새로고침</button>
+                  <button class="btn btn-outline" id="memberManageAdminToggleBtn" type="button" aria-expanded="false">관리자</button>
+                  <div id="memberManageAdminGroupPanel" class="member-manage-admin-group-panel" hidden>
+                    <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
+                    <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
+                    <button class="btn btn-outline" id="memberDbCleanupBtn" type="button">DB정리</button>
+                  </div>
                   <input id="memberJsonRestoreFileInput" type="file" accept="application/json,.json" class="hidden" />
                 </div>
               </div>
@@ -2036,6 +2243,7 @@ const firebaseConfig = {
     const DEFAULT_SYSTEM_ADMIN_PASSWORD = "1234";
     const ADMIN_REFRESH_MODE_SESSION_KEY = "bus-seat-admin-refresh-mode-v1";
     const ADMIN_ENTRY_REFRESH_SESSION_KEY = "bus-seat-admin-entry-refresh-v1";
+    const ADMIN_ENTRY_PERSIST_KEY = "bus-seat-admin-entry-persist-v1";
     const RECOVERY_CODE_STORAGE_KEY = "bus-seat-recovery-code-hash-v1";
     const ADMIN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-admin-password-hash-v1";
     const TRIP_PLAN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-trip-plan-password-hash-v1";
@@ -4259,6 +4467,8 @@ function renderAll() {
       try {
         sessionStorage.setItem(ADMIN_ENTRY_REFRESH_SESSION_KEY, "1");
         sessionStorage.setItem(ADMIN_REFRESH_MODE_SESSION_KEY, "adminEntry");
+        localStorage.setItem(ADMIN_ENTRY_PERSIST_KEY, "1");
+        document.documentElement.classList.add("restore-admin-session");
       } catch (error) {}
       state.mode = "admin";
       state.adminSeat = "";
@@ -4867,6 +5077,24 @@ function renderAll() {
       state.adminSeat = "";
       state.editingSeat = null;
       state.editName = "";
+      try {
+        sessionStorage.setItem(ADMIN_ENTRY_REFRESH_SESSION_KEY, "1");
+        sessionStorage.setItem(ADMIN_REFRESH_MODE_SESSION_KEY, "adminEntry");
+        localStorage.setItem(ADMIN_ENTRY_PERSIST_KEY, "1");
+        document.documentElement.classList.add("restore-admin-session");
+        document.body.classList.remove("membership-locked", "member-mode", "member-manage-mode", "approval-admin-mode");
+        document.body.classList.add("admin-entry-only", "admin-mode");
+        const gate = document.getElementById("memberAuthGate");
+        if (gate) {
+          gate.classList.add("is-hidden");
+          gate.style.display = "none";
+        }
+        const app = document.querySelector(".app");
+        if (app) {
+          app.style.visibility = "visible";
+          app.style.pointerEvents = "auto";
+        }
+      } catch (error) {}
       renderAll();
     };
 
@@ -5567,65 +5795,91 @@ function renderAll() {
     try{
       localStorage.removeItem("bus-seat-approved-member-session-v1");
       sessionStorage.removeItem("bus-seat-approved-member-session-v1");
+      sessionStorage.removeItem("bus-seat-admin-refresh-mode-v1");
+      sessionStorage.removeItem("bus-seat-admin-entry-refresh-v1");
+      localStorage.removeItem("bus-seat-admin-entry-persist-v1");
+      document.documentElement.classList.remove("restore-admin-session");
     }catch(e){}
   }
 
   function showMemberLoginScreenPatch(){
     clearLoginPersistencePatch();
+    try {
+      if (typeof window.__busSeatForceFullLogoutFromMembership === "function") {
+        window.__busSeatForceFullLogoutFromMembership();
+      }
+    } catch(e) {}
+
     try{
+      document.documentElement.classList.remove("restore-admin-session");
       document.body.classList.add("membership-locked");
-      document.body.classList.remove("member-mode");
-      document.body.classList.remove("admin-mode");
-      document.body.classList.remove("approval-admin-mode");
+      document.body.classList.remove("member-mode", "admin-mode", "member-manage-mode", "approval-admin-mode", "admin-entry-only");
     }catch(e){}
 
     try{
       const gate = document.getElementById("memberAuthGate");
-      if(gate) gate.classList.remove("is-hidden");
+      if(gate){
+        gate.classList.remove("is-hidden");
+        gate.style.display = "flex";
+      }
+      const app = document.querySelector(".app");
+      if(app){
+        app.style.visibility = "hidden";
+        app.style.pointerEvents = "none";
+      }
 
+      const name = document.getElementById("memberLoginNameInput");
       const pw = document.getElementById("memberLoginPasswordInput");
+      if(name) name.value = "";
       if(pw) pw.value = "";
+
+      const signup = document.getElementById("memberSignupPanel");
+      const change = document.getElementById("memberPasswordChangePanel");
+      if(signup) signup.classList.remove("is-open");
+      if(change) change.classList.remove("is-open");
 
       const msg = document.getElementById("memberAuthMessage");
       if(msg){
         msg.className = "member-auth-message";
         msg.textContent = "아이디와 비밀번호를 입력하세요.";
       }
+      setTimeout(()=>name && name.focus && name.focus(), 30);
     }catch(e){}
 
     try{ window.scrollTo(0,0); }catch(e){}
   }
-
   function goToAdminEntryOnlyPatch(){
-    clearLoginPersistencePatch();
     try{
-      document.body.classList.remove("membership-locked");
-      document.body.classList.remove("member-mode");
-      document.body.classList.remove("approval-admin-mode");
-      document.body.classList.add("admin-entry-only");
+      sessionStorage.setItem("bus-seat-admin-entry-refresh-v1", "1");
+      sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "adminEntry");
+      localStorage.setItem("bus-seat-admin-entry-persist-v1", "1");
+      document.documentElement.classList.add("restore-admin-session");
     }catch(e){}
 
     try{
-      window.__adminAuthenticated = false;
-      window.adminAuthenticated = false;
-      window.isAdminLoggedIn = false;
-      window.__memberManageAuthenticated = false;
-      window.memberManageAuthenticated = false;
-    }catch(e){}
-
-    try{
-      if(typeof state === "object" && state){
-        if("isAdmin" in state) state.isAdmin = false;
-        if("adminMode" in state) state.adminMode = false;
-        if("adminAuthed" in state) state.adminAuthed = false;
+      if (typeof window.__busSeatShowAdminEntryAfterLogoff === "function") {
+        window.__busSeatShowAdminEntryAfterLogoff();
       }
     }catch(e){}
 
     try{
+      document.body.classList.remove("membership-locked", "member-mode", "member-manage-mode", "approval-admin-mode");
+      document.body.classList.add("admin-entry-only", "admin-mode");
+
+      const gate = document.getElementById("memberAuthGate");
+      if(gate){
+        gate.classList.add("is-hidden");
+        gate.style.display = "none";
+      }
+      const app = document.querySelector(".app");
+      if(app){
+        app.style.visibility = "visible";
+        app.style.pointerEvents = "auto";
+      }
+
       const memberTab = document.getElementById("memberTab");
       const adminTab = document.getElementById("adminTab");
       const memberManageTab = document.getElementById("memberManageTab");
-
       if(memberTab) memberTab.classList.remove("active");
       if(adminTab) adminTab.classList.add("active");
       if(memberManageTab) memberManageTab.classList.remove("active");
@@ -5635,7 +5889,6 @@ function renderAll() {
       const adminPanel = document.getElementById("adminPanel");
       const memberManagePanel = document.getElementById("memberManagePanel");
       const busInfoEditor = document.getElementById("busInfoEditor");
-
       if(memberPanel) memberPanel.classList.add("hidden");
       if(adminLoginPanel) adminLoginPanel.classList.remove("hidden");
       if(adminPanel) adminPanel.classList.add("hidden");
@@ -5643,7 +5896,10 @@ function renderAll() {
       if(busInfoEditor) busInfoEditor.classList.add("hidden");
 
       const pw = document.getElementById("adminPasswordInput");
-      if(pw) pw.value = "";
+      if(pw){
+        pw.value = "";
+        setTimeout(()=>pw.focus && pw.focus(), 30);
+      }
     }catch(e){}
 
     try{ window.scrollTo(0,0); }catch(e){}
@@ -6651,7 +6907,15 @@ function renderAll() {
   function unlockApp(session) {
     document.body.classList.remove("membership-locked");
     const gate = byId("memberAuthGate");
-    if (gate) gate.classList.add("is-hidden");
+    if (gate) {
+      gate.classList.add("is-hidden");
+      gate.style.display = "none";
+    }
+    const app = document.querySelector(".app");
+    if (app) {
+      app.style.visibility = "visible";
+      app.style.pointerEvents = "auto";
+    }
     const badge = byId("memberCurrentBadge");
     if (badge) {
       badge.textContent = "";
@@ -6673,7 +6937,8 @@ function renderAll() {
     const isAdminEntryRefresh = (() => {
       try {
         return sessionStorage.getItem("bus-seat-admin-entry-refresh-v1") === "1" ||
-          sessionStorage.getItem("bus-seat-admin-refresh-mode-v1") === "adminEntry";
+          sessionStorage.getItem("bus-seat-admin-refresh-mode-v1") === "adminEntry" ||
+          localStorage.getItem("bus-seat-admin-entry-persist-v1") === "1";
       } catch (error) { return false; }
     })();
 
@@ -6718,6 +6983,12 @@ function renderAll() {
 
     if (isAdminEntryRefresh) {
       // 혹시 회원 세션이 없어도 관리자 로그오프 후 새로고침에서는 회원 로그인 화면으로 보내지 않는다.
+      try {
+        sessionStorage.setItem("bus-seat-admin-entry-refresh-v1", "1");
+        sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "adminEntry");
+        localStorage.setItem("bus-seat-admin-entry-persist-v1", "1");
+        document.documentElement.classList.add("restore-admin-session");
+      } catch (_) {}
       document.body.classList.remove("membership-locked");
       byId("memberAuthGate")?.classList.add("is-hidden");
       if (typeof window.__busSeatShowAdminEntryAfterLogoff === "function") {
@@ -6730,7 +7001,15 @@ function renderAll() {
     try { document.documentElement.classList.remove("restore-admin-session"); } catch (_) {}
     document.body.classList.add("membership-locked");
     const gate = byId("memberAuthGate");
-    if (gate) gate.classList.remove("is-hidden");
+    if (gate) {
+      gate.classList.remove("is-hidden");
+      gate.style.display = "flex";
+    }
+    const app = document.querySelector(".app");
+    if (app) {
+      app.style.visibility = "hidden";
+      app.style.pointerEvents = "none";
+    }
     clearMemberAuthInputValues();
     const nameInput = byId("memberLoginNameInput");
     const passwordInput = byId("memberLoginPasswordInput");
@@ -6747,10 +7026,12 @@ function renderAll() {
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
       sessionStorage.removeItem("bus-seat-admin-refresh-mode-v1");
       sessionStorage.removeItem("bus-seat-admin-entry-refresh-v1");
+      localStorage.removeItem("bus-seat-admin-entry-persist-v1");
     } catch (e) {}
   }
 
   function showMembershipLoginScreenAfterLogout() {
+    try { document.documentElement.classList.remove("restore-admin-session"); } catch (e) {}
     clearApprovedMemberSession();
     memberApprovalAdminAuthed = false;
     try {
@@ -7836,13 +8117,101 @@ function renderAll() {
   }
 
 
-  async function forceUpdateMember(code, action) {
-    const snap = await get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members/${code}`));
-    if (!snap.exists()) {
-      alert('해당 회원코드를 members DB에서 찾지 못했습니다.');
+  const ALL_MEMBER_DB_DELETE_PATHS = [
+    { membersPath: `${MANAGE_MEMBERS_ROOT}/members`, pendingPath: `${MANAGE_MEMBERS_ROOT}/pending`, nameIndexPath: `${MANAGE_MEMBERS_ROOT}/nameIndex` },
+    { membersPath: "membership/members", pendingPath: "membership/pending", nameIndexPath: "membership/nameIndex" },
+    { membersPath: "members", pendingPath: "pending", nameIndexPath: "nameIndex" },
+    { membersPath: "busSeatApp/members", pendingPath: "busSeatApp/pending", nameIndexPath: "busSeatApp/nameIndex" }
+  ];
+
+  function makeDeleteUpdatesForMemberEverywhere(code, member = {}) {
+    const key = String(code || member.code || "").trim();
+    const updates = {};
+    if (!key) return updates;
+    const possibleNames = [member.name, member.nameKey, member.memberName, member.userName, member.displayName]
+      .map((v) => String(v || "").replace(/\s+/g, "").trim())
+      .filter(Boolean);
+    ALL_MEMBER_DB_DELETE_PATHS.forEach((cfg) => {
+      updates[`${cfg.membersPath}/${key}`] = null;
+      updates[`${cfg.pendingPath}/${key}`] = null;
+      possibleNames.forEach((nameKey) => {
+        updates[`${cfg.nameIndexPath}/${nameKey}/${key}`] = null;
+        updates[`${cfg.nameIndexPath}/${nameKey.toLowerCase()}/${key}`] = null;
+      });
+    });
+    updates[`${MANAGE_JOIN_CODES_PATH}/${key}`] = null;
+    return updates;
+  }
+
+  async function findMemberForDeleteFromAnyVisibleDb(code) {
+    const key = String(code || "").trim();
+    if (!key) return null;
+    const all = await readAllMembers();
+    return all.find((m) => String(m.code || "") === key) || { code: key };
+  }
+
+  async function cleanupOrphanMemberDb() {
+    const ok = confirm(
+      '회원 로그인 DB에 없는 고아 회원코드만 정리합니다.\n\n' +
+      '- memberList/joinCodes에는 있지만 members DB에는 없는 코드\n' +
+      '- pending에만 남은 코드\n\n' +
+      '정상 members DB 회원은 삭제하지 않습니다. 계속할까요?'
+    );
+    if (!ok) return;
+
+    const [mainMembersSnap, legacyMembersSnap, rootMembersSnap, busSeatMembersSnap, joinCodesSnap, pendingSnap, legacyPendingSnap, rootPendingSnap, busSeatPendingSnap] = await Promise.all([
+      get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`)).catch(() => null),
+      get(ref(manageDb, "membership/members")).catch(() => null),
+      get(ref(manageDb, "members")).catch(() => null),
+      get(ref(manageDb, "busSeatApp/members")).catch(() => null),
+      get(ref(manageDb, MANAGE_JOIN_CODES_PATH)).catch(() => null),
+      get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/pending`)).catch(() => null),
+      get(ref(manageDb, "membership/pending")).catch(() => null),
+      get(ref(manageDb, "pending")).catch(() => null),
+      get(ref(manageDb, "busSeatApp/pending")).catch(() => null)
+    ]);
+
+    const validCodes = new Set();
+    [mainMembersSnap, legacyMembersSnap, rootMembersSnap, busSeatMembersSnap].forEach((snap) => {
+      if (snap && snap.exists()) Object.keys(snap.val() || {}).forEach((code) => validCodes.add(String(code)));
+    });
+
+    const cleanupCodes = new Set();
+    const joinCodes = joinCodesSnap && joinCodesSnap.exists() ? joinCodesSnap.val() || {} : {};
+    Object.keys(joinCodes).forEach((code) => { if (!validCodes.has(String(code))) cleanupCodes.add(String(code)); });
+    [pendingSnap, legacyPendingSnap, rootPendingSnap, busSeatPendingSnap].forEach((snap) => {
+      const pending = snap && snap.exists() ? snap.val() || {} : {};
+      Object.keys(pending).forEach((code) => { if (!validCodes.has(String(code))) cleanupCodes.add(String(code)); });
+    });
+
+    if (!cleanupCodes.size) {
+      alert('정리할 고아 회원코드가 없습니다.');
       return;
     }
-    const member = snap.val() || {};
+
+    const updates = {};
+    cleanupCodes.forEach((code) => {
+      const raw = joinCodes[code] || { code };
+      Object.assign(updates, makeDeleteUpdatesForMemberEverywhere(code, raw));
+    });
+    await update(ref(manageDb), updates);
+    await forceLoadMemberManageList();
+    alert(`DB 정리 완료: ${cleanupCodes.size}개 고아 회원코드를 삭제했습니다.`);
+  }
+
+
+  async function forceUpdateMember(code, action) {
+    const key = String(code || '').trim();
+    const snap = await get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members/${key}`)).catch(() => null);
+    let member = snap && snap.exists() ? (snap.val() || {}) : null;
+    if (!member) {
+      member = await findMemberForDeleteFromAnyVisibleDb(key);
+      if (action !== 'delete') {
+        alert('해당 회원코드를 기본 members DB에서 찾지 못했습니다. 삭제/DB정리로 고아 데이터를 정리하거나 회원 JSON을 복구하세요.');
+        return;
+      }
+    }
+    code = key;
     const now = Date.now();
     const updates = {};
     if (action === 'approve') {
@@ -7897,13 +8266,7 @@ function renderAll() {
       });
       updates[`${MANAGE_MEMBERS_ROOT}/pending/${code}`] = null;
     } else if (action === 'delete') {
-      updates[`${MANAGE_MEMBERS_ROOT}/members/${code}`] = null;
-      updates[`${MANAGE_MEMBERS_ROOT}/pending/${code}`] = null;
-      if (member?.name) {
-        const nameKey = String(member.name || '').replace(/\s+/g, '').trim();
-        if (nameKey) updates[`${MANAGE_MEMBERS_ROOT}/nameIndex/${nameKey}/${code}`] = null;
-      }
-      updates[`${MANAGE_JOIN_CODES_PATH}/${code}`] = null;
+      Object.assign(updates, makeDeleteUpdatesForMemberEverywhere(code, member));
       await update(ref(manageDb), updates);
       await forceLoadMemberManageList();
       return;
@@ -7930,6 +8293,21 @@ function renderAll() {
       forceLoadMemberManageList();
       return;
     }
+    const adminGroupToggle = event.target.closest('#memberManagePanel #memberManageAdminToggleBtn');
+    if (adminGroupToggle) {
+      event.preventDefault();
+      const panel = document.getElementById('memberManageAdminGroupPanel');
+      if (panel) {
+        const willOpen = panel.hasAttribute('hidden');
+        if (willOpen) panel.removeAttribute('hidden');
+        else panel.setAttribute('hidden', '');
+        adminGroupToggle.classList.toggle('is-open', willOpen);
+        adminGroupToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        const managePanel = document.getElementById('memberManagePanel');
+        if (managePanel) managePanel.classList.toggle('member-admin-group-open', willOpen);
+      }
+      return;
+    }
     const memberBackup = event.target.closest('#memberManagePanel #memberJsonBackupBtn');
     if (memberBackup) {
       event.preventDefault();
@@ -7940,6 +8318,15 @@ function renderAll() {
     if (memberRestore) {
       event.preventDefault();
       handleMemberJsonRestoreClick();
+      return;
+    }
+    const memberDbCleanup = event.target.closest('#memberManagePanel #memberDbCleanupBtn');
+    if (memberDbCleanup) {
+      event.preventDefault();
+      cleanupOrphanMemberDb().catch((error) => {
+        console.error('회원 DB 정리 오류:', error);
+        alert(`회원 DB 정리 오류: ${error?.code || error?.message || error}`);
+      });
       return;
     }
     const actionBtn = event.target.closest('#memberManagePanel button[data-forced-member-action], #memberManagePanel button[data-member-action]');
@@ -7970,6 +8357,58 @@ function renderAll() {
       forceLoadMemberManageList().finally(() => setTimeout(() => { window.__memberManageAutoLoading = false; }, 1000));
     }
   }, 1000);
+</script>
+
+
+<script>
+(function(){
+  const MODE_KEY = "bus-seat-admin-refresh-mode-v1";
+  const ENTRY_KEY = "bus-seat-admin-entry-refresh-v1";
+  const ENTRY_PERSIST_KEY = "bus-seat-admin-entry-persist-v1";
+  function saveAdminEntryState(){
+    try{
+      sessionStorage.setItem(MODE_KEY, "adminEntry");
+      sessionStorage.setItem(ENTRY_KEY, "1");
+      localStorage.setItem(ENTRY_PERSIST_KEY, "1");
+      document.documentElement.classList.add("restore-admin-session");
+    }catch(e){}
+  }
+  function showAdminEntryScreen(){
+    saveAdminEntryState();
+    try{
+      document.body.classList.remove("membership-locked", "member-mode", "member-manage-mode", "approval-admin-mode");
+      document.body.classList.add("admin-entry-only", "admin-mode");
+      const gate = document.getElementById("memberAuthGate");
+      if(gate){ gate.classList.add("is-hidden"); gate.style.display = "none"; }
+      const app = document.querySelector(".app");
+      if(app){ app.style.visibility = "visible"; app.style.pointerEvents = "auto"; }
+      document.getElementById("memberPanel")?.classList.add("hidden");
+      document.getElementById("adminLoginPanel")?.classList.remove("hidden");
+      document.getElementById("adminPanel")?.classList.add("hidden");
+      document.getElementById("memberManagePanel")?.classList.add("hidden");
+      document.getElementById("memberTab")?.classList.remove("active");
+      document.getElementById("adminTab")?.classList.add("active");
+      document.getElementById("memberManageTab")?.classList.remove("active");
+    }catch(e){}
+  }
+  document.addEventListener("click", function(event){
+    const btn = event.target && event.target.closest ? event.target.closest("#adminPanel #adminLogoutBtn") : null;
+    if(!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if(event.stopImmediatePropagation) event.stopImmediatePropagation();
+    showAdminEntryScreen();
+  }, true);
+  window.addEventListener("pageshow", function(){
+    let shouldRestore = false;
+    try{
+      shouldRestore = sessionStorage.getItem(ENTRY_KEY) === "1" ||
+        sessionStorage.getItem(MODE_KEY) === "adminEntry" ||
+        localStorage.getItem(ENTRY_PERSIST_KEY) === "1";
+    }catch(e){}
+    if(shouldRestore) showAdminEntryScreen();
+  });
+})();
 </script>
 
 </body>
