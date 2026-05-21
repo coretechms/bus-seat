@@ -1515,6 +1515,38 @@ body.admin-entry-only #adminLoginPanel.hidden{
   line-height:1 !important;
   white-space:nowrap !important;
 }
+#memberApprovalSearchInput{
+  flex:0 1 96px !important;
+  width:96px !important;
+  max-width:96px !important;
+  min-width:72px !important;
+  height:22px !important;
+  min-height:22px !important;
+  padding:0 7px !important;
+  border:1px solid #999 !important;
+  border-radius:10px !important;
+  font-size:10px !important;
+  line-height:1 !important;
+  text-align:center !important;
+  background:#fff !important;
+  color:#111 !important;
+}
+#memberApprovalSearchInput:focus{
+  outline:1px solid #1428c8 !important;
+  border-color:#1428c8 !important;
+}
+.member-approval-search-empty{
+  display:none;
+  text-align:center;
+  color:#c51616;
+  font-size:12px;
+  font-weight:800;
+  padding:8px 0;
+}
+.member-approval-search-empty.is-visible{
+  display:block;
+}
+
 #memberJsonBackupBtn,
 #memberJsonRestoreBtn{
   flex:0 0 40px !important;
@@ -1540,6 +1572,17 @@ body.admin-entry-only #adminLoginPanel.hidden{
   #memberJsonRestoreBtn{
     flex-basis:34px !important;
     max-width:34px !important;
+  }
+
+  #memberApprovalSearchInput{
+    flex-basis:76px !important;
+    width:76px !important;
+    max-width:76px !important;
+    min-width:58px !important;
+    height:21px !important;
+    min-height:21px !important;
+    font-size:9px !important;
+    padding:0 5px !important;
   }
 }
 
@@ -1833,6 +1876,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
               <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
                 <div style="font-size:13px; font-weight:800; color:#1428c8; white-space:nowrap;">회원관리</div>
                 <div class="member-manage-header-actions">
+                  <input id="memberApprovalSearchInput" type="search" autocomplete="off" placeholder="이름검색" aria-label="회원 이름 검색" />
                   <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
                   <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
                   <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button">새로고침</button>
@@ -1846,6 +1890,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
                 <div id="memberApprovalList" class="member-approval-list">
                   <div class="member-approval-empty">회원관리 탭을 열면 가입대기 회원 목록을 불러옵니다.</div>
                 </div>
+                <div id="memberApprovalSearchEmpty" class="member-approval-search-empty">검색 결과가 없습니다.</div>
               </div>
             </div>
           </div>
@@ -6453,6 +6498,35 @@ function renderAll() {
     return status || "-";
   }
 
+
+  function normalizeMemberApprovalSearchText(value) {
+    return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
+  }
+
+  function applyMemberApprovalSearchFilter() {
+    const inputEl = byId("memberApprovalSearchInput");
+    const listEl = byId("memberApprovalList");
+    const emptyEl = byId("memberApprovalSearchEmpty");
+    if (!listEl) return;
+
+    const query = normalizeMemberApprovalSearchText(inputEl ? inputEl.value : "");
+    const cards = Array.from(listEl.querySelectorAll(".member-approval-card"));
+    let visibleCount = 0;
+
+    cards.forEach((card) => {
+      const name = normalizeMemberApprovalSearchText(card.dataset ? card.dataset.memberName : "");
+      const code = normalizeMemberApprovalSearchText(card.dataset ? card.dataset.memberCode : "");
+      const text = normalizeMemberApprovalSearchText(card.textContent || "");
+      const matched = !query || name.includes(query) || code.includes(query) || text.includes(query);
+      card.style.display = matched ? "" : "none";
+      if (matched) visibleCount += 1;
+    });
+
+    if (emptyEl) {
+      emptyEl.classList.toggle("is-visible", !!query && cards.length > 0 && visibleCount === 0);
+    }
+  }
+
   async function loadApprovalMembers() {
     const listEl = byId("memberApprovalList");
     if (!listEl) return;
@@ -6508,10 +6582,17 @@ function renderAll() {
           </div>
         </div>`;
     }).join("");
+    applyMemberApprovalSearchFilter();
   }
 
   window.__loadMembershipApprovalMembers = loadApprovalMembers;
   window.__setMembershipAuthMessage = setAuthMessage;
+
+  const memberApprovalSearchInput = byId("memberApprovalSearchInput");
+  if (memberApprovalSearchInput) {
+    memberApprovalSearchInput.addEventListener("input", applyMemberApprovalSearchFilter);
+    memberApprovalSearchInput.addEventListener("search", applyMemberApprovalSearchFilter);
+  }
 
   async function updateMemberApprovalStatus(code, action) {
     const snap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members/${code}`));
