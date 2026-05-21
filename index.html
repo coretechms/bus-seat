@@ -6639,7 +6639,7 @@ function renderAll() {
       if (name && m?.approved && m?.status === "active") approvedNamesForDuplicateJoin.add(name);
     });
     listEl.innerHTML = members.map((m) => {
-      const adminText = m.adminAccess ? "관리자ON" : "관리자OFF";
+      const adminText = m.adminAccess ? "관리자" : "회원";
       const approvedCardClass = (m.approved && m.status === "active") ? " approved-member" : "";
       const duplicateJoin = !!(String(m?.name || "").replace(/\s+/g, "").trim() && approvedNamesForDuplicateJoin.has(String(m?.name || "").replace(/\s+/g, "").trim()) && (m.status === "pending" || !m.approved));
       const resultText = joinResultLabel(m);
@@ -7185,7 +7185,7 @@ function renderAll() {
           <div class="member-approval-card-title">${esc(m.name || '-')} / ${esc(m.code)} / ${esc(label(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
           <div>성별: ${esc(m.gender || '-')} · 출생년도: ${esc(m.birthYear || '-')} · 거주지: ${esc(m.dong || '-')}</div>
           <div>전화: ${esc(m.phone || '-')}</div>
-          <div>역할: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자ON' : '관리자OFF'} · 가입일: ${esc(fmt(m.createdAt))}${resultSegment}</div>
+          <div>등급: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자' : '회원'} · 가입일: ${esc(fmt(m.createdAt))}${resultSegment}</div>
           <div class="member-approval-card-actions">
             ${(m.approved && m.status === "active") ? "" : `<button class="approve" data-forced-member-action="approve" data-code="${esc(m.code)}">승인</button>`}
             <button class="block" data-forced-member-action="block" data-code="${esc(m.code)}">차단</button>
