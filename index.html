@@ -821,6 +821,12 @@
       display: none !important;
     }
 
+    /* 회원 로그인 후 키보드 Enter/이동으로 진입해도 회원 입력 모드의 내부 입력 UI는 항상 숨김 */
+    body:not(.membership-locked) #memberPanel .member-hide-in-ui,
+    body:not(.membership-locked) #memberActionRow {
+      display: none !important;
+    }
+
     body.member-mode .help-text {
       margin-top: 2px !important;
       min-height: 0 !important;
@@ -1570,8 +1576,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
 }
 
 #memberJsonBackupBtn,
-#memberJsonRestoreBtn,
-#memberDbCleanupBtn{
+#memberJsonRestoreBtn{
   flex:0 0 40px !important;
   max-width:40px !important;
   padding-left:0 !important;
@@ -1592,8 +1597,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
     padding:0 5px !important;
   }
   #memberJsonBackupBtn,
-  #memberJsonRestoreBtn,
-  #memberDbCleanupBtn{
+  #memberJsonRestoreBtn{
     flex-basis:34px !important;
     max-width:34px !important;
   }
@@ -1927,7 +1931,6 @@ body.admin-entry-only #adminLoginPanel.hidden{
                   <input id="memberApprovalSearchInput" type="search" autocomplete="off" placeholder="이름검색" aria-label="회원 이름 검색" />
                   <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
                   <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
-                  <button class="btn btn-outline" id="memberDbCleanupBtn" type="button">DB정리</button>
                   <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button">새로고침</button>
                   <input id="memberJsonRestoreFileInput" type="file" accept="application/json,.json" class="hidden" />
                 </div>
@@ -6267,6 +6270,27 @@ function renderAll() {
       member.password || member.pass || member.pw || member.memberPassword || member.loginPassword);
   }
 
+  function enforceMemberInputModeHiddenUi() {
+    // 로그인 버튼이 아니라 모바일 키보드의 Enter/이동/완료로 로그인해도
+    // 회원 입력 모드 전용 숨김 UI가 다시 보이지 않도록 강제 정리한다.
+    try {
+      document.body.classList.remove("admin-mode", "member-manage-mode", "admin-entry-only");
+      document.body.classList.add("member-mode");
+      document.querySelectorAll("#memberPanel .member-hide-in-ui, #memberActionRow").forEach((el) => {
+        el.classList.add("hidden");
+        el.style.display = "none";
+      });
+      const panel = byId("memberPanel");
+      if (panel) panel.classList.remove("hidden");
+      byId("adminLoginPanel")?.classList.add("hidden");
+      byId("adminPanel")?.classList.add("hidden");
+      byId("memberManagePanel")?.classList.add("hidden");
+      byId("memberTab")?.classList.add("active");
+      byId("adminTab")?.classList.remove("active");
+      byId("memberManageTab")?.classList.remove("active");
+    } catch (error) {}
+  }
+
   async function loginMember() {
     const name = normalizeName(byId("memberLoginNameInput")?.value);
     const password = String(byId("memberLoginPasswordInput")?.value || "");
@@ -6367,6 +6391,14 @@ function renderAll() {
     } catch (e) {}
 
     unlockApp(session);
+    try {
+      if (typeof window.__busSeatSwitchMode === "function") {
+        window.__busSeatSwitchMode("member");
+      }
+    } catch (error) {}
+    enforceMemberInputModeHiddenUi();
+    setTimeout(enforceMemberInputModeHiddenUi, 0);
+    setTimeout(enforceMemberInputModeHiddenUi, 250);
   }
 
   async function joinMember() {
@@ -6672,6 +6704,10 @@ function renderAll() {
           } else if (typeof window.__busSeatSwitchMode === "function") {
             window.__busSeatSwitchMode("member");
           }
+          if (!(session.adminAccess || session.role === "admin" || session.code === "ADMIN")) {
+            enforceMemberInputModeHiddenUi();
+            setTimeout(enforceMemberInputModeHiddenUi, 0);
+          }
           setAuthMessage("로그인 상태가 유지되었습니다.", true);
           return;
         }
@@ -6915,7 +6951,6 @@ function renderAll() {
     const memberNameIndexPathForUpdate = record.nameIndexPath || record.member?.__nameIndexPath || `${memberRootForUpdate}/nameIndex`;
     const memberPendingPathForUpdate = record.pendingPath || record.member?.__pendingPath || `${memberRootForUpdate}/pending`;
     const member = record.member;
-    code = key;
     const now = Date.now();
     const updates = {};
     if (action === "approve") {
@@ -7208,8 +7243,21 @@ function renderAll() {
       });
     });
 
-    byId("memberLoginPasswordInput")?.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") loginMember().catch(console.error);
+    ["memberLoginNameInput", "memberLoginPasswordInput"].forEach((id) => {
+      const loginInput = byId(id);
+      if (!loginInput) return;
+      const runKeyboardLogin = (event) => {
+        const key = String(event.key || "");
+        if (key === "Enter" || key === "NumpadEnter" || key === "Go" || key === "Done") {
+          event.preventDefault();
+          loginMember().catch((error) => {
+            console.error("회원 로그인 오류:", error);
+            setAuthMessage("로그인 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
+          });
+        }
+      };
+      loginInput.addEventListener("keydown", runKeyboardLogin);
+      loginInput.addEventListener("keyup", runKeyboardLogin);
     });
     ["memberChangeNameInput", "memberChangeOldPasswordInput", "memberChangeNewPasswordInput", "memberChangeConfirmPasswordInput"].forEach((id) => {
       byId(id)?.addEventListener("keydown", (event) => {
@@ -7356,22 +7404,18 @@ function renderAll() {
   function addMemberMapRecord(map, code, raw, defaults = {}) {
     if (!code) return;
     const normalized = normalizeRecord(code, { ...(defaults || {}), ...(raw || {}) });
-    normalized.__sources = new Set(defaults && defaults.__source ? [defaults.__source] : []);
     const prev = map.get(String(code));
     if (!prev) {
       map.set(String(code), normalized);
       return;
     }
     // 여러 경로에서 같은 회원이 발견되면, 비어 있는 값만 보강한다.
-    const prevSources = prev.__sources instanceof Set ? prev.__sources : new Set(prev.__sources || []);
-    const nextSources = normalized.__sources instanceof Set ? normalized.__sources : new Set(normalized.__sources || []);
     map.set(String(code), {
       ...prev,
-      ...Object.fromEntries(Object.entries(normalized).filter(([k, v]) => k !== "__sources" && v !== "" && v !== 0 && v !== false && v != null)),
+      ...Object.fromEntries(Object.entries(normalized).filter(([, v]) => v !== "" && v !== 0 && v !== false && v != null)),
       approved: prev.approved || normalized.approved,
       adminAccess: prev.adminAccess || normalized.adminAccess,
-      raw: { ...(prev.raw || {}), ...(normalized.raw || {}) },
-      __sources: new Set([...prevSources, ...nextSources])
+      raw: { ...(prev.raw || {}), ...(normalized.raw || {}) }
     });
   }
 
@@ -7387,24 +7431,24 @@ function renderAll() {
 
     // 1순위: 현재 회원가입 DB 기본 경로
     const members = membersSnap && membersSnap.exists() ? membersSnap.val() || {} : {};
-    Object.keys(members).forEach((code) => addMemberMapRecord(map, code, members[code], { __source: `${MANAGE_MEMBERS_ROOT}/members` }));
+    Object.keys(members).forEach((code) => addMemberMapRecord(map, code, members[code]));
 
     // 2순위: 승인 처리 때 별도로 미러링되는 memberList/joinCodes 경로
     // 24인승 전환 중 busSeatApp/membership 이 비었더라도 이 경로에 남아 있으면 회원관리에서 표시한다.
     const joinCodes = joinCodesSnap && joinCodesSnap.exists() ? joinCodesSnap.val() || {} : {};
-    Object.keys(joinCodes).forEach((code) => addMemberMapRecord(map, code, joinCodes[code], { status: "active", approved: true, role: "member", __source: MANAGE_JOIN_CODES_PATH }));
+    Object.keys(joinCodes).forEach((code) => addMemberMapRecord(map, code, joinCodes[code], { status: "active", approved: true, role: "member" }));
 
     // 3순위: 과거/백업 호환 경로
     const rootMembershipMembers = rootMembershipSnap && rootMembershipSnap.exists() ? rootMembershipSnap.val() || {} : {};
-    Object.keys(rootMembershipMembers).forEach((code) => addMemberMapRecord(map, code, rootMembershipMembers[code], { __source: "membership/members" }));
+    Object.keys(rootMembershipMembers).forEach((code) => addMemberMapRecord(map, code, rootMembershipMembers[code]));
     const rootMembers = rootMembersSnap && rootMembersSnap.exists() ? rootMembersSnap.val() || {} : {};
-    Object.keys(rootMembers).forEach((code) => addMemberMapRecord(map, code, rootMembers[code], { __source: "members" }));
+    Object.keys(rootMembers).forEach((code) => addMemberMapRecord(map, code, rootMembers[code]));
 
     // pending 경로에 코드만 남아 있고 members 객체가 누락된 경우도 표시한다.
     const pending = pendingSnap && pendingSnap.exists() ? pendingSnap.val() || {} : {};
     Object.keys(pending).forEach((code) => {
       if (!map.has(code)) {
-        addMemberMapRecord(map, code, { code, name: "가입정보 없음", approved: false, status: "pending", role: "pending" }, { __source: `${MANAGE_MEMBERS_ROOT}/pending` });
+        addMemberMapRecord(map, code, { code, name: "가입정보 없음", approved: false, status: "pending", role: "pending" });
       } else {
         const prev = map.get(code);
         if (!prev.status) prev.status = "pending";
@@ -7792,96 +7836,13 @@ function renderAll() {
   }
 
 
-
-  const ALL_MEMBER_DB_DELETE_PATHS = [
-    { membersPath: `${MANAGE_MEMBERS_ROOT}/members`, pendingPath: `${MANAGE_MEMBERS_ROOT}/pending`, nameIndexPath: `${MANAGE_MEMBERS_ROOT}/nameIndex` },
-    { membersPath: "membership/members", pendingPath: "membership/pending", nameIndexPath: "membership/nameIndex" },
-    { membersPath: "members", pendingPath: "pending", nameIndexPath: "nameIndex" },
-    { membersPath: "busSeatApp/members", pendingPath: "busSeatApp/pending", nameIndexPath: "busSeatApp/nameIndex" }
-  ];
-
-  function makeDeleteUpdatesForMemberEverywhere(code, member = {}) {
-    const key = String(code || member.code || "").trim();
-    const updates = {};
-    if (!key) return updates;
-    const possibleNames = [member.name, member.nameKey, member.memberName, member.userName, member.displayName]
-      .map((v) => String(v || "").replace(/\s+/g, "").trim())
-      .filter(Boolean);
-    ALL_MEMBER_DB_DELETE_PATHS.forEach((cfg) => {
-      updates[`${cfg.membersPath}/${key}`] = null;
-      updates[`${cfg.pendingPath}/${key}`] = null;
-      possibleNames.forEach((nameKey) => {
-        updates[`${cfg.nameIndexPath}/${nameKey}/${key}`] = null;
-        updates[`${cfg.nameIndexPath}/${nameKey.toLowerCase()}/${key}`] = null;
-      });
-    });
-    updates[`${MANAGE_JOIN_CODES_PATH}/${key}`] = null;
-    return updates;
-  }
-
-  async function findMemberForDeleteFromAnyVisibleDb(code) {
-    const key = String(code || "").trim();
-    if (!key) return null;
-    const all = await readAllMembers();
-    return all.find((m) => String(m.code || "") === key) || { code: key };
-  }
-
-  async function cleanupOrphanMemberDb() {
-    const ok = confirm(
-      '회원 로그인 DB에 없는 고아 회원코드만 정리합니다.\n\n' +
-      '- memberList/joinCodes에는 있지만 members DB에는 없는 코드\n' +
-      '- pending에만 남은 코드\n\n' +
-      '정상 members DB 회원은 삭제하지 않습니다. 계속할까요?'
-    );
-    if (!ok) return;
-
-    const [mainMembersSnap, legacyMembersSnap, rootMembersSnap, busSeatMembersSnap, joinCodesSnap, pendingSnap] = await Promise.all([
-      get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`)).catch(() => null),
-      get(ref(manageDb, "membership/members")).catch(() => null),
-      get(ref(manageDb, "members")).catch(() => null),
-      get(ref(manageDb, "busSeatApp/members")).catch(() => null),
-      get(ref(manageDb, MANAGE_JOIN_CODES_PATH)).catch(() => null),
-      get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/pending`)).catch(() => null)
-    ]);
-
-    const validCodes = new Set();
-    [mainMembersSnap, legacyMembersSnap, rootMembersSnap, busSeatMembersSnap].forEach((snap) => {
-      if (snap && snap.exists()) Object.keys(snap.val() || {}).forEach((code) => validCodes.add(String(code)));
-    });
-
-    const cleanupCodes = new Set();
-    const joinCodes = joinCodesSnap && joinCodesSnap.exists() ? joinCodesSnap.val() || {} : {};
-    Object.keys(joinCodes).forEach((code) => { if (!validCodes.has(String(code))) cleanupCodes.add(String(code)); });
-    const pending = pendingSnap && pendingSnap.exists() ? pendingSnap.val() || {} : {};
-    Object.keys(pending).forEach((code) => { if (!validCodes.has(String(code))) cleanupCodes.add(String(code)); });
-
-    if (!cleanupCodes.size) {
-      alert('정리할 고아 회원코드가 없습니다.');
+  async function forceUpdateMember(code, action) {
+    const snap = await get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members/${code}`));
+    if (!snap.exists()) {
+      alert('해당 회원코드를 members DB에서 찾지 못했습니다.');
       return;
     }
-
-    const updates = {};
-    cleanupCodes.forEach((code) => {
-      const raw = joinCodes[code] || { code };
-      Object.assign(updates, makeDeleteUpdatesForMemberEverywhere(code, raw));
-    });
-    await update(ref(manageDb), updates);
-    await forceLoadMemberManageList();
-    alert(`DB 정리 완료: ${cleanupCodes.size}개 고아 회원코드를 삭제했습니다.`);
-  }
-
-  async function forceUpdateMember(code, action) {
-    const key = String(code || '').trim();
-    const snap = await get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members/${key}`)).catch(() => null);
-    let member = snap && snap.exists() ? (snap.val() || {}) : null;
-    if (!member) {
-      member = await findMemberForDeleteFromAnyVisibleDb(key);
-      if (action !== 'delete') {
-        alert('해당 회원코드를 기본 members DB에서 찾지 못했습니다. 삭제/DB정리로 고아 데이터를 정리하거나 회원 JSON을 복구하세요.');
-        return;
-      }
-    }
-    code = key;
+    const member = snap.val() || {};
     const now = Date.now();
     const updates = {};
     if (action === 'approve') {
@@ -7936,10 +7897,15 @@ function renderAll() {
       });
       updates[`${MANAGE_MEMBERS_ROOT}/pending/${code}`] = null;
     } else if (action === 'delete') {
-      Object.assign(updates, makeDeleteUpdatesForMemberEverywhere(code, member || { code }));
+      updates[`${MANAGE_MEMBERS_ROOT}/members/${code}`] = null;
+      updates[`${MANAGE_MEMBERS_ROOT}/pending/${code}`] = null;
+      if (member?.name) {
+        const nameKey = String(member.name || '').replace(/\s+/g, '').trim();
+        if (nameKey) updates[`${MANAGE_MEMBERS_ROOT}/nameIndex/${nameKey}/${code}`] = null;
+      }
+      updates[`${MANAGE_JOIN_CODES_PATH}/${code}`] = null;
       await update(ref(manageDb), updates);
       await forceLoadMemberManageList();
-      alert(`${member?.name || code} / ${code} 전체 DB 경로 삭제 완료`);
       return;
     }
     updates[`${MANAGE_MEMBERS_ROOT}/members/${code}`] = member;
@@ -7974,15 +7940,6 @@ function renderAll() {
     if (memberRestore) {
       event.preventDefault();
       handleMemberJsonRestoreClick();
-      return;
-    }
-    const memberDbCleanup = event.target.closest('#memberManagePanel #memberDbCleanupBtn');
-    if (memberDbCleanup) {
-      event.preventDefault();
-      cleanupOrphanMemberDb().catch((error) => {
-        console.error('회원 DB 정리 오류:', error);
-        alert(`회원 DB 정리 오류: ${error?.code || error?.message || error}`);
-      });
       return;
     }
     const actionBtn = event.target.closest('#memberManagePanel button[data-forced-member-action], #memberManagePanel button[data-member-action]');
