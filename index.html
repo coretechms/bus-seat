@@ -8404,42 +8404,72 @@ function renderAll() {
     }) || null;
   }
   function applyManageMemberToMemberListData(data, member) {
-    const code = String(member?.code || "").trim();
-    if (!code) return false;
-    const idx = {
-      name: getManageMemberListHeaderIndex(data, "이 름", 1),
-      gender: getManageMemberListHeaderIndex(data, "성별", 2),
-      birth: getManageMemberListHeaderIndex(data, "출생년도", 3),
-      phone: getManageMemberListHeaderIndex(data, "연락처", 5),
-      dong: getManageMemberListHeaderIndex(data, "거주지", 8),
-      approval: getManageMemberListHeaderIndex(data, "가입:승인", 19),
-      uid: getManageMemberListHeaderIndex(data, "회원UID", 20),
-      joinDate: getManageMemberListHeaderIndex(data, "가입일", 21),
-      result: getManageMemberListHeaderIndex(data, "승인결과", 22)
-    };
-    const incomingName = String(member.name || "").trim();
-    const incomingPhone = formatManageMemberListPhone344(member.phone || member.phoneDigits || "");
-    const resultLabel = joinResultLabel(member);
-    const joinDate = formatManageMemberListDate(member.approvedAt || member.createdAt || member.updatedAt);
+    if (!data || !member) return false;
+    const idx = getManageMemberListIndexes(data.headers || MANAGE_MEMBER_LIST_TABLE_HEADERS);
+    if (idx.name < 0 || idx.phone < 0) return false;
 
-    let row = findManageMemberListRowByUid(data, idx.uid, code);
-    let metadataOnly = !!row;
-    if (!row) {
-      row = findManageMemberListRowByNamePhone(data, idx.name, idx.phone, incomingName, incomingPhone);
-      metadataOnly = !!row;
+    const code = String(member.code || "").trim();
+    const incomingName = String(member.name || member.loginName || "").trim();
+    const incomingPhone = String(member.phone || member.phoneDigits || "").trim();
+    const incomingBirth = String(member.birthYear || "").trim();
+    const incomingDong = String(member.dong || member.residence || "").trim();
+    const resultLabel = member.adminAccess ? "관리자" : (member.approved ? "승인" : (member.status === "blocked" ? "차단" : member.status === "withdrawn" ? "탈퇴" : "승인대기"));
+    const joinDate = formatManageJoinDate(member.createdAt || member.requestedAt || Date.now());
+
+    const cleanName = (v) => String(v || "").replace(/\s+/g, "").trim();
+    const cleanPhone = (v) => String(v || "").replace(/[^0-9]/g, "");
+    const cleanText = (v) => String(v || "").replace(/\s+/g, "").trim();
+    const cellTextSafe = (row, col) => col >= 0 ? cleanManageMemberListCellText(row[col]) : "";
+
+    const rows = Array.isArray(data.rows) ? data.rows : (data.rows = []);
+    const incomingNameKey = cleanName(incomingName);
+    const incomingPhoneKey = cleanPhone(incomingPhone);
+    const incomingBirthKey = cleanText(incomingBirth);
+    const incomingDongKey = cleanText(incomingDong);
+
+    let row = null;
+    let metadataOnly = false;
+
+    // 1) 이름 + 전화번호가 같으면 기존 회원으로 보고 기존 행에 가입상태만 반영한다.
+    row = rows.find((r) => {
+      const rowNameKey = cleanName(cellTextSafe(r, idx.name));
+      const rowPhoneKey = cleanPhone(cellTextSafe(r, idx.phone));
+      return rowNameKey && rowNameKey === incomingNameKey && rowPhoneKey && rowPhoneKey === incomingPhoneKey;
+    }) || null;
+
+    if (row) {
+      metadataOnly = true;
+    } else {
+      // 2) 이름은 같지만 전화번호/출생년도/거주지가 다르면 기존 행을 수정하지 않고 신규 행을 만든다.
+      const sameNameDifferentInfo = rows.some((r) => {
+        const rowNameKey = cleanName(cellTextSafe(r, idx.name));
+        if (!rowNameKey || rowNameKey !== incomingNameKey) return false;
+        const rowPhoneKey = cleanPhone(cellTextSafe(r, idx.phone));
+        const rowBirthKey = cleanText(cellTextSafe(r, idx.birth));
+        const rowDongKey = cleanText(cellTextSafe(r, idx.dong));
+        return rowPhoneKey !== incomingPhoneKey || rowBirthKey !== incomingBirthKey || rowDongKey !== incomingDongKey;
+      });
+
+      // 3) 이름이 없거나 완전 신규도 신규 행을 사용한다.
+      row = findFirstEmptyManageMemberListRow(data, idx.name, idx.phone, idx.uid);
+      if (!row) {
+        row = MANAGE_MEMBER_LIST_TABLE_HEADERS.map(() => makeManageMemberListCell(""));
+        rows.push(row);
+      }
+      metadataOnly = false;
+      if (sameNameDifferentInfo) {
+        member.memberType = member.memberType || "same-name-new-info";
+      }
     }
-    if (!row) row = findFirstEmptyManageMemberListRow(data, idx.name, idx.phone, idx.uid);
-    if (!row) {
-      row = MANAGE_MEMBER_LIST_TABLE_HEADERS.map(() => makeManageMemberListCell(""));
-      data.rows.push(row);
-    }
+
     if (!metadataOnly) {
       setManageMemberListCellText(row, idx.name, incomingName);
       setManageMemberListCellText(row, idx.gender, member.gender || "");
-      setManageMemberListCellText(row, idx.birth, member.birthYear || "");
+      setManageMemberListCellText(row, idx.birth, incomingBirth);
       setManageMemberListCellText(row, idx.phone, incomingPhone);
-      setManageMemberListCellText(row, idx.dong, member.dong || "");
+      setManageMemberListCellText(row, idx.dong, incomingDong);
     }
+
     setManageMemberListCellText(row, idx.approval, (resultLabel === "승인" || resultLabel === "관리자") ? "승인" : resultLabel);
     setManageMemberListCellText(row, idx.uid, code);
     setManageMemberListCellText(row, idx.joinDate, joinDate);
@@ -8767,5 +8797,7 @@ function renderAll() {
 })();
 </script>
 
+
+<!-- patched: join same name + same phone = existing; same name + different phone/birth/dong = new memberList row -->
 </body>
 </html>
