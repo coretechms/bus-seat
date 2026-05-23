@@ -879,6 +879,11 @@
       font-size: 11px !important;
       line-height: 1 !important;
     }
+    .seat-memo-delete-small.security-delete {
+      background: #d80000 !important;
+      border-color: #d80000 !important;
+      color: #fff !important;
+    }
     .seat-memo-author-row {
       display: flex;
       align-items: center;
@@ -1895,6 +1900,45 @@ body.admin-entry-only #adminLoginPanel.hidden{
   color: #111 !important;
 }
 
+
+
+/* ===== Security memo marker/button fixes ===== */
+.seat-memo-mark.memo-normal { background:#2563eb !important; }
+.seat-memo-mark.memo-security { background:#d80000 !important; }
+.seat-memo-mark.memo-both { animation: seatMemoBothBlink .85s steps(2,start) infinite; }
+@keyframes seatMemoBothBlink {
+  0%, 49% { background:#2563eb; }
+  50%, 100% { background:#d80000; }
+}
+.seat-memo-actions {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 7px;
+}
+.seat-memo-actions .yn-btn { width:100%; min-width:0; }
+.seat-memo-actions .security { background:#d80000; border-color:#d80000; color:#fff; }
+.seat-memo-actions .exit { background:#fff; color:#333; }
+.seat-memo-security-title {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #d80000;
+}
+.seat-name-hit-zone {
+  position:absolute;
+  left:15%;
+  right:15%;
+  top:15%;
+  bottom:15%;
+  z-index:3;
+  pointer-events:none;
+}
+@media(max-width:760px){
+  .seat-memo-actions { gap:4px; }
+  .seat-memo-actions .yn-btn { font-size:11px; padding:0 4px; }
+}
+
 </style>
 </head>
 <body class="membership-locked">
@@ -2096,7 +2140,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
                 <label for="busTypeSelect" style="width:80px; margin-bottom:0;">버스선택</label>
                 <select id="busTypeSelect" style="flex:1;">
                   <option value="44">44인승</option>
-                  <option value="40" selected>40인승</option>
+                  <option value="40">40인승</option>
                   <option value="31">31인승</option>
                   <option value="24">24인승</option>
                 </select>
@@ -2271,6 +2315,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getDatabase, ref, onValue, get, set, update } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgwQ",
@@ -2362,6 +2407,9 @@ const firebaseConfig = {
     const state = {
       app: null,
       db: null,
+      auth: null,
+      firebaseAdminUid: "",
+      isFirebaseAdminAuthReady: false,
       isFirebaseReady: false,
       isSubscribed: false,
       canWrite: false,
@@ -2391,7 +2439,8 @@ const firebaseConfig = {
       waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
       nameEntryLocked: false,
       boardImageMode: false,
-      hikingNotice: { text: "", locked: false, editing: true }
+      hikingNotice: { text: "", locked: false, editing: true },
+      securityMemos: {}
     };
 
     function byId(id) { return document.getElementById(id); }
@@ -2789,6 +2838,7 @@ const firebaseConfig = {
         { name: "clipboard fallback 함수 존재", pass: typeof copyTextRobust === "function" },
         { name: "firebaseConfig 유효성", pass: validateFirebaseConfig().ok },
         { name: "초기 payload 44 좌석", pass: Object.keys(buildInitialPayload("44").seats).length === 44 },
+        { name: "초기 payload 40 좌석", pass: Object.keys(buildInitialPayload("40").seats).length === 40 },
         { name: "초기 payload 24 좌석", pass: Object.keys(buildInitialPayload("24").seats).length === 44 },
         { name: "SeatNameBridge 존재", pass: typeof SeatNameBridge.sync === "function" }
       ];
@@ -2905,13 +2955,16 @@ const firebaseConfig = {
       const waitingWarning = isWaitingBlinkTarget(seat);
       const isPaidNew = seat.status === "paid_new" || seat.status === "paid_new_move";
       const hasMemo = Boolean(String(seat.memo || "").trim());
+      const hasSecurityMemo = Boolean(seat.hasSecurityMemo || String(state.securityMemos?.[seat.number]?.memo || "").trim());
+      const memoMarkClass = hasMemo && hasSecurityMemo ? "memo-both" : (hasSecurityMemo ? "memo-security" : "memo-normal");
       const status = occupied && seat.status !== "reserved" && seat.status !== "empty" && seat.status !== "paid" && seat.status !== "paid_new"
         ? `<div class="status-pill status-${seat.status}">${statusLabel(seat.status)}</div>`
         : "";
       return `
         <button id="seat-btn-${seat.number}" class="seat ${seat.number <= 4 ? "light" : ""} ${occupied ? "occupied" : ""} ${locked ? "locked" : ""} ${blocked ? "unavailable" : ""} ${isJustSaved ? "seat-save-flash" : ""} ${waitingWarning ? "waiting-warning" : ""}" data-seat="${seat.number}" type="button" title="${blocked ? "사용할 수 없는 좌석입니다." : (locked ? "회원모드에서는 수정할 수 없는 좌석입니다." : "")}">
           <div class="seat-number ${side} ${isPaidNew ? "paid-new" : ""}">${getSeatDisplayNumber(seat.number)}</div>
-          ${hasMemo ? '<div class="seat-memo-mark">M</div>' : ''}
+          ${(hasMemo || hasSecurityMemo) ? `<div class="seat-memo-mark ${memoMarkClass}">M</div>` : ''}
+          <div class="seat-name-hit-zone" aria-hidden="true"></div>
           <div class="seat-inner">
             ${!isEditing ? status : ""}
             ${isEditing
@@ -2939,8 +2992,16 @@ const firebaseConfig = {
           longPressTriggered = false;
           clearPressTimer();
           if (!seat || isBlockedSeat(seatNo) || !seat.name) return;
-          startX = event.clientX ?? (event.touches?.[0]?.clientX || 0);
-          startY = event.clientY ?? (event.touches?.[0]?.clientY || 0);
+          const pointX = event.clientX ?? (event.touches?.[0]?.clientX || 0);
+          const pointY = event.clientY ?? (event.touches?.[0]?.clientY || 0);
+          const rect = btn.getBoundingClientRect ? btn.getBoundingClientRect() : null;
+          if (rect) {
+            const insideMemoZone = pointX >= rect.left + rect.width * 0.15 && pointX <= rect.right - rect.width * 0.15 &&
+              pointY >= rect.top + rect.height * 0.15 && pointY <= rect.bottom - rect.height * 0.15;
+            if (!insideMemoZone) return;
+          }
+          startX = pointX;
+          startY = pointY;
           pressTimer = window.setTimeout(() => {
             longPressTriggered = true;
             openSeatMemoDialog(seatNo);
@@ -3179,12 +3240,56 @@ const firebaseConfig = {
 
     
     
+    function getSecurityMemoText(seatNo) {
+      const entry = state.securityMemos?.[String(seatNo)] ?? state.securityMemos?.[Number(seatNo)] ?? {};
+      if (typeof entry === "string") return String(entry || "").trim();
+      return String(entry?.memo || "").trim();
+    }
+
+    async function saveSeatMemoRemote(seatNo, memo) {
+      if (!state.db) return false;
+      const normalized = String(memo || "").trim();
+      return safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
+        memo: normalized,
+        updatedAt: Date.now(),
+        updatedBy: state.clientId
+      }, {
+        label: "saveSeatMemoRemote",
+        permissionMessage: "메모 저장 권한이 없습니다.",
+        genericMessage: "메모 저장 실패"
+      });
+    }
+
+    async function saveSeatSecurityMemoRemote(seatNo, memo) {
+      if (!state.db) return false;
+      const normalized = String(memo || "").trim();
+      const now = Date.now();
+      const memoOk = await safeUpdate(ref(state.db, `seatAdminMemos/${seatNo}`), {
+        memo: normalized,
+        updatedAt: now,
+        updatedBy: state.clientId
+      }, {
+        label: "saveSeatSecurityMemoRemote",
+        permissionMessage: "보안메모 저장 권한이 없습니다.",
+        genericMessage: "보안메모 저장 실패"
+      });
+      if (!memoOk) return false;
+      await safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
+        hasSecurityMemo: Boolean(normalized),
+        updatedAt: now,
+        updatedBy: state.clientId
+      }, { label: "saveSeatSecurityMemoFlag" });
+      return true;
+    }
+
     function showSeatMemoDialog(seat, title = "좌석 메모") {
       return new Promise((resolve) => {
         const existing = document.getElementById("seatMemoOverlay");
         if (existing) existing.remove();
 
         const currentMemo = String(seat.memo || "").trim();
+        const currentSecurityMemo = getSecurityMemoText(seat.number);
+        const canViewSecurityMemo = Boolean(state.isAdminAuthenticated);
         const overlay = document.createElement("div");
         overlay.className = "yn-overlay";
         overlay.id = "seatMemoOverlay";
@@ -3192,17 +3297,24 @@ const firebaseConfig = {
           <div class="yn-dialog seat-memo-dialog" role="dialog" aria-modal="true" aria-labelledby="seatMemoTitle">
             <div class="seat-memo-top">
               <div class="yn-title" id="seatMemoTitle" style="margin-bottom:0;">${escapeHtml(title)} - ${escapeHtml(getSeatDisplayNumber(seat.number))}번 ${escapeHtml(seat.name || "")}</div>
-              <button type="button" class="yn-btn seat-memo-delete-small" id="seatMemoDelete">전체삭제</button>
+              <button type="button" class="yn-btn seat-memo-delete-small" id="seatMemoDelete">일반삭제</button>
             </div>
-            <div id="seatMemoHistory" class="seat-memo-history ${currentMemo ? "" : "seat-memo-empty"}">${currentMemo ? escapeHtml(currentMemo) : "기존 메모가 없습니다."}</div>
+            <div id="seatMemoHistory" class="seat-memo-history ${currentMemo ? "" : "seat-memo-empty"}">${currentMemo ? escapeHtml(currentMemo) : "기존 일반메모가 없습니다."}</div>
+            <div class="seat-memo-top" style="margin-top:8px;margin-bottom:6px;">
+              <div class="seat-memo-security-title" style="margin:0;">보안메모</div>
+              <button type="button" class="yn-btn seat-memo-delete-small security-delete" id="seatSecurityMemoDelete" ${canViewSecurityMemo ? "" : "disabled"}>보안삭제</button>
+            </div>
+            <div id="seatSecurityMemoHistory" class="seat-memo-history ${canViewSecurityMemo && currentSecurityMemo ? "" : "seat-memo-empty"}" style="min-height:58px;max-height:120px;">${canViewSecurityMemo ? (currentSecurityMemo ? escapeHtml(currentSecurityMemo) : "기존 보안메모가 없습니다.") : "관리자만 내용을 볼 수 있습니다."}</div>
             <div class="seat-memo-author-row">
               <label for="seatMemoAuthor">작성자:</label>
               <input id="seatMemoAuthor" type="text" placeholder="작성자 이름" autocomplete="off" />
             </div>
-            <textarea id="seatMemoInput" placeholder="추가할 메모를 입력하세요. 기존 글은 편집할 수 없습니다."></textarea>
-            <div class="seat-memo-hint">작성자 이름을 입력해야 메모를 추가할 수 있습니다. 기존 글은 보존되고 새 글만 아래에 추가됩니다.</div>
-            <div class="yn-actions">
-              <button type="button" class="yn-btn primary" id="seatMemoSave">입력</button>
+            <textarea id="seatMemoInput" placeholder="추가할 메모를 입력하세요."></textarea>
+            <div class="seat-memo-hint">일반메모는 모두 볼 수 있고, 보안메모 내용은 관리자만 볼 수 있습니다.</div>
+            <div class="seat-memo-actions">
+              <button type="button" class="yn-btn primary" id="seatMemoSaveNormal">일반메모</button>
+              <button type="button" class="yn-btn security" id="seatMemoSaveSecurity">보안메모</button>
+              <button type="button" class="yn-btn exit" id="seatMemoExit">나가기</button>
             </div>
           </div>
         `;
@@ -3211,69 +3323,183 @@ const firebaseConfig = {
         const authorInput = overlay.querySelector("#seatMemoAuthor");
         const input = overlay.querySelector("#seatMemoInput");
         const deleteBtn = overlay.querySelector("#seatMemoDelete");
+        const securityDeleteBtn = overlay.querySelector("#seatSecurityMemoDelete");
         const historyEl = overlay.querySelector("#seatMemoHistory");
-        const appendedLines = [];
+        const securityHistoryEl = overlay.querySelector("#seatSecurityMemoHistory");
         let workingMemoText = currentMemo;
-        let hasChanged = false;
+        let workingSecurityMemoText = currentSecurityMemo;
+        let saving = false;
 
-        const cleanup = (value) => {
+        const cleanup = () => {
           overlay.remove();
-          resolve(value);
+          resolve(null);
         };
-        const renderMemoHistory = () => {
-          if (!historyEl) return;
-          historyEl.textContent = workingMemoText || "기존 메모가 없습니다.";
-          historyEl.classList.toggle("seat-memo-empty", !workingMemoText);
-          historyEl.scrollTop = historyEl.scrollHeight;
-        };
-        const exitDialog = () => {
-          if (!hasChanged) {
-            cleanup(null);
-            return;
-          }
-          cleanup({ action: "set", memo: workingMemoText });
-        };
-
-        overlay.addEventListener("click", (e) => {
-          if (e.target === overlay) e.stopPropagation();
-        });
-        deleteBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          if (!workingMemoText) return;
-          if (!confirm("이 좌석의 메모를 전체 삭제할까요?")) return;
-          workingMemoText = "";
-          appendedLines.length = 0;
-          hasChanged = true;
-          renderMemoHistory();
-          input.value = "";
-          input.focus();
-        });
-        overlay.querySelector("#seatMemoSave").addEventListener("click", () => {
+        const validateInputs = () => {
           const author = normalizeName(authorInput.value);
           const memoText = String(input.value || "").trim();
           if (!author) {
             alert("작성자 이름을 입력하세요.");
             authorInput.focus();
-            return;
+            return null;
           }
           if (hasInvalidKoreanJamo(authorInput.value) || /[^가-힣0-9\s]/.test(authorInput.value)) {
             alert("오타알림: 작성자 이름은 한글과 숫자만 입력하세요.");
             authorInput.focus();
-            return;
+            return null;
           }
           if (!memoText) {
             alert("추가할 메모 내용을 입력하세요.");
             input.focus();
-            return;
+            return null;
           }
-          const nextLine = `${author} : ${memoText}`;
-          appendedLines.push(nextLine);
-          workingMemoText = workingMemoText ? `${workingMemoText}
-${nextLine}` : nextLine;
-          hasChanged = true;
+          return { author, memoText, line: `${author} : ${memoText}` };
+        };
+        const renderMemoHistory = () => {
+          if (historyEl) {
+            historyEl.textContent = workingMemoText || "기존 일반메모가 없습니다.";
+            historyEl.classList.toggle("seat-memo-empty", !workingMemoText);
+            historyEl.scrollTop = historyEl.scrollHeight;
+          }
+          if (securityHistoryEl) {
+            const securityText = canViewSecurityMemo ? (workingSecurityMemoText || "기존 보안메모가 없습니다.") : "관리자만 내용을 볼 수 있습니다.";
+            securityHistoryEl.textContent = securityText;
+            securityHistoryEl.classList.toggle("seat-memo-empty", !(canViewSecurityMemo && workingSecurityMemoText));
+            securityHistoryEl.scrollTop = securityHistoryEl.scrollHeight;
+          }
+        };
+        const setSaving = (value) => {
+          saving = value;
+          ["#seatMemoSaveNormal", "#seatMemoSaveSecurity", "#seatMemoExit", "#seatMemoDelete", "#seatSecurityMemoDelete"].forEach((selector) => {
+            const btn = overlay.querySelector(selector);
+            if (btn) btn.disabled = value;
+          });
+        };
+        const updateLocalGeneralMemo = (memo) => {
+          const normalized = String(memo || "").trim();
+          state.seats = state.seats.map((item) => item.number === Number(seat.number)
+            ? { ...item, memo: normalized, updatedAt: Date.now(), updatedBy: state.clientId }
+            : item
+          );
+        };
+        const updateLocalSecurityMemo = (memo) => {
+          const normalized = String(memo || "").trim();
+          state.securityMemos = { ...(state.securityMemos || {}), [String(seat.number)]: { memo: normalized, updatedAt: Date.now(), updatedBy: state.clientId } };
+          state.seats = state.seats.map((item) => item.number === Number(seat.number)
+            ? { ...item, hasSecurityMemo: Boolean(normalized), updatedAt: Date.now(), updatedBy: state.clientId }
+            : item
+          );
+        };
+
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) e.stopPropagation();
+        });
+        deleteBtn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (saving || !workingMemoText) return;
+          if (!confirm("이 좌석의 일반메모를 전체 삭제할까요?")) return;
+          const prevMemo = workingMemoText;
+          workingMemoText = "";
           renderMemoHistory();
+          updateLocalGeneralMemo("");
+          renderAll();
+          if (state.isFirebaseReady) {
+            setSaving(true);
+            const ok = await saveSeatMemoRemote(seat.number, "");
+            setSaving(false);
+            if (!ok) {
+              workingMemoText = prevMemo;
+              updateLocalGeneralMemo(prevMemo);
+              renderAll();
+              renderMemoHistory();
+              alert("일반메모 삭제 실패: Firebase 저장 권한을 확인하세요.");
+            }
+          }
           input.value = "";
           input.focus();
+        });
+        if (securityDeleteBtn) {
+          securityDeleteBtn.addEventListener("click", async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (saving || !canViewSecurityMemo || !workingSecurityMemoText) return;
+            if (!confirm("이 좌석의 보안메모를 전체 삭제할까요?")) return;
+            const prevMemo = workingSecurityMemoText;
+            workingSecurityMemoText = "";
+            renderMemoHistory();
+            updateLocalSecurityMemo("");
+            renderAll();
+            if (state.isFirebaseReady) {
+              setSaving(true);
+              const ok = await saveSeatSecurityMemoRemote(seat.number, "");
+              setSaving(false);
+              if (!ok) {
+                workingSecurityMemoText = prevMemo;
+                updateLocalSecurityMemo(prevMemo);
+                renderAll();
+                renderMemoHistory();
+                alert("보안메모 삭제 실패: Firebase 저장 권한을 확인하세요.");
+                return;
+              }
+            }
+            input.value = "";
+            input.focus();
+          });
+        }
+        overlay.querySelector("#seatMemoSaveNormal").addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (saving) return;
+          const values = validateInputs();
+          if (!values) return;
+          const prevMemo = workingMemoText;
+          workingMemoText = workingMemoText ? `${workingMemoText}\n${values.line}` : values.line;
+          renderMemoHistory();
+          updateLocalGeneralMemo(workingMemoText);
+          renderAll();
+          setSaving(true);
+          const ok = state.isFirebaseReady ? await saveSeatMemoRemote(seat.number, workingMemoText) : true;
+          setSaving(false);
+          if (!ok) {
+            workingMemoText = prevMemo;
+            updateLocalGeneralMemo(prevMemo);
+            renderAll();
+            renderMemoHistory();
+            alert("일반메모 저장 실패: Firebase 저장 권한을 확인하세요.");
+            return;
+          }
+          input.value = "";
+          input.focus();
+        });
+        overlay.querySelector("#seatMemoSaveSecurity").addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (saving) return;
+          const values = validateInputs();
+          if (!values) return;
+          const prevMemo = workingSecurityMemoText;
+          workingSecurityMemoText = workingSecurityMemoText ? `${workingSecurityMemoText}\n${values.line}` : values.line;
+          renderMemoHistory();
+          updateLocalSecurityMemo(workingSecurityMemoText);
+          renderAll();
+          setSaving(true);
+          const ok = state.isFirebaseReady ? await saveSeatSecurityMemoRemote(seat.number, workingSecurityMemoText) : true;
+          setSaving(false);
+          if (!ok) {
+            workingSecurityMemoText = prevMemo;
+            updateLocalSecurityMemo(prevMemo);
+            renderAll();
+            renderMemoHistory();
+            alert("보안메모 저장 실패: Firebase 저장 권한을 확인하세요.");
+            return;
+          }
+          input.value = "";
+          input.focus();
+        });
+        overlay.querySelector("#seatMemoExit").addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          cleanup();
         });
         [authorInput, input].forEach((el) => {
           el.addEventListener("click", (e) => e.stopPropagation());
@@ -3290,7 +3516,7 @@ ${nextLine}` : nextLine;
             }
             if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
               e.preventDefault();
-              overlay.querySelector("#seatMemoSave").click();
+              overlay.querySelector("#seatMemoSaveNormal").click();
             }
           });
         });
@@ -3298,55 +3524,10 @@ ${nextLine}` : nextLine;
       });
     }
 
-    async function saveSeatMemoRemote(seatNo, memo) {
-      if (!state.db) return false;
-      return safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
-        memo: String(memo || "").trim(),
-        updatedAt: Date.now(),
-        updatedBy: state.clientId
-      }, {
-        label: "saveSeatMemoRemote",
-        permissionMessage: "메모 저장 권한이 없습니다.",
-        genericMessage: "메모 저장 실패"
-      });
-    }
-
     async function openSeatMemoDialog(seatNo) {
       const seat = state.seats.find((s) => s.number === Number(seatNo));
       if (!seat || isBlockedSeat(seatNo) || !seat.name) return;
-      const memoResult = await showSeatMemoDialog(seat);
-      if (memoResult === null) return;
-
-      let normalizedMemo = String(seat.memo || "").trim();
-      if (memoResult?.action === "delete") {
-        normalizedMemo = "";
-      } else if (memoResult?.action === "append") {
-        const nextLine = `${memoResult.author} : ${String(memoResult.text || "").trim()}`;
-        normalizedMemo = normalizedMemo ? `${normalizedMemo}
-${nextLine}` : nextLine;
-      } else if (memoResult?.action === "set") {
-        normalizedMemo = String(memoResult.memo || "").trim();
-      } else {
-        return;
-      }
-
-
-      const prevSeats = state.seats.map((item) => ({ ...item }));
-      state.seats = state.seats.map((item) => item.number === Number(seatNo)
-        ? { ...item, memo: normalizedMemo, updatedAt: Date.now(), updatedBy: state.clientId }
-        : item
-      );
-      renderAll();
-      if (!state.isFirebaseReady) {
-        setStatusMessage("Firebase 미연결 - 메모가 화면에만 표시", state.projectLabel);
-        return;
-      }
-      const ok = await saveSeatMemoRemote(seatNo, normalizedMemo);
-      if (!ok) {
-        state.seats = prevSeats;
-        renderAll();
-        alert("메모 저장 권한이 없습니다.");
-      }
+      await showSeatMemoDialog(seat);
     }
 
     function showRecoveryConfirmDialog(message, title = "이 페이지 내용:") {
@@ -3817,8 +3998,8 @@ function renderAll() {
     }
 
     function applySnapshotData(payload) {
-      const nextBusType = payload?.busType || state.busType || "44";
-      state.busType = BUS_LAYOUTS[nextBusType] ? nextBusType : "44";
+      const nextBusType = payload?.busType || state.busType || "40";
+      state.busType = BUS_LAYOUTS[nextBusType] ? nextBusType : "40";
       const seatsData = payload?.seats || {};
       const now = Date.now();
       const expireHours = Number(payload?.waitingExpireHours ?? DEFAULT_WAITING_EXPIRE_HOURS) || DEFAULT_WAITING_EXPIRE_HOURS;
@@ -3842,7 +4023,8 @@ function renderAll() {
           status: nextName ? nextStatus : "empty",
           updatedAt: raw.updatedAt || 0,
           updatedBy: raw.updatedBy || "",
-          memo: nextName ? String(raw.memo || "") : ""
+          memo: nextName ? String(raw.memo || "") : "",
+          hasSecurityMemo: nextName ? Boolean(raw.hasSecurityMemo) : false
         };
       });
 
@@ -3896,6 +4078,23 @@ function renderAll() {
         if (!data) return;
         applySnapshotData(data);
       }, 60000);
+      try {
+        const adminMemoRef = ref(state.db, "seatAdminMemos");
+        onValue(adminMemoRef, (snapshot) => {
+          const data = snapshot.val() || {};
+          state.securityMemos = data && typeof data === "object" ? data : {};
+          state.seats = state.seats.map((seat) => {
+            const entry = state.securityMemos[String(seat.number)] || state.securityMemos[seat.number] || {};
+            const memoText = typeof entry === "string" ? entry : String(entry?.memo || "");
+            return { ...seat, hasSecurityMemo: Boolean(memoText.trim()) || Boolean(seat.hasSecurityMemo) };
+          });
+          renderAll();
+        }, (error) => {
+          console.warn("seatAdminMemos read failed", error);
+        });
+      } catch (error) {
+        console.warn("seatAdminMemos subscribe failed", error);
+      }
       state.isSubscribed = true;
     }
 
@@ -4456,6 +4655,65 @@ function renderAll() {
       flashSaveVisuals(targetSeatNo, "memberCancelBtn");
     }
 
+
+    async function ensureFirebaseAdminUidConnected() {
+      if (!state.isFirebaseReady || !state.db || !state.auth) {
+        alert("Firebase 연결 후 관리자 UID 등록이 가능합니다.");
+        return false;
+      }
+
+      const currentUser = state.auth.currentUser;
+      if (currentUser) {
+        try {
+          await update(ref(state.db, `users/${currentUser.uid}`), {
+            role: "admin",
+            approved: true,
+            adminLinkedAt: Date.now(),
+            source: "bus-seat-admin-login"
+          });
+          state.firebaseAdminUid = currentUser.uid;
+          state.isFirebaseAdminAuthReady = true;
+          return true;
+        } catch (error) {
+          console.error("admin uid role update failed", error);
+          alert("관리자 UID 등록 실패\nFirebase Rules 또는 네트워크 상태를 확인하세요.");
+          return false;
+        }
+      }
+
+      const savedEmail = localStorage.getItem("bus-seat-admin-auth-email-v1") || "";
+      const email = window.prompt("Firebase 관리자 이메일을 입력하세요.", savedEmail);
+      if (!email) {
+        alert("Firebase 관리자 이메일이 필요합니다.");
+        return false;
+      }
+      const password = window.prompt("Firebase 관리자 비밀번호를 입력하세요.", "");
+      if (!password) {
+        alert("Firebase 관리자 비밀번호가 필요합니다.");
+        return false;
+      }
+
+      try {
+        const userCredential = await signInWithEmailAndPassword(state.auth, email.trim(), password);
+        const user = userCredential.user;
+        await update(ref(state.db, `users/${user.uid}`), {
+          role: "admin",
+          approved: true,
+          adminLinkedAt: Date.now(),
+          source: "bus-seat-admin-login"
+        });
+        localStorage.setItem("bus-seat-admin-auth-email-v1", email.trim());
+        state.firebaseAdminUid = user.uid;
+        state.isFirebaseAdminAuthReady = true;
+        return true;
+      } catch (error) {
+        console.error("firebase admin auth login failed", error);
+        const message = error && error.code ? error.code : (error && error.message ? error.message : String(error));
+        alert("Firebase 관리자 인증 실패\n" + message);
+        return false;
+      }
+    }
+
     async function handleAdminLogin() {
       const input = byId("adminPasswordInput")?.value || "";
       const normalizedInput = input.trim();
@@ -4485,6 +4743,11 @@ function renderAll() {
 
       if (!loginOk) {
         alert("관리자 비밀번호가 올바르지 않습니다.");
+        return;
+      }
+
+      const adminUidConnected = await ensureFirebaseAdminUidConnected();
+      if (!adminUidConnected) {
         return;
       }
 
@@ -5426,6 +5689,11 @@ function renderAll() {
       try {
         state.app = initializeApp(firebaseConfig);
         state.db = getDatabase(state.app);
+        state.auth = getAuth(state.app);
+        onAuthStateChanged(state.auth, (user) => {
+          state.firebaseAdminUid = user ? user.uid : "";
+          state.isFirebaseAdminAuthReady = !!user;
+        });
         state.isFirebaseReady = true;
         state.projectLabel = firebaseConfig.projectId;
       } catch (error) {
@@ -5498,7 +5766,7 @@ function renderAll() {
 
 <script>
 (function(){
-  const LONG_PRESS_MS = 1500;
+  const LONG_PRESS_MS = 1300;
   const MEMBER_FIREBASE_CONFIG = {
     apiKey: "AIzaSyBRxAdYRyjMIcQvCQ2ja7YOkdFGNCkW1cE",
     authDomain: "member-b458f.firebaseapp.com",
@@ -5653,12 +5921,12 @@ function renderAll() {
     const seatNo = getSeatNo(seatEl);
     const bridge = window.__seatMemoBridge || {};
     try{
-      if(typeof bridge.showSeatMemoDialog === "function"){
-        bridge.showSeatMemoDialog(seatNo);
-        return;
-      }
       if(typeof bridge.openSeatMemoDialog === "function"){
         bridge.openSeatMemoDialog(seatNo);
+        return;
+      }
+      if(typeof bridge.showSeatMemoDialog === "function"){
+        bridge.showSeatMemoDialog({ number: seatNo, name: getSeatName(seatEl), memo: "" });
         return;
       }
       if(typeof bridge.handleSeatMemoLongPress === "function"){
@@ -5709,16 +5977,23 @@ function renderAll() {
     activeSeat = null;
   }
   function startPress(e){
-    const nameEl = e.target && e.target.closest ? e.target.closest(".seat-name") : null;
-    if(!nameEl) return;
-    const seatEl = nameEl.closest(".seat");
+    const seatEl = e.target && e.target.closest ? e.target.closest(".seat") : null;
     if(!seatEl || !getSeatName(seatEl)) return;
+
+    const point = e.touches && e.touches[0] ? e.touches[0] : e;
+    const rect = seatEl.getBoundingClientRect ? seatEl.getBoundingClientRect() : null;
+    if(rect){
+      const x = point.clientX || 0;
+      const y = point.clientY || 0;
+      const insideNameZone = x >= rect.left + rect.width * 0.15 && x <= rect.right - rect.width * 0.15 &&
+        y >= rect.top + rect.height * 0.15 && y <= rect.bottom - rect.height * 0.15;
+      if(!insideNameZone) return;
+    }
 
     e.preventDefault();
     e.stopPropagation();
     if(e.stopImmediatePropagation) e.stopImmediatePropagation();
 
-    const point = e.touches && e.touches[0] ? e.touches[0] : e;
     startX = point.clientX || 0;
     startY = point.clientY || 0;
     moved = false;
@@ -5726,8 +6001,10 @@ function renderAll() {
     clearTimeout(pressTimer);
     pressTimer = setTimeout(function(){
       if(moved || !activeSeat) return;
-      showActionDialog(activeSeat);
+      const targetSeat = activeSeat;
       cancelPress();
+      closeDialog();
+      openOriginalMemo(targetSeat);
     }, LONG_PRESS_MS);
   }
   function movePress(e){
@@ -5753,7 +6030,8 @@ function renderAll() {
     document.addEventListener("mouseup", cancelPress, true);
   }
   document.addEventListener("DOMContentLoaded", function(){
-    setTimeout(bindNameLongPress, 500);
+    // 좌석 메모 길게누름은 메인 bindSeatEvents()에서 처리한다.
+    // 이 보조 캡처 이벤트는 pointerdown에서 stopPropagation을 걸어 회원 입력 클릭을 막을 수 있어 비활성화한다.
     // 전화/문자 기능 제거: 회원명부 연락처 조회 자동 실행 안 함
   });
 
@@ -5957,6 +6235,10 @@ function renderAll() {
       try {
         if (document.activeElement && document.activeElement.id === "adminPasswordInput") {
           document.activeElement.blur();
+        }
+        if (document.body) {
+          if (!document.body.hasAttribute("tabindex")) document.body.setAttribute("tabindex", "-1");
+          document.body.focus && document.body.focus({preventScroll:true});
         }
       } catch(e){}
     }catch(e){}
@@ -8889,5 +9171,6 @@ function renderAll() {
   }, true);
 })();
 </script>
+
 </body>
 </html>
