@@ -1636,6 +1636,24 @@ body.admin-entry-only #adminLoginPanel.hidden{
   color:#d80000 !important;
   font-weight:900 !important;
 }
+
+/* 요청 수정: 신규 회원가입 승인대기가 있으면 상단 회원관리 탭 버튼도 빨강 깜빡임 */
+#memberManageTab.member-manage-pending-blink{
+  color:#d80000 !important;
+  background:#fff2f2 !important;
+  border:1px solid #d80000 !important;
+  font-weight:900 !important;
+  animation:memberManagePendingTabBlink .75s steps(2,start) infinite;
+}
+#memberManageTab.member-manage-pending-blink.active{
+  color:#d80000 !important;
+  background:#fff2f2 !important;
+  box-shadow:0 0 0 2px rgba(216,0,0,.18) !important;
+}
+@keyframes memberManagePendingTabBlink{
+  0%,100%{opacity:1;}
+  50%{opacity:.28;}
+}
 .member-approval-summary-line .duplicate-join-badge{
   margin-left:4px !important;
   padding:0 5px !important;
@@ -6514,6 +6532,114 @@ function renderAll() {
     ];
     return parts.join(" / ");
   }
+  function normalizeDuplicateJoinCompareText(value) {
+    return String(value || "").replace(/\s+/g, "").trim();
+  }
+
+  function memberJoinStatusLabelForMessage(member) {
+    const status = String(member && member.status || "");
+    if (status === "pending" || !member?.approved) return "승인대기";
+    if (status === "active" && member?.approved) return "승인완료";
+    if (status === "blocked") return "차단";
+    if (status === "withdrawn") return "탈퇴";
+    return status || "회원";
+  }
+
+  function isSameJoinPersonByRequiredInfo(member, joinInfo) {
+    if (!member || !joinInfo) return false;
+    const memberName = normalizeDuplicateJoinCompareText(member.name);
+    const joinName = normalizeDuplicateJoinCompareText(joinInfo.name);
+    const memberPhone = normalizePhone(member.phoneDigits || member.phone);
+    const joinPhone = normalizePhone(joinInfo.phoneDigits);
+    return !!memberName && memberName === joinName && !!memberPhone && memberPhone === joinPhone;
+  }
+
+  function hasSameNameDifferentJoinInfo(member, joinInfo) {
+    if (!member || !joinInfo) return false;
+    const memberName = normalizeDuplicateJoinCompareText(member.name);
+    const joinName = normalizeDuplicateJoinCompareText(joinInfo.name);
+    if (!memberName || memberName !== joinName) return false;
+
+    const memberPhone = normalizePhone(member.phoneDigits || member.phone);
+    const joinPhone = normalizePhone(joinInfo.phoneDigits);
+    const memberBirth = normalizeDuplicateJoinCompareText(member.birthYear);
+    const joinBirth = normalizeDuplicateJoinCompareText(joinInfo.birthYear);
+    const memberDong = normalizeDuplicateJoinCompareText(member.dong);
+    const joinDong = normalizeDuplicateJoinCompareText(joinInfo.dong);
+
+    return memberPhone !== joinPhone || memberBirth !== joinBirth || memberDong !== joinDong;
+  }
+
+  function summarizeMemberForJoinDuplicateMessage(member) {
+    if (!member) return "";
+    return `${summarizeMemberForDuplicateCheck(member)} / 상태 ${memberJoinStatusLabelForMessage(member)}`;
+  }
+
+  async function checkJoinDuplicateBeforeSave(joinInfo) {
+    const sameNameMembers = await findMembersByName(joinInfo.name);
+    const samePhoneMembers = await findMembersByPhoneDigits(joinInfo.phoneDigits);
+
+    const byCode = new Map();
+    [...sameNameMembers, ...samePhoneMembers].forEach((member) => {
+      if (!member) return;
+      const code = String(member.code || `${member.name || ""}-${member.phoneDigits || member.phone || ""}`);
+      byCode.set(code, member);
+    });
+
+    const relatedMembers = Array.from(byCode.values());
+    const samePersonMembers = relatedMembers.filter((member) => isSameJoinPersonByRequiredInfo(member, joinInfo));
+    const pendingSamePerson = samePersonMembers.filter((member) => String(member.status || "") === "pending" || !member.approved);
+    const approvedSamePerson = samePersonMembers.filter((member) => String(member.status || "") === "active" && member.approved);
+    const sameNameDifferentMembers = sameNameMembers.filter((member) => hasSameNameDifferentJoinInfo(member, joinInfo));
+
+    if (pendingSamePerson.length > 0) {
+      return {
+        block: true,
+        samePhoneMembers,
+        samePersonMembers,
+        message: `이미 승인대기 중인 가입신청이 있습니다.\n관리자 승인을 기다려 주세요.\n\n${pendingSamePerson.map(summarizeMemberForJoinDuplicateMessage).join("\n")}`
+      };
+    }
+
+    if (approvedSamePerson.length > 0) {
+      return {
+        block: true,
+        samePhoneMembers,
+        samePersonMembers,
+        message: `이미 승인완료된 회원입니다.\n회원 로그인을 이용하세요.\n\n${approvedSamePerson.map(summarizeMemberForJoinDuplicateMessage).join("\n")}`
+      };
+    }
+
+    if (samePersonMembers.length > 0) {
+      return {
+        block: true,
+        samePhoneMembers,
+        samePersonMembers,
+        message: `같은 이름과 같은 전화번호의 가입 자료가 있습니다.\n중복 가입신청은 저장하지 않습니다.\n\n${samePersonMembers.map(summarizeMemberForJoinDuplicateMessage).join("\n")}`
+      };
+    }
+
+    if (sameNameDifferentMembers.length > 0) {
+      const detail = sameNameDifferentMembers.map(summarizeMemberForJoinDuplicateMessage).join("\n");
+      const ok = confirm(`같은 이름의 기존 회원이 있습니다.\n전화번호/출생년도/거주지가 다르면 신규회원으로 가입신청할 수 있습니다.\n\n${detail}\n\n신규회원으로 가입신청을 계속할까요?`);
+      if (!ok) {
+        return {
+          block: true,
+          samePhoneMembers,
+          samePersonMembers,
+          message: "같은 이름의 기존 회원이 있어 가입신청을 취소했습니다."
+        };
+      }
+    }
+
+    return {
+      block: false,
+      samePhoneMembers,
+      samePersonMembers,
+      sameNameDifferentCount: sameNameDifferentMembers.length
+    };
+  }
+
 
   async function sha256Hex(value) {
     const text = String(value ?? "");
@@ -7044,22 +7170,12 @@ function renderAll() {
     }
 
     setAuthMessage("기존 회원 중복 확인중입니다...");
-    const samePhoneMembers = await findMembersByPhoneDigits(phoneDigits);
-    const samePersonMembers = samePhoneMembers.filter((m) => normalizeName(m && m.name) === name);
-    if (samePersonMembers.length > 0) {
-      const detail = samePersonMembers.map(summarizeMemberForDuplicateCheck).join("\n");
-      const ok = confirm(`동일인으로 보이는 기존 가입 자료가 있습니다.\n\n${detail}\n\n변경된 정보가 있으면 새 가입 자료를 추가 등록한 뒤 멤버리스트에서 편집하세요.\n계속 추가 등록할까요?`);
-      if (!ok) {
-        setAuthMessage("동일인 자료가 있어 가입 추가를 취소했습니다.");
-        return;
-      }
-    } else if (samePhoneMembers.length > 0) {
-      const detail = samePhoneMembers.map(summarizeMemberForDuplicateCheck).join("\n");
-      const ok = confirm(`같은 전화번호를 사용하는 기존 자료가 있습니다.\n\n${detail}\n\n동명이인/가족 등 별도 회원이면 추가 등록하세요. 계속할까요?`);
-      if (!ok) {
-        setAuthMessage("같은 전화번호 자료가 있어 가입 추가를 취소했습니다.");
-        return;
-      }
+    const duplicateResult = await checkJoinDuplicateBeforeSave({ name, birthYear, phoneDigits, dong });
+    const samePhoneMembers = duplicateResult.samePhoneMembers || [];
+    const samePersonMembers = duplicateResult.samePersonMembers || [];
+    if (duplicateResult.block) {
+      setAuthMessage(duplicateResult.message || "중복 가입신청으로 저장하지 않았습니다.");
+      return;
     }
 
     setAuthMessage("가입 신청 저장중입니다...");
@@ -7086,6 +7202,7 @@ function renderAll() {
       duplicateCheck: {
         samePhoneCount: samePhoneMembers.length,
         samePersonCount: samePersonMembers.length,
+        sameNameDifferentCount: duplicateResult.sameNameDifferentCount || 0,
         checkedAt: now
       },
       adminAccess: false,
@@ -7494,6 +7611,14 @@ function renderAll() {
     }
   }
 
+  function updateMemberManageTabPendingBlink(pendingCount) {
+    const tab = byId("memberManageTab") || document.getElementById("memberManageTab");
+    if (!tab) return;
+    const count = Number(pendingCount || 0);
+    tab.classList.toggle("member-manage-pending-blink", count > 0);
+    tab.setAttribute("data-pending-count", String(count));
+  }
+
   async function loadApprovalMembers() {
     const listEl = byId("memberApprovalList");
     if (!listEl) return;
@@ -7521,9 +7646,12 @@ function renderAll() {
       return String(a.name || a.code || "").localeCompare(String(b.name || b.code || ""), "ko");
     });
     if (members.length === 0) {
+      updateMemberManageTabPendingBlink(0);
       listEl.innerHTML = '<div class="member-approval-empty">회원 데이터가 없습니다.</div>';
       return;
     }
+    const pendingCount = members.filter((m) => String(m?.status || "") === "pending" || !m?.approved).length;
+    updateMemberManageTabPendingBlink(pendingCount);
     const approvedNamesForDuplicateJoin = new Set();
     members.forEach((m) => {
       const name = String(m?.name || "").replace(/\s+/g, "").trim();
@@ -8122,14 +8250,24 @@ function renderAll() {
     const status = String(m && m.status || "");
     return status === "pending" || !m.approved;
   }
+  function updateMemberManageTabPendingBlink(pendingCount) {
+    const tab = document.getElementById('memberManageTab');
+    if (!tab) return;
+    const count = Number(pendingCount || 0);
+    tab.classList.toggle('member-manage-pending-blink', count > 0);
+    tab.setAttribute('data-pending-count', String(count));
+  }
+
   function renderMembers(members) {
     const list = listNode();
     if (!list) return;
     if (!members.length) {
+      updateMemberManageTabPendingBlink(0);
       list.innerHTML = '<div class="member-approval-empty">가입자 DB에 저장된 회원이 없습니다. busSeatApp/membership 과 memberList/joinCodes 를 모두 확인했지만 표시할 회원이 없습니다. JSON 백업이 있으면 복구하세요.</div>';
       return;
     }
     const pendingCount = members.filter(m => m.status === 'pending' || !m.approved).length;
+    updateMemberManageTabPendingBlink(pendingCount);
     const approvedCount = members.filter(m => m.status === 'active' && m.approved).length;
     const duplicateJoinNames = buildDuplicateJoinNameSet(members);
     const duplicateJoinCount = members.filter(m => isDuplicateJoinMember(m, duplicateJoinNames)).length;
@@ -9246,6 +9384,29 @@ function renderAll() {
     setTimeout(fitTitleMain, 100);
     setTimeout(fitTitleMain, 500);
     setTimeout(fitTitleMain, 1200);
+  });
+})();
+</script>
+
+
+<script id="member-manage-tab-pending-blink-safety-script">
+(function(){
+  function updateFromSummary(){
+    var tab = document.getElementById('memberManageTab');
+    if(!tab) return;
+    var summary = document.querySelector('.member-approval-summary-line .pending-count');
+    if(!summary) return;
+    var match = String(summary.textContent || '').match(/(\d+)/);
+    var count = match ? Number(match[1]) : 0;
+    tab.classList.toggle('member-manage-pending-blink', count > 0);
+    tab.setAttribute('data-pending-count', String(count));
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    updateFromSummary();
+    var list = document.getElementById('memberApprovalList');
+    if(list && window.MutationObserver){
+      new MutationObserver(updateFromSummary).observe(list, { childList:true, subtree:true, characterData:true });
+    }
   });
 })();
 </script>
