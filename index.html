@@ -7018,7 +7018,7 @@ function renderAll() {
     const name = normalizeName(byId("memberLoginNameInput")?.value);
     const password = String(byId("memberLoginPasswordInput")?.value || "");
 
-    // 관리자 로그인: 아이디를 비워두고 비밀번호 칸에 관리자 비밀번호만 입력한 뒤 [로그인]을 누르면 진입 가능
+    // 관리자 로그인: 비밀번호 칸에 관리자 비밀번호 입력한 뒤 [로그인] 진입
     // 일반 회원은 기존처럼 이름 + 개인 비밀번호가 모두 필요함.
     if (!name && password) {
       if (await isBusSeatAdminPassword(password)) {
@@ -7062,7 +7062,7 @@ function renderAll() {
 
     const members = await findMembersByName(name);
     if (members.length === 0) {
-      setAuthMessage("DB에서 이름을 찾지 못했습니다. 회원관리 목록과 로그인 DB 경로가 다르거나 Firebase 읽기 권한이 막혀 있습니다.");
+      setAuthMessage("회원정보에 없는 없는 사용자 입니다 회원가입을 해주세요.");
       return;
     }
 
