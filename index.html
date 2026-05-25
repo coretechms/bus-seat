@@ -9211,6 +9211,9 @@ function renderAll() {
       setListMessage(`가입자 DB를 읽지 못했습니다. Firebase Rules 또는 연결을 확인하세요. (${error?.code || error?.message || error})`);
     }
   }
+  // member-list-ver3.html 자동등록용 핵심 미러 경로.
+  // 승인/차단/탈퇴 결과는 bus-seat DB의 memberList/joinCodes/{회원코드}에 기록되고,
+  // 멤버리스트 파일이 이 경로를 읽어서 표에 반영한다.
   async function mirrorJoinCode(member) {
     await update(ref(manageDb), {
       [`${MANAGE_JOIN_CODES_PATH}/${member.code}`]: {
@@ -9525,21 +9528,11 @@ function renderAll() {
   async function mergeManageMemberIntoMemberListMain(member) {
     if (!member || !member.code) return;
 
-    // 1) 현재 bus-seat DB에도 백업/표시용으로 반영
-    await mergeManageMemberIntoOneMemberListDb(manageDb, member, "bus-seat");
-
-    // 2) 실제 member-list 앱이 보는 외부 Firebase(member-b458f)에도 반영
-    //    승인 버튼은 forceUpdateMember() → 이 함수로 들어오므로 여기서 외부 DB까지 반드시 저장해야 한다.
-    try {
-      await mergeManageMemberIntoOneMemberListDb(getMemberListExternalDb(), member, "member-list-external");
-    } catch (error) {
-      console.error("외부 멤버리스트 DB 반영 실패:", error);
-      alert(
-        "승인은 완료되었지만 외부 멤버리스트 DB(member-b458f/memberList/main) 반영에 실패했습니다.\n\n" +
-        "Firebase Rules 또는 외부 DB 연결 권한을 확인하세요.\n" +
-        String(error?.code || error?.message || error)
-      );
-    }
+    // 멤버리스트 자동등록의 기준 경로는 bus-seat DB의 memberList/joinCodes 입니다.
+    // member-list-ver3.html이 이 경로를 감시한 뒤 자체 DB(member-b458f/memberList/main)에 병합 저장합니다.
+    // 따라서 여기서는 bus-seat DB의 memberList/main에만 보조 반영하고,
+    // 외부 member-b458f/memberList/main 직접 쓰기는 제거하여 DB/Rules 충돌을 방지합니다.
+    await mergeManageMemberIntoOneMemberListDb(manageDb, member, "bus-seat-local-backup");
   }
 
 
