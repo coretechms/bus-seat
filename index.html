@@ -7528,8 +7528,8 @@ function renderAll() {
       const joinOnly = members.some((m) => m && m.__joinCodesOnly);
       setAuthMessage(hasNoPasswordData
         ? (joinOnly
-          ? "DB 확인 결과: 회원관리 목록(memberList/joinCodes)에만 회원이 있고 로그인 비밀번호(passwordHash)가 없습니다. 기존 회원 JSON 복구 또는 비밀번호 재설정이 필요합니다."
-          : "회원 이름은 찾았지만 로그인 비밀번호 정보가 없습니다. 회원관리 JSON 복구 또는 비밀번호 재설정이 필요합니다.")
+          ? "가입정보가 없습니다. 회원가입후 이용하세요"
+          : "회원 이름은 찾았지만 로그인 비밀번호 정보가 없습니다. 재가입 또는 비밀번호 재설정이 필요합니다 관리자에게 문의하세요.")
         : "비밀번호가 맞지 않습니다.");
       return;
     }
