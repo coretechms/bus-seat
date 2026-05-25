@@ -7163,6 +7163,7 @@ function renderAll() {
     if (status === "active") return member?.adminAccess ? "관리자" : "승인";
     if (status === "blocked") return "차단";
     if (status === "withdrawn") return "탈퇴";
+    if (status === "deleted") return "삭제";
     if (status === "rejected") return "거절";
     if (status === "pending") return "가입대기";
     return member?.approved ? "승인" : "가입대기";
@@ -9563,7 +9564,26 @@ function renderAll() {
         }
       });
     });
-    updates[`${MANAGE_JOIN_CODES_PATH}/${key}`] = null;
+    // 멤버리스트 자동등록 파일이 상태 변경을 감지할 수 있도록 joinCodes는 삭제하지 않고 "삭제" 상태로 남긴다.
+    // 실제 로그인/회원관리 DB는 위에서 모두 제거되므로 계정 접근은 차단된다.
+    updates[`${MANAGE_JOIN_CODES_PATH}/${key}`] = {
+      code: key,
+      name: member.name || member.memberName || member.userName || member.displayName || "",
+      gender: member.gender || "",
+      birthYear: member.birthYear || "",
+      phone: member.phone || "",
+      phoneLast4: member.phoneLast4 || "",
+      dong: member.dong || "",
+      status: "deleted",
+      approvalResult: "삭제",
+      joinStatus: "삭제",
+      approved: false,
+      role: "deleted",
+      adminAccess: false,
+      memberType: member.memberType || "",
+      deletedAt: Date.now(),
+      updatedAt: Date.now()
+    };
     return updates;
   }
 
