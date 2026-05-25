@@ -3023,7 +3023,7 @@ const firebaseConfig = {
           pressTimer = window.setTimeout(() => {
             longPressTriggered = true;
             openSeatMemoDialog(seatNo);
-          }, 1600);
+          }, 1300);
         };
 
         const movePress = (event) => {
@@ -4118,6 +4118,33 @@ function renderAll() {
 
 
     let hikingNoticeSaveTimer = null;
+    let hikingNoticeHistoryPushed = false;
+
+    function returnToBusSeatScreenFromHikingNotice() {
+      // 휴대폰 뒤로가기 버튼으로 산행공지 화면을 닫을 때는 회원 로그인 화면으로 보내지 않고
+      // 현재 로그인 세션을 유지한 채 버스좌석 화면으로 복귀한다.
+      closeHikingNoticeDialog();
+      try {
+        const gate = document.getElementById("memberAuthGate");
+        if (gate) {
+          gate.classList.add("is-hidden");
+          gate.style.display = "none";
+        }
+        const app = document.querySelector(".app");
+        if (app) {
+          app.style.visibility = "visible";
+          app.style.pointerEvents = "auto";
+        }
+        document.documentElement.classList.remove("restore-admin-session");
+        document.body.classList.remove("membership-locked", "admin-entry-only", "member-manage-mode", "approval-admin-mode");
+        document.body.classList.add("member-mode");
+        if (typeof window.__busSeatSwitchMode === "function") {
+          window.__busSeatSwitchMode("member");
+        }
+      } catch (error) {}
+      try { window.scrollTo(0, 0); } catch (error) {}
+    }
+
     function renderHikingNoticeDialog() {
       const overlay = byId("hikingNoticeOverlay");
       const textEl = byId("hikingNoticeText");
@@ -4138,6 +4165,12 @@ function renderAll() {
       const overlay = byId("hikingNoticeOverlay");
       if (!overlay) return;
       overlay.classList.remove("hidden");
+      if (!hikingNoticeHistoryPushed) {
+        try {
+          history.pushState({ busSeatHikingNoticeOpen: true }, "", location.href);
+          hikingNoticeHistoryPushed = true;
+        } catch (error) {}
+      }
       renderHikingNoticeDialog();
       const textEl = byId("hikingNoticeText");
       if (textEl && !textEl.readOnly) {
@@ -4149,6 +4182,7 @@ function renderAll() {
     function closeHikingNoticeDialog() {
       const overlay = byId("hikingNoticeOverlay");
       if (overlay) overlay.classList.add("hidden");
+      hikingNoticeHistoryPushed = false;
     }
 
     async function saveHikingNoticeRemote() {
@@ -5657,6 +5691,12 @@ function renderAll() {
       });
       const hikingNoticeOverlay = byId("hikingNoticeOverlay");
       if (hikingNoticeOverlay) hikingNoticeOverlay.addEventListener("click", (e) => { if (e.target === hikingNoticeOverlay) closeHikingNoticeDialog(); });
+      window.addEventListener("popstate", () => {
+        const overlay = byId("hikingNoticeOverlay");
+        if (overlay && !overlay.classList.contains("hidden")) {
+          returnToBusSeatScreenFromHikingNotice();
+        }
+      });
       bindIfPresent("infoTitleMain", "input", async (e) => { state.busInfo.titleMain = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoFeeLabel", "input", async (e) => { state.busInfo.feeLabel = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoAccountNumber", "input", async (e) => { state.busInfo.accountNumber = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
@@ -7018,7 +7058,7 @@ function renderAll() {
     const name = normalizeName(byId("memberLoginNameInput")?.value);
     const password = String(byId("memberLoginPasswordInput")?.value || "");
 
-    // 관리자 로그인: 비밀번호 칸에 관리자 비밀번호 입력한 뒤 [로그인] 진입
+    // 관리자 로그인: 아이디를 비워두고 비밀번호 칸에 관리자 비밀번호만 입력한 뒤 [로그인]을 누르면 진입 가능
     // 일반 회원은 기존처럼 이름 + 개인 비밀번호가 모두 필요함.
     if (!name && password) {
       if (await isBusSeatAdminPassword(password)) {
@@ -7062,7 +7102,7 @@ function renderAll() {
 
     const members = await findMembersByName(name);
     if (members.length === 0) {
-      setAuthMessage("회원정보에 없는 없는 사용자 입니다 회원가입을 해주세요.");
+      setAuthMessage("DB에서 이름을 찾지 못했습니다. 회원관리 목록과 로그인 DB 경로가 다르거나 Firebase 읽기 권한이 막혀 있습니다.");
       return;
     }
 
