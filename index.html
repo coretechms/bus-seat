@@ -6760,6 +6760,9 @@ function renderAll() {
         const joinCodes = joinSnap.val() || {};
         Object.keys(joinCodes).forEach((code) => {
           const raw = joinCodes[code] || {};
+          // 삭제 기록은 멤버리스트 승인결과 표시용일 뿐,
+          // 신규 회원가입 중복검사/회원코드 생성에서는 존재하지 않는 회원으로 처리한다.
+          if (isDeletedJoinRecord(raw)) return;
           if (raw && typeof raw === "object" && !merged[code]) {
             merged[code] = {
               ...raw,
@@ -6932,12 +6935,23 @@ function renderAll() {
     return String(value || "").replace(/\s+/g, "").trim();
   }
 
+  function isDeletedJoinRecord(member) {
+    if (!member) return false;
+    const status = String(member.status || "").trim();
+    const approvalResult = String(member.approvalResult || "").trim();
+    const joinStatus = String(member.joinStatus || "").trim();
+    const role = String(member.role || "").trim();
+    return status === "deleted" || role === "deleted" || approvalResult === "삭제" || joinStatus === "삭제";
+  }
+
   function memberJoinStatusLabelForMessage(member) {
+    if (isDeletedJoinRecord(member)) return "삭제";
     const status = String(member && member.status || "");
-    if (status === "pending" || !member?.approved) return "승인대기";
     if (status === "active" && member?.approved) return "승인완료";
     if (status === "blocked") return "차단";
     if (status === "withdrawn") return "탈퇴";
+    if (status === "rejected") return "거절";
+    if (status === "pending" || !member?.approved) return "승인대기";
     return status || "회원";
   }
 
@@ -6982,11 +6996,12 @@ function renderAll() {
       byCode.set(code, member);
     });
 
-    const relatedMembers = Array.from(byCode.values());
+    const relatedMembers = Array.from(byCode.values()).filter((member) => !isDeletedJoinRecord(member));
+    const activeSameNameMembers = sameNameMembers.filter((member) => !isDeletedJoinRecord(member));
     const samePersonMembers = relatedMembers.filter((member) => isSameJoinPersonByRequiredInfo(member, joinInfo));
-    const pendingSamePerson = samePersonMembers.filter((member) => String(member.status || "") === "pending" || !member.approved);
+    const pendingSamePerson = samePersonMembers.filter((member) => String(member.status || "") === "pending");
     const approvedSamePerson = samePersonMembers.filter((member) => String(member.status || "") === "active" && member.approved);
-    const sameNameDifferentMembers = sameNameMembers.filter((member) => hasSameNameDifferentJoinInfo(member, joinInfo));
+    const sameNameDifferentMembers = activeSameNameMembers.filter((member) => hasSameNameDifferentJoinInfo(member, joinInfo));
 
     if (pendingSamePerson.length > 0) {
       return {
@@ -7069,7 +7084,12 @@ function renderAll() {
     try {
       const joinCodesSnap = await get(ref(membershipDb, MEMBER_LIST_JOIN_CODES_PATH));
       const joinCodes = joinCodesSnap && joinCodesSnap.exists() ? joinCodesSnap.val() || {} : {};
-      Object.keys(joinCodes).forEach((code) => codeSet.add(String(code)));
+      Object.keys(joinCodes).forEach((code) => {
+        const raw = joinCodes[code] || {};
+        // 삭제 기록은 재가입/신규 회원코드 생성을 막지 않는다.
+        if (isDeletedJoinRecord(raw)) return;
+        codeSet.add(String(code));
+      });
     } catch (error) {}
     return codeSet;
   }
