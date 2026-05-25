@@ -6019,7 +6019,7 @@ function renderAll() {
       });
       bindIfPresent("tripScheduleBtn", "click", openTripPlanWithIndependentPassword);
       bindIfPresent("memberListBtn", "click", () => {
-        window.location.href = "https://coretechms.github.io/member-list/";
+        window.location.href = "https://coretechms.github.io/memble-list/";
       });
       // 👉 GitHub Pages에 있는 bus-route.html 열기 (주소를 실제 URL로 변경하세요)
       bindIfPresent("boardingPointBtn", "click", () => {
@@ -7418,48 +7418,19 @@ function renderAll() {
   async function getLoginIndexMembersByName(name) {
     const key = makeNameKey(name);
     if (!key) return [];
-
-    /*
-      모바일 로그인 보강:
-      회원관리 표시 DB(memberList/joinCodes)는 비밀번호가 없는 미러 DB라서 로그인 판정 기준으로 쓰면
-      모바일에서 members 전체 조회가 Rules/캐시 영향으로 실패했을 때
-      "회원관리 목록에만 있고 passwordHash가 없음"으로 막힐 수 있다.
-
-      따라서 로그인은 공개/최소 로그인 인덱스(loginIndex)를 여러 호환 경로에서 먼저 찾는다.
-      PC는 members 전체 조회가 되어 통과하지만 모바일은 loginIndex만 읽히는 상황을 같이 처리한다.
-    */
-    const loginIndexPathCandidates = Array.from(new Set([
-      MEMBER_LOGIN_INDEX_PATH,
-      `${MEMBERS_ROOT}/loginIndex`,
-      "busSeatApp/membership/loginIndex",
-      "membership/loginIndex",
-      "loginIndex",
-      "busSeatApp/loginIndex"
-    ]));
-
-    const byCode = new Map();
-    for (const basePath of loginIndexPathCandidates) {
-      try {
-        const snap = await get(ref(membershipDb, `${basePath}/${key}`));
-        if (!snap.exists()) continue;
-        const value = snap.val() || {};
-        Object.keys(value).forEach((code) => {
-          const item = value[code] || {};
-          const record = {
-            ...item,
-            code: item.code || code,
-            __loginIndexOnly: true,
-            __loginIndexPath: basePath
-          };
-          if (memberNameMatches(record, name)) {
-            byCode.set(String(record.code || code), record);
-          }
-        });
-      } catch (error) {
-        console.warn("회원 로그인 인덱스 조회 실패:", basePath, error);
-      }
+    try {
+      const snap = await get(ref(membershipDb, `${MEMBER_LOGIN_INDEX_PATH}/${key}`));
+      if (!snap.exists()) return [];
+      const value = snap.val() || {};
+      return Object.keys(value).map((code) => ({
+        ...(value[code] || {}),
+        code: (value[code] && value[code].code) || code,
+        __loginIndexOnly: true
+      })).filter((m) => memberNameMatches(m, name));
+    } catch (error) {
+      console.warn("회원 로그인 인덱스 조회 실패:", error);
+      return [];
     }
-    return Array.from(byCode.values());
   }
 
   async function findMembersByName(name) {
@@ -7577,8 +7548,8 @@ function renderAll() {
       const joinOnly = members.some((m) => m && m.__joinCodesOnly);
       setAuthMessage(hasNoPasswordData
         ? (joinOnly
-          ? "DB 확인 결과: 회원관리 목록(memberList/joinCodes)에만 회원이 있고 로그인 비밀번호(passwordHash)가 없습니다. 회원관리에서 DB정리 또는 JSON 전체복구를 실행해 로그인DB(loginIndex)를 복구하세요."
-          : "회원 이름은 찾았지만 로그인 비밀번호 정보가 없습니다. 회원관리 JSON 전체복구 또는 비밀번호 재설정이 필요합니다.")
+          ? "DB 확인 결과: 회원관리 목록(memberList/joinCodes)에만 회원이 있고 로그인 비밀번호(passwordHash)가 없습니다. 기존 회원 JSON 복구 또는 비밀번호 재설정이 필요합니다."
+          : "회원 이름은 찾았지만 로그인 비밀번호 정보가 없습니다. 회원관리 JSON 복구 또는 비밀번호 재설정이 필요합니다.")
         : "비밀번호가 맞지 않습니다.");
       return;
     }
@@ -8940,34 +8911,6 @@ function renderAll() {
     return Object.keys(index).length ? index : null;
   }
 
-  function buildLoginIndexFromMembersForRestore(members) {
-    const index = {};
-    if (!isPlainObject(members)) return null;
-    Object.entries(members).forEach(([code, member]) => {
-      if (!isPlainObject(member)) return;
-      const key = String(member.code || code || "").trim();
-      const name = String(member.name || member.memberName || member.userName || member.displayName || "").trim();
-      const nameKey = normalizeMemberNameKey(name);
-      const passwordHash = String(member.passwordHash || member.passHash || member.pwHash || member.memberPasswordHash || "").trim();
-      const status = String(member.status || (member.approved ? "active" : "pending"));
-      if (!key || !nameKey || !passwordHash || status !== "active" || !member.approved) return;
-      if (!index[nameKey]) index[nameKey] = {};
-      index[nameKey][key] = {
-        code: key,
-        name,
-        nameKey,
-        passwordHash,
-        approved: true,
-        status: "active",
-        role: String(member.role || (member.adminAccess ? "admin" : "member")),
-        adminAccess: !!member.adminAccess,
-        apps: member.apps || { busSeat: true, tripSchedule: true, memberList: !!member.adminAccess, busRute: true },
-        updatedAt: Date.now()
-      };
-    });
-    return Object.keys(index).length ? index : null;
-  }
-
   function buildJoinCodesFromMembers(members, existingJoinCodes = null) {
     const result = isPlainObject(existingJoinCodes) ? { ...existingJoinCodes } : {};
     if (!isPlainObject(members)) return Object.keys(result).length ? result : null;
@@ -9014,83 +8957,62 @@ function renderAll() {
   async function handleMemberJsonBackup() {
     try {
       const proceed = confirm(
-        '회원관리 백업을 진행할까요?\n\n' +
-        '백업에는 현재 사용 중인 membershipSecure 회원DB, 승인대기, 이름색인, 로그인색인, memberList/joinCodes가 포함됩니다.'
+        '회원 로그인 복구용 JSON 백업을 진행할까요?\n\n' +
+        '백업에는 로그인 복구에 필요한 members/passwordHash, pending, nameIndex, joinCodes가 함께 포함됩니다.'
       );
       if (!proceed) return;
 
       const saveTarget = await prepareMemberBackupSaveHandle();
       if (saveTarget && saveTarget.cancelled) return;
 
-      const secureMembership = {
-        members: await readPathSafe(`${MANAGE_MEMBERS_ROOT}/members`),
-        pending: await readPathSafe(`${MANAGE_MEMBERS_ROOT}/pending`),
-        nameIndex: await readPathSafe(`${MANAGE_MEMBERS_ROOT}/nameIndex`),
-        loginIndex: await readPathSafe(`${MANAGE_MEMBERS_ROOT}/loginIndex`)
-      };
       const busSeatMembership = {
         members: await readPathSafe("busSeatApp/membership/members"),
         pending: await readPathSafe("busSeatApp/membership/pending"),
-        nameIndex: await readPathSafe("busSeatApp/membership/nameIndex"),
-        loginIndex: await readPathSafe("busSeatApp/membership/loginIndex")
+        nameIndex: await readPathSafe("busSeatApp/membership/nameIndex")
       };
       const legacyMembership = {
         members: await readPathSafe("membership/members"),
         pending: await readPathSafe("membership/pending"),
-        nameIndex: await readPathSafe("membership/nameIndex"),
-        loginIndex: await readPathSafe("membership/loginIndex")
+        nameIndex: await readPathSafe("membership/nameIndex")
       };
       const rootMembers = await readPathSafe("members");
       const rootPending = await readPathSafe("pending");
       const rootNameIndex = await readPathSafe("nameIndex");
-      const rootLoginIndex = await readPathSafe("loginIndex");
       const busSeatRootMembers = await readPathSafe("busSeatApp/members");
       const busSeatRootPending = await readPathSafe("busSeatApp/pending");
       const busSeatRootNameIndex = await readPathSafe("busSeatApp/nameIndex");
-      const busSeatRootLoginIndex = await readPathSafe("busSeatApp/loginIndex");
       const joinCodes = await readPathSafe(MANAGE_JOIN_CODES_PATH);
       const memberListMain = await readPathSafe(MANAGE_MEMBER_LIST_MAIN_PATH);
 
-      const mergedMembers = mergeObjectsByCode(secureMembership.members, busSeatMembership.members, legacyMembership.members, rootMembers, busSeatRootMembers);
-      const mergedPending = mergeObjectsByCode(secureMembership.pending, busSeatMembership.pending, legacyMembership.pending, rootPending, busSeatRootPending);
-      const mergedNameIndex = secureMembership.nameIndex || busSeatMembership.nameIndex || legacyMembership.nameIndex || rootNameIndex || busSeatRootNameIndex || buildNameIndexFromMembers(mergedMembers);
-      const mergedLoginIndex = secureMembership.loginIndex || busSeatMembership.loginIndex || legacyMembership.loginIndex || rootLoginIndex || busSeatRootLoginIndex || buildLoginIndexFromMembersForRestore(mergedMembers);
+      const mergedMembers = mergeObjectsByCode(busSeatMembership.members, legacyMembership.members, rootMembers, busSeatRootMembers);
+      const mergedPending = mergeObjectsByCode(busSeatMembership.pending, legacyMembership.pending, rootPending, busSeatRootPending);
+      const mergedNameIndex = busSeatMembership.nameIndex || legacyMembership.nameIndex || rootNameIndex || busSeatRootNameIndex || buildNameIndexFromMembers(mergedMembers);
       const mergedJoinCodes = buildJoinCodesFromMembers(mergedMembers, joinCodes);
 
       const payload = {
-        backupType: "bus-seat-membership-secure-backup",
-        version: 3,
+        backupType: "bus-seat-membership-login-recovery-backup",
+        version: 2,
         exportedAt: new Date().toISOString(),
-        note: "회원관리 최종 백업: membershipSecure members/pending/nameIndex/loginIndex 및 memberList/joinCodes 포함",
+        note: "로그인 복구용 전체 백업: members/passwordHash, pending, nameIndex, memberList/joinCodes를 함께 포함합니다.",
         data: {
-          membershipSecure: {
-            members: mergedMembers,
-            pending: mergedPending,
-            nameIndex: mergedNameIndex,
-            loginIndex: mergedLoginIndex
-          },
           membership: {
             members: mergedMembers,
             pending: mergedPending,
-            nameIndex: mergedNameIndex,
-            loginIndex: mergedLoginIndex
+            nameIndex: mergedNameIndex
           },
           memberList: {
             joinCodes: mergedJoinCodes,
             main: memberListMain || null
           },
           rawPaths: {
-            secureMembership,
             busSeatAppMembership: busSeatMembership,
             legacyMembership,
             rootMembers,
             rootPending,
             rootNameIndex,
-            rootLoginIndex,
             busSeatRootMembers,
             busSeatRootPending,
-            busSeatRootNameIndex,
-            busSeatRootLoginIndex
+            busSeatRootNameIndex
           }
         }
       };
@@ -9105,7 +9027,7 @@ function renderAll() {
       }
 
       await downloadMemberJsonBackup(payload, saveTarget);
-      alert('회원관리 JSON 백업이 완료되었습니다.');
+      alert('회원 로그인 복구용 JSON 백업이 완료되었습니다.');
       const btn = q('#memberJsonBackupBtn');
       if (btn) {
         btn.classList.add('btn-success-flash');
@@ -9113,20 +9035,18 @@ function renderAll() {
       }
     } catch (error) {
       console.error('회원 JSON 백업 실패:', error);
-      alert(`회원 JSON 백업 실패: Firebase 연결 또는 읽기 권한을 확인하세요.\n\n${error?.code || error?.message || error}`);
+      alert('회원 JSON 백업 실패: Firebase 연결 또는 읽기 권한을 확인하세요.');
     }
   }
 
   function normalizeRestoredMemberBackup(backup) {
     const data = backup?.data || backup || {};
     const raw = data?.rawPaths || {};
-    const secureMembership = data?.membershipSecure || data?.[MANAGE_MEMBERS_ROOT] || raw?.secureMembership || {};
-    const membership = data?.membership || data?.busSeatApp?.membership || {};
+    const membership = data?.membership || data?.busSeatApp?.membership || data?.[MANAGE_MEMBERS_ROOT] || {};
     const legacyMembership = data?.legacyMembership || raw?.legacyMembership || {};
     const busSeatMembership = raw?.busSeatAppMembership || {};
 
     const members = mergeObjectsByCode(
-      secureMembership?.members,
       membership?.members,
       busSeatMembership?.members,
       legacyMembership?.members,
@@ -9138,7 +9058,6 @@ function renderAll() {
     );
 
     const pending = mergeObjectsByCode(
-      secureMembership?.pending,
       membership?.pending,
       busSeatMembership?.pending,
       legacyMembership?.pending,
@@ -9150,7 +9069,6 @@ function renderAll() {
     );
 
     const nameIndex =
-      secureMembership?.nameIndex ||
       membership?.nameIndex ||
       busSeatMembership?.nameIndex ||
       legacyMembership?.nameIndex ||
@@ -9161,17 +9079,6 @@ function renderAll() {
       backup?.nameIndex ||
       buildNameIndexFromMembers(members);
 
-    const loginIndex =
-      secureMembership?.loginIndex ||
-      membership?.loginIndex ||
-      busSeatMembership?.loginIndex ||
-      legacyMembership?.loginIndex ||
-      data?.loginIndex ||
-      raw?.rootLoginIndex ||
-      raw?.busSeatRootLoginIndex ||
-      backup?.loginIndex ||
-      buildLoginIndexFromMembersForRestore(members);
-
     const joinCodes =
       data?.memberList?.joinCodes ||
       backup?.memberList?.joinCodes ||
@@ -9181,7 +9088,7 @@ function renderAll() {
 
     const memberListMain = data?.memberList?.main || backup?.memberList?.main || null;
 
-    return { members, pending, nameIndex, loginIndex, joinCodes, memberListMain };
+    return { members, pending, nameIndex, joinCodes, memberListMain };
   }
 
   function chooseMemberRestoreMode(restored) {
@@ -9260,16 +9167,24 @@ function renderAll() {
       if (!ok) return;
 
       const nameIndex = restored.nameIndex || buildNameIndexFromMembers(restored.members);
-      const loginIndex = restored.loginIndex || buildLoginIndexFromMembersForRestore(restored.members);
       const joinCodes = restored.joinCodes || buildJoinCodesFromMembers(restored.members);
       const updates = {};
 
       if (restoreMode === 'full' || restoreMode === 'login') {
-        // 현재 앱이 실제로 사용하는 보안 경로를 우선 복구한다.
-        updates[`${MANAGE_MEMBERS_ROOT}/members`] = restored.members || null;
-        updates[`${MANAGE_MEMBERS_ROOT}/pending`] = restored.pending || null;
-        updates[`${MANAGE_MEMBERS_ROOT}/nameIndex`] = nameIndex || null;
-        updates[`${MANAGE_MEMBERS_ROOT}/loginIndex`] = loginIndex || null;
+        Object.assign(updates, {
+          'busSeatApp/membership/members': restored.members || null,
+          'busSeatApp/membership/pending': restored.pending || null,
+          'busSeatApp/membership/nameIndex': nameIndex || null,
+          'membership/members': restored.members || null,
+          'membership/pending': restored.pending || null,
+          'membership/nameIndex': nameIndex || null,
+          'members': restored.members || null,
+          'pending': restored.pending || null,
+          'nameIndex': nameIndex || null,
+          'busSeatApp/members': restored.members || null,
+          'busSeatApp/pending': restored.pending || null,
+          'busSeatApp/nameIndex': nameIndex || null
+        });
       }
 
       if (restoreMode === 'full' || restoreMode === 'display') {
@@ -9292,7 +9207,7 @@ function renderAll() {
       alert(`${modeLabel} 완료`);
     } catch (error) {
       console.error('회원 JSON 복구 실패:', error);
-      alert(`회원 JSON 복구 실패: 올바른 회원 백업 JSON 파일인지 확인하세요.\n\n${error?.code || error?.message || error}`);
+      alert('회원 JSON 복구 실패: 올바른 회원 백업 JSON 파일인지 확인하세요.');
     }
   }
 
@@ -9934,17 +9849,8 @@ function renderAll() {
 
   window.__loadMembershipApprovalMembers = forceLoadMemberManageList;
 
-  function bindMemberJsonRestoreInputSafely() {
-    const input = q('#memberJsonRestoreFileInput');
-    if (!input || input.__memberJsonRestoreBound) return;
-    input.__memberJsonRestoreBound = true;
-    input.addEventListener('change', handleMemberJsonRestoreFile);
-  }
-
-
   // 복구 파일 선택 후 실제 복구가 실행되도록 change 이벤트를 명시적으로 연결한다.
-  bindMemberJsonRestoreInputSafely();
-  document.addEventListener('DOMContentLoaded', bindMemberJsonRestoreInputSafely);
+  q('#memberJsonRestoreFileInput')?.addEventListener('change', handleMemberJsonRestoreFile);
 
   document.addEventListener('keydown', (event) => {
     const searchInput = event.target && event.target.closest ? event.target.closest('#memberManagePanel #memberApprovalSearchInput') : null;
@@ -9971,7 +9877,7 @@ function renderAll() {
     const memberManageMemberListBtn = event.target.closest('#memberManagePanel #memberManageMemberListBtn');
     if (memberManageMemberListBtn) {
       event.preventDefault();
-      window.location.href = "https://coretechms.github.io/member-list/";
+      window.location.href = "https://coretechms.github.io/memble-list/";
       return;
     }
     const adminGroupToggle = event.target.closest('#memberManagePanel #memberManageAdminToggleBtn');
