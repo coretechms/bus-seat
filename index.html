@@ -1957,6 +1957,45 @@ body.admin-entry-only #adminLoginPanel.hidden{
   .seat-memo-actions .yn-btn { font-size:11px; padding:0 4px; }
 }
 
+
+
+/* 요청 수정: 관리자 모드 상단을 로그오프/상태저장/상태선택 한 줄로 정렬하고 좌석선택/이름 입력칸 숨김 */
+.admin-compact-action-row {
+  grid-template-columns: 1fr 1fr 1fr !important;
+}
+.admin-hidden-seat-controls {
+  display: none !important;
+}
+body.admin-mode #adminSeat,
+body.admin-mode #adminMemberName,
+body.admin-mode #adminMarkNamedPaidBtn {
+  display: none !important;
+}
+.admin-compact-action-row #adminStatus {
+  width: 100% !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  border: 1px solid #d4d4d4 !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  color: #111 !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  text-align-last: center !important;
+  padding: 0 6px !important;
+}
+@media (max-width: 760px) {
+  .admin-compact-action-row {
+    gap: 6px !important;
+  }
+  .admin-compact-action-row .btn,
+  .admin-compact-action-row #adminStatus {
+    font-size: 11px !important;
+    padding: 0 4px !important;
+    white-space: nowrap !important;
+  }
+}
 </style>
 </head>
 <body class="membership-locked">
@@ -2128,21 +2167,20 @@ body.admin-entry-only #adminLoginPanel.hidden{
 
           <div id="adminPanel" class="hidden">
 
-            <div style="display:flex; gap:8px; margin-top:10px;">
-              <button class="btn btn-primary" id="adminSaveBtnTop" type="button" style="flex:1;">상태저장</button>
-              <button class="btn btn-outline" id="adminMarkNamedPaidBtn" type="button" style="flex:1;">이름만 남기기</button>
-              <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="flex:1;">로그오프</button>
-            </div>
-
-            <div style="display:flex; gap:8px; margin-top:10px;">
-              <select id="adminSeat" style="flex:1; min-width:0;"></select>
-              <input id="adminMemberName" type="text" placeholder="이름" style="flex:1;" />
-              <select id="adminStatus" style="flex:1;">
+            <div class="admin-compact-action-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px;">
+              <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="width:100%;">로그오프</button>
+              <button class="btn btn-primary" id="adminSaveBtnTop" type="button" style="width:100%;">상태저장</button>
+              <select id="adminStatus" aria-label="좌석 상태 선택">
                 <option value="paid">완납</option>
                 <option value="waiting">입금대기</option>
-                <option value="reserved">이름만 표시</option>
+                <option value="reserved">이름만 표기</option>
                 <option value="paid_new">완납/신입</option>
               </select>
+            </div>
+
+            <div class="admin-hidden-seat-controls" style="display:none !important; gap:8px; margin-top:10px;">
+              <select id="adminSeat" style="flex:1; min-width:0;"></select>
+              <input id="adminMemberName" type="text" placeholder="이름" style="flex:1;" />
             </div>
 
             <div id="resetInlineConfirm" class="hidden" style="margin-bottom:6px; padding:8px; border:1px solid #d32f2f; border-radius:16px; background:#fff5f5;">
@@ -2293,7 +2331,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
               </div>
             </div>
 
-            <div id="adminNameExportPanel" style="margin-top:12px; border:1px solid #d4d4d4; border-radius:16px; padding:10px; background:#fafafa;">
+            <div id="adminNameExportPanel" style="display:none !important; margin-top:12px; border:1px solid #d4d4d4; border-radius:16px; padding:10px; background:#fafafa;">
               <div style="font-size:13px; font-weight:700; margin-bottom:8px;">좌석 이름 데이터</div>
               <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
                 <select id="adminNameExportType" style="flex:1; min-width:0;">
@@ -5213,6 +5251,49 @@ function renderAll() {
       flashSaveVisuals(seatNo, "adminSaveBtnTop");
     }
 
+    async function handleAdminMarkSelectedPaid() {
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      const seatNo = Number(state.adminSeat);
+      if (isBlockedSeat(seatNo)) {
+        alert("전용좌석은 관리자만 입력 할 수 있습니다.");
+        return;
+      }
+      if (!seatNo) {
+        alert("완납 처리할 좌석을 먼저 선택하세요.");
+        return;
+      }
+      const prevSeat = state.seats.find((s) => s.number === seatNo);
+      const prevName = prevSeat?.name || "";
+      const prevStatus = prevSeat?.status || "empty";
+      const nextName = String(state.memberName || prevName || "").trim();
+      if (!nextName) {
+        alert("이름이 있는 좌석만 완납 처리할 수 있습니다.");
+        return;
+      }
+      state.adminStatus = "paid";
+      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: nextName, status: "paid", updatedAt: Date.now(), updatedBy: state.clientId } : seat);
+      state.editingSeat = null;
+      state.editName = "";
+      renderAll();
+      if (!state.isFirebaseReady || !state.db) {
+        flashSaveVisuals(seatNo, "adminMarkSelectedPaidBtn");
+        setStatusMessage("Firebase 미연결 - 현재 화면에서만 완납 처리", state.projectLabel);
+        return;
+      }
+      const ok = await saveSeatAdmin(seatNo, nextName, "paid");
+      if (!ok) {
+        state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: prevName, status: prevStatus } : seat);
+        state.adminStatus = normalizeSeatStatus(prevStatus === "empty" ? "reserved" : prevStatus);
+        renderAll();
+        alert("완납 처리 권한이 없거나 저장에 실패했습니다.");
+        return;
+      }
+      flashSaveVisuals(seatNo, "adminMarkSelectedPaidBtn");
+    }
+
     async function handleAdminClearSeat() {
       if (!state.isAdminAuthenticated) {
         alert("관리자 인증 후 사용할 수 있습니다.");
@@ -5651,6 +5732,7 @@ function renderAll() {
       bindIfPresent("adminSaveBtnTop", "click", handleAdminSave);
       bindIfPresent("adminClearSeatBtn", "click", handleAdminClearSeat);
       bindIfPresent("adminMarkNamedPaidBtn", "click", handleAdminMarkNamedPaid);
+      bindIfPresent("adminMarkSelectedPaidBtn", "click", handleAdminMarkSelectedPaid);
       bindIfPresent("saveBusTypeBtn", "click", handleSaveBusType);
       bindIfPresent("toggleNameEntryLockBtn", "click", handleToggleNameEntryLock);
       bindIfPresent("resetBtn", "click", () => {
@@ -7102,7 +7184,7 @@ function renderAll() {
 
     const members = await findMembersByName(name);
     if (members.length === 0) {
-      setAuthMessage("DB에서 이름을 찾지 못했습니다. 회원관리 목록과 로그인 DB 경로가 다르거나 Firebase 읽기 권한이 막혀 있습니다.");
+      setAuthMessage("가입자 정보가 없습니다 회원가입후 이용해주세요.");
       return;
     }
 
