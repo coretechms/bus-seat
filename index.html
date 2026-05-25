@@ -8673,8 +8673,16 @@ function renderAll() {
     Object.keys(legacySecureMembers).forEach((code) => addMemberMapRecord(map, code, legacySecureMembers[code]));
 
     // 3순위: 승인 처리 때 별도로 미러링되는 memberList/joinCodes 경로
+    // 단, 삭제(deleted) 기록은 멤버리스트의 승인결과 칸 갱신용 기록일 뿐
+    // 회원관리 목록에는 다시 승인대기/회원카드로 생성하지 않는다.
     const joinCodes = joinCodesSnap && joinCodesSnap.exists() ? joinCodesSnap.val() || {} : {};
-    Object.keys(joinCodes).forEach((code) => addMemberMapRecord(map, code, joinCodes[code], { status: "active", approved: true, role: "member" }));
+    Object.keys(joinCodes).forEach((code) => {
+      const joinRecord = joinCodes[code] || {};
+      if (String(joinRecord.status || "") === "deleted" || String(joinRecord.approvalResult || "") === "삭제" || String(joinRecord.joinStatus || "") === "삭제") {
+        return;
+      }
+      addMemberMapRecord(map, code, joinRecord, { status: "active", approved: true, role: "member" });
+    });
 
     // 4순위: 과거/백업 호환 경로
     const rootMembershipMembers = rootMembershipSnap && rootMembershipSnap.exists() ? rootMembershipSnap.val() || {} : {};
@@ -8705,10 +8713,18 @@ function renderAll() {
       });
     });
 
-    return Array.from(map.values()).sort((a,b) => {
-      const rank = { pending: 0, active: 1, blocked: 2, withdrawn: 3, rejected: 4 };
-      return (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || String(a.code).localeCompare(String(b.code));
-    });
+    return Array.from(map.values())
+      .filter((m) => String(m && m.status || "") !== "deleted")
+      .sort((a,b) => {
+        // 승인대기자는 항상 회원관리 목록 최상단에 표시한다.
+        // 삭제 상태는 위에서 제외되므로 회원관리 목록에 재생성되지 않는다.
+        const rank = { pending: 0, blocked: 1, withdrawn: 2, rejected: 3, active: 4 };
+        const rankDiff = (rank[a.status] ?? 9) - (rank[b.status] ?? 9);
+        if (rankDiff) return rankDiff;
+        const timeDiff = Number(b.createdAt || b.requestedAt || b.updatedAt || 0) - Number(a.createdAt || a.requestedAt || a.updatedAt || 0);
+        if (timeDiff) return timeDiff;
+        return String(a.code).localeCompare(String(b.code));
+      });
   }
 
   function normalizeDuplicateJoinName(value) {
@@ -8746,7 +8762,7 @@ function renderAll() {
       list.innerHTML = '<div class="member-approval-empty">가입자 DB에 저장된 회원이 없습니다. busSeatApp/membership 과 memberList/joinCodes 를 모두 확인했지만 표시할 회원이 없습니다. JSON 백업이 있으면 복구하세요.</div>';
       return;
     }
-    const pendingCount = members.filter(m => m.status === 'pending' || !m.approved).length;
+    const pendingCount = members.filter(m => String(m.status || '') === 'pending').length;
     updateMemberManageTabPendingBlink(pendingCount);
     const approvedCount = members.filter(m => m.status === 'active' && m.approved).length;
     const duplicateJoinNames = buildDuplicateJoinNameSet(members);
