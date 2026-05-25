@@ -1997,10 +1997,9 @@ body.admin-mode #adminMarkNamedPaidBtn {
   }
 }
 
-
-/* ===== 2안 적용: 회원관리 전용 전체화면 레이어 =====
-   - 기존 좌석/동기화/회원관리 처리 함수는 변경하지 않고 화면 레이어만 분리
-   - 회원관리 모드(body.member-manage-mode)일 때만 전체화면으로 표시 */
+/* ===== 2안 재적용: 회원관리 전용 전체화면 레이어 =====
+   - 좌석 화면/동기화 함수는 변경하지 않고 회원관리 패널만 독립 레이어처럼 분리
+   - body.member-manage-mode 상태에서 PC/모바일 모두 전체화면으로 표시 */
 body.member-manage-mode {
   overflow: hidden !important;
 }
@@ -2179,7 +2178,7 @@ body.member-manage-mode .member-approval-card-actions button {
   }
 
   body.member-manage-mode .member-approval-card-actions button {
-    height: 24px !important;
+    height: 26px !important;
     font-size: 9px !important;
     padding: 0 2px !important;
   }
@@ -6634,7 +6633,7 @@ function renderAll() {
 
 
 <script type="module" id="bus-seat-membership-gate-script">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
   import { getDatabase, ref, get, set, update, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
   const MEMBERSHIP_FIREBASE_CONFIG = {
@@ -6650,10 +6649,11 @@ function renderAll() {
   const MEMBERS_ROOT = "busSeatApp/membership";
   const MEMBER_LIST_JOIN_CODES_PATH = "memberList/joinCodes";
   const MEMBER_LIST_MAIN_PATH = "memberList/main";
+  const MEMBER_LOGIN_INDEX_PATH = `${MEMBERS_ROOT}/loginIndex`;
   const LOGIN_SESSION_KEY = "bus-seat-approved-member-session-v1";
   let currentApprovedMemberSession = null;
 
-  const membershipApp = initializeApp(MEMBERSHIP_FIREBASE_CONFIG, "busSeatMembershipGateApp");
+  const membershipApp = getApps().length ? getApp() : initializeApp(MEMBERSHIP_FIREBASE_CONFIG);
   const membershipDb = getDatabase(membershipApp);
 
   /* 회원 DB 경로 호환 보강
@@ -6744,6 +6744,31 @@ function renderAll() {
       } catch (error) {
         console.warn("회원 DB 코드 조회 실패:", cfg.membersPath, key, error);
       }
+    }
+    // 신규 보안 구조: 가입신청은 members가 아니라 pending 객체에 먼저 저장된다.
+    // 관리자 승인 처리 시 pending 자료를 members로 승격한다.
+    try {
+      const pendingSnap = await get(ref(membershipDb, `${MEMBERS_ROOT}/pending/${key}`));
+      if (pendingSnap.exists()) {
+        const pendingMember = pendingSnap.val() || {};
+        return {
+          rootPath: MEMBERS_ROOT,
+          membersPath: `${MEMBERS_ROOT}/members`,
+          nameIndexPath: `${MEMBERS_ROOT}/nameIndex`,
+          pendingPath: `${MEMBERS_ROOT}/pending`,
+          member: {
+            ...pendingMember,
+            code: pendingMember.code || key,
+            __pendingOnly: true,
+            __memberRoot: MEMBERS_ROOT,
+            __membersPath: `${MEMBERS_ROOT}/members`,
+            __nameIndexPath: `${MEMBERS_ROOT}/nameIndex`,
+            __pendingPath: `${MEMBERS_ROOT}/pending`
+          }
+        };
+      }
+    } catch (error) {
+      console.warn("가입대기 DB 코드 조회 실패:", key, error);
     }
     return null;
   }
@@ -6973,13 +6998,20 @@ function renderAll() {
 
   async function getExistingMemberCodes() {
     const codeSet = new Set();
-    const [members, joinCodesSnap] = await Promise.all([
-      getAllMembersFromAnyRoot(),
-      get(ref(membershipDb, MEMBER_LIST_JOIN_CODES_PATH)).catch(() => null)
-    ]);
-    const joinCodes = joinCodesSnap && joinCodesSnap.exists() ? joinCodesSnap.val() || {} : {};
-    Object.keys(members || {}).forEach((code) => codeSet.add(String(code)));
-    Object.keys(joinCodes).forEach((code) => codeSet.add(String(code)));
+    try {
+      const members = await getAllMembersFromAnyRoot();
+      Object.keys(members || {}).forEach((code) => codeSet.add(String(code)));
+    } catch (error) {}
+    try {
+      const pendingSnap = await get(ref(membershipDb, `${MEMBERS_ROOT}/pending`));
+      const pending = pendingSnap && pendingSnap.exists() ? pendingSnap.val() || {} : {};
+      Object.keys(pending).forEach((code) => codeSet.add(String(code)));
+    } catch (error) {}
+    try {
+      const joinCodesSnap = await get(ref(membershipDb, MEMBER_LIST_JOIN_CODES_PATH));
+      const joinCodes = joinCodesSnap && joinCodesSnap.exists() ? joinCodesSnap.val() || {} : {};
+      Object.keys(joinCodes).forEach((code) => codeSet.add(String(code)));
+    } catch (error) {}
     return codeSet;
   }
 
@@ -7276,9 +7308,48 @@ function renderAll() {
     return ["active", "approved", "member", "admin"].includes(status);
   }
 
+  function makeMemberLoginIndexRecord(member) {
+    const m = member || {};
+    return {
+      code: String(m.code || ""),
+      name: String(m.name || ""),
+      nameKey: makeNameKey(m.name || ""),
+      passwordHash: String(m.passwordHash || m.passHash || m.pwHash || m.memberPasswordHash || ""),
+      approved: !!m.approved,
+      status: String(m.status || (m.approved ? "active" : "pending")),
+      role: String(m.role || (m.adminAccess ? "admin" : "member")),
+      adminAccess: !!m.adminAccess,
+      apps: m.apps || {},
+      updatedAt: Date.now()
+    };
+  }
+
+  async function getLoginIndexMembersByName(name) {
+    const key = makeNameKey(name);
+    if (!key) return [];
+    try {
+      const snap = await get(ref(membershipDb, `${MEMBER_LOGIN_INDEX_PATH}/${key}`));
+      if (!snap.exists()) return [];
+      const value = snap.val() || {};
+      return Object.keys(value).map((code) => ({
+        ...(value[code] || {}),
+        code: (value[code] && value[code].code) || code,
+        __loginIndexOnly: true
+      })).filter((m) => memberNameMatches(m, name));
+    } catch (error) {
+      console.warn("회원 로그인 인덱스 조회 실패:", error);
+      return [];
+    }
+  }
+
   async function findMembersByName(name) {
     const key = makeNameKey(name);
     const membersByCode = new Map();
+
+    // 보안 구조: 일반 로그인은 공개 가능한 최소 정보(loginIndex)를 먼저 사용한다.
+    // 회원 전체 DB는 Rules에서 관리자 전용으로 잠겨도 이 경로로 로그인이 가능하다.
+    const loginIndexMembers = await getLoginIndexMembersByName(name);
+    loginIndexMembers.forEach((m) => membersByCode.set(String(m.code || ""), m));
 
     // 1) 이름 인덱스가 있는 경우: 모든 호환 경로의 nameIndex를 확인
     const codes = await getNameIndexCodesAnyRoot(key);
@@ -7532,12 +7603,11 @@ function renderAll() {
       withdrawnBy: null
     };
 
+    // 보안 구조: 일반 가입신청자는 관리자 전용 members/memberList 경로를 직접 쓰지 않는다.
+    // 가입신청은 pending 객체에만 저장하고, 관리자가 승인할 때 members/joinCodes/loginIndex로 승격한다.
     await update(ref(membershipDb), {
-      [`${MEMBERS_ROOT}/members/${code}`]: payload,
-      [`${MEMBERS_ROOT}/nameIndex/${makeNameKey(name)}/${code}`]: true,
-      [`${MEMBERS_ROOT}/pending/${code}`]: true
+      [`${MEMBERS_ROOT}/pending/${code}`]: payload
     });
-    await saveMemberListJoinCode(payload);
 
     setAuthMessage(`가입 신청 완료. 관리자 승인 대기중입니다. 회원코드: ${code}`, true);
     clearMemberJoinInputs();
@@ -8061,7 +8131,10 @@ function renderAll() {
     } else if (action === "delete") {
       updates[`${memberMembersPathForUpdate}/${code}`] = null;
       updates[`${memberPendingPathForUpdate}/${code}`] = null;
-      if (member?.name) updates[`${memberNameIndexPathForUpdate}/${makeNameKey(member.name)}/${code}`] = null;
+      if (member?.name) {
+        updates[`${memberNameIndexPathForUpdate}/${makeNameKey(member.name)}/${code}`] = null;
+        updates[`${MEMBER_LOGIN_INDEX_PATH}/${makeNameKey(member.name)}/${code}`] = null;
+      }
       updates[`${MEMBER_LIST_JOIN_CODES_PATH}/${code}`] = null;
       await update(ref(membershipDb), updates);
       setAuthMessage(`${member.name || code} / ${code} 삭제 완료`, true);
@@ -8085,6 +8158,12 @@ function renderAll() {
       createdAt: member.createdAt || now,
       updatedAt: now
     };
+    const loginIndexPath = `${MEMBER_LOGIN_INDEX_PATH}/${makeNameKey(member.name)}/${code}`;
+    if (member.status === "active" && member.approved && member.passwordHash) {
+      updates[loginIndexPath] = makeMemberLoginIndexRecord(member);
+    } else {
+      updates[loginIndexPath] = null;
+    }
     await update(ref(membershipDb), updates);
     await mergeMemberIntoMemberListMain(member);
     setAuthMessage(`${member.name} / ${code} 처리 완료`, true);
@@ -8384,7 +8463,7 @@ function renderAll() {
 
 
 <script type="module" id="bus-seat-member-manage-forced-render-script">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
   import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
   const MANAGE_FIREBASE_CONFIG = {
@@ -8420,7 +8499,7 @@ function renderAll() {
     "nameIndex",
     "busSeatApp/nameIndex"
   ];
-  const manageApp = initializeApp(MANAGE_FIREBASE_CONFIG, "busSeatMemberManageForcedRenderApp");
+  const manageApp = getApps().length ? getApp() : initializeApp(MANAGE_FIREBASE_CONFIG);
   const manageDb = getDatabase(manageApp);
 
   function q(sel) { return document.querySelector(sel); }
@@ -8529,8 +8608,13 @@ function renderAll() {
     // pending 경로에 코드만 남아 있고 members 객체가 누락된 경우도 표시한다.
     const pending = pendingSnap && pendingSnap.exists() ? pendingSnap.val() || {} : {};
     Object.keys(pending).forEach((code) => {
+      const rawPending = pending[code];
       if (!map.has(code)) {
-        addMemberMapRecord(map, code, { code, name: "가입정보 없음", approved: false, status: "pending", role: "pending" });
+        if (rawPending && typeof rawPending === "object") {
+          addMemberMapRecord(map, code, { ...rawPending, code, approved: false, status: rawPending.status || "pending", role: rawPending.role || "pending" });
+        } else {
+          addMemberMapRecord(map, code, { code, name: "가입정보 없음", approved: false, status: "pending", role: "pending" });
+        }
       } else {
         const prev = map.get(code);
         if (!prev.status) prev.status = "pending";
@@ -9723,8 +9807,6 @@ function renderAll() {
 })();
 </script>
 
-
-
 <script id="member-manage-fullscreen-v2-script">
 (function(){
   function closeMemberManageFullscreen(){
@@ -9735,7 +9817,6 @@ function renderAll() {
       }
     } catch (error) {}
 
-    // fallback: 기존 회원입력 탭 클릭으로 좌석 화면 복귀
     try {
       var memberTab = document.getElementById("memberTab");
       if (memberTab) {
@@ -9744,7 +9825,6 @@ function renderAll() {
       }
     } catch (error) {}
 
-    // final fallback: 화면 클래스만 정리
     try {
       document.body.classList.remove("member-manage-mode");
       document.body.classList.add("member-mode");
