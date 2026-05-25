@@ -1775,7 +1775,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
   gap:4px !important;
   flex:0 1 auto !important;
   min-width:0 !important;
-  max-width:45% !important;
+  max-width:52% !important;
   overflow:hidden !important;
 }
 .member-manage-title-text{
@@ -1791,6 +1791,20 @@ body.admin-entry-only #adminLoginPanel.hidden{
   min-width:54px !important;
   max-width:96px !important;
 }
+.member-manage-title-search #memberManageMemberListBtn{
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:44px !important;
+  max-width:58px !important;
+  height:22px !important;
+  min-height:22px !important;
+  padding:0 5px !important;
+  border-radius:10px !important;
+  font-size:10px !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+}
+
 .member-manage-topbar .member-manage-header-actions{
   display:flex !important;
   align-items:center !important;
@@ -1845,7 +1859,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
 #memberManagePanel.member-admin-group-open .member-manage-header-actions{max-width:62% !important;}
 @media(max-width:760px){
   .member-manage-topbar{gap:2px !important;}
-  .member-manage-title-search{gap:2px !important; max-width:42% !important;}
+  .member-manage-title-search{gap:2px !important; max-width:50% !important;}
   .member-manage-title-text{font-size:12px !important;}
   .member-manage-title-search #memberApprovalSearchInput{
     flex-basis:58px !important;
@@ -1857,6 +1871,15 @@ body.admin-entry-only #adminLoginPanel.hidden{
     font-size:9px !important;
     padding:0 3px !important;
   }
+  .member-manage-title-search #memberManageMemberListBtn{
+    min-width:34px !important;
+    max-width:42px !important;
+    height:21px !important;
+    min-height:21px !important;
+    font-size:8px !important;
+    padding:0 2px !important;
+  }
+
   .member-manage-topbar .member-manage-header-actions{gap:2px !important; max-width:58% !important;}
   .member-manage-topbar .member-manage-header-actions .btn{
     height:21px !important;
@@ -1869,7 +1892,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
   .member-manage-topbar .member-manage-admin-group-panel{max-width:102px !important; gap:1px !important;}
   .member-manage-topbar .member-manage-admin-group-panel .btn{padding:0 1px !important; font-size:8px !important;}
   .member-manage-topbar #memberDbCleanupBtn{font-size:7.5px !important;}
-  #memberManagePanel.member-admin-group-open .member-manage-title-search{max-width:34% !important;}
+  #memberManagePanel.member-admin-group-open .member-manage-title-search{max-width:42% !important;}
   #memberManagePanel.member-admin-group-open .member-manage-header-actions{max-width:66% !important;}
 }
 
@@ -2462,6 +2485,7 @@ body.member-manage-mode .member-approval-card-actions button {
                 <button class="btn btn-outline" id="memberManageCloseBtn" type="button" title="좌석 화면으로 돌아가기">닫기</button>
                 <div class="member-manage-title-search">
                   <input id="memberApprovalSearchInput" type="search" autocomplete="off" placeholder="이름검색" aria-label="회원 이름 검색" />
+                  <button class="btn btn-outline" id="memberManageMemberListBtn" type="button" title="회원정보 페이지로 이동">회원정보</button>
                 </div>
                 <div class="member-manage-header-actions">
                   <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button">새로고침</button>
@@ -9440,7 +9464,9 @@ function renderAll() {
     const incomingPhone = String(member.phone || member.phoneDigits || "").trim();
     const incomingBirth = String(member.birthYear || "").trim();
     const incomingDong = String(member.dong || member.residence || "").trim();
-    const resultLabel = member.adminAccess ? "관리자" : (member.approved ? "승인" : (member.status === "blocked" ? "차단" : member.status === "withdrawn" ? "탈퇴" : "승인대기"));
+    // 멤버리스트의 실제 상태 표시 칸은 "승인결과"입니다.
+    // 승인/차단/탈퇴/삭제 값을 모두 같은 함수로 계산해 승인결과 칸에 반영합니다.
+    const resultLabel = joinResultLabel(member);
     const joinDate = formatManageJoinDate(member.createdAt || member.requestedAt || Date.now());
 
     const cleanName = (v) => String(v || "").replace(/\s+/g, "").trim();
@@ -9497,7 +9523,10 @@ function renderAll() {
       setManageMemberListCellText(row, idx.dong, incomingDong);
     }
 
-    setManageMemberListCellText(row, idx.approval, (resultLabel === "승인" || resultLabel === "관리자") ? "승인" : resultLabel);
+    // 가입:승인 칸은 기존 호환용으로만 유지하고, 차단/탈퇴/삭제 표시는 승인결과 칸에 확정 기록한다.
+    if (idx.approval >= 0) {
+      setManageMemberListCellText(row, idx.approval, (resultLabel === "승인" || resultLabel === "관리자") ? "승인" : "");
+    }
     setManageMemberListCellText(row, idx.uid, code);
     setManageMemberListCellText(row, idx.joinDate, joinDate);
     setManageMemberListCellText(row, idx.result, resultLabel);
@@ -9786,6 +9815,14 @@ function renderAll() {
   // 복구 파일 선택 후 실제 복구가 실행되도록 change 이벤트를 명시적으로 연결한다.
   q('#memberJsonRestoreFileInput')?.addEventListener('change', handleMemberJsonRestoreFile);
 
+  document.addEventListener('keydown', (event) => {
+    const searchInput = event.target && event.target.closest ? event.target.closest('#memberManagePanel #memberApprovalSearchInput') : null;
+    if (!searchInput || event.key !== 'Enter') return;
+    event.preventDefault();
+    searchInput.value = '';
+    applyMemberApprovalSearch();
+  });
+
   window.__forceLoadMemberManageList = forceLoadMemberManageList;
 
   document.addEventListener('click', (event) => {
@@ -9798,6 +9835,12 @@ function renderAll() {
     if (refresh) {
       event.preventDefault();
       forceLoadMemberManageList();
+      return;
+    }
+    const memberManageMemberListBtn = event.target.closest('#memberManagePanel #memberManageMemberListBtn');
+    if (memberManageMemberListBtn) {
+      event.preventDefault();
+      window.location.href = "https://coretechms.github.io/memble-list/";
       return;
     }
     const adminGroupToggle = event.target.closest('#memberManagePanel #memberManageAdminToggleBtn');
