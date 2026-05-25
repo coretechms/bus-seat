@@ -9499,18 +9499,18 @@ function renderAll() {
     setManageMemberListCellText(row, idx.result, resultLabel);
     return true;
   }
-  async function mergeManageMemberIntoMemberListMain(member) {
-    if (!member || !member.code) return;
-    const snap = await get(ref(manageDb, MANAGE_MEMBER_LIST_MAIN_PATH));
+  async function mergeManageMemberIntoOneMemberListDb(targetDb, member, label) {
+    if (!targetDb || !member || !member.code) return false;
+    const snap = await get(ref(targetDb, MANAGE_MEMBER_LIST_MAIN_PATH));
     const currentValue = snap.exists() ? snap.val() : null;
     const normalized = normalizeManageMemberListMainPayload(currentValue);
     const changed = applyManageMemberToMemberListData(normalized.data, member);
-    if (!changed) return;
+    if (!changed) return false;
     const nextPayload = {
       ...(currentValue && typeof currentValue === "object" && currentValue.data ? currentValue : {}),
       type: "member-list-table-data",
       version: "membel-list-realtime-2.0",
-      source: "bus-seat-member-manage-merge",
+      source: `bus-seat-member-manage-merge-${label || "default"}`,
       reason: "bus-seat-member-approval-merge",
       updatedBy: "bus-seat-member-manage",
       clientId: "bus-seat-member-manage",
@@ -9518,7 +9518,28 @@ function renderAll() {
       updatedAtISO: new Date().toISOString(),
       data: normalized.data
     };
-    await update(ref(manageDb), { [MANAGE_MEMBER_LIST_MAIN_PATH]: nextPayload });
+    await update(ref(targetDb), { [MANAGE_MEMBER_LIST_MAIN_PATH]: nextPayload });
+    return true;
+  }
+
+  async function mergeManageMemberIntoMemberListMain(member) {
+    if (!member || !member.code) return;
+
+    // 1) 현재 bus-seat DB에도 백업/표시용으로 반영
+    await mergeManageMemberIntoOneMemberListDb(manageDb, member, "bus-seat");
+
+    // 2) 실제 member-list 앱이 보는 외부 Firebase(member-b458f)에도 반영
+    //    승인 버튼은 forceUpdateMember() → 이 함수로 들어오므로 여기서 외부 DB까지 반드시 저장해야 한다.
+    try {
+      await mergeManageMemberIntoOneMemberListDb(getMemberListExternalDb(), member, "member-list-external");
+    } catch (error) {
+      console.error("외부 멤버리스트 DB 반영 실패:", error);
+      alert(
+        "승인은 완료되었지만 외부 멤버리스트 DB(member-b458f/memberList/main) 반영에 실패했습니다.\n\n" +
+        "Firebase Rules 또는 외부 DB 연결 권한을 확인하세요.\n" +
+        String(error?.code || error?.message || error)
+      );
+    }
   }
 
 
