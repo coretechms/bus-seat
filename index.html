@@ -6668,6 +6668,27 @@ function renderAll() {
   const membershipApp = getApps().length ? getApp() : initializeApp(MEMBERSHIP_FIREBASE_CONFIG);
   const membershipDb = getDatabase(membershipApp);
 
+  /* 회원 승인 → 멤버리스트 반영 DB 분리 보강
+     - bus-seat 보안 DB(bus-seat-eb86c)와 실제 멤버리스트 DB(member-b458f)가 다를 수 있으므로
+       승인 시 member-b458f/memberList/main에도 같은 회원 행을 병합 저장한다. */
+  const MEMBER_LIST_EXTERNAL_FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBRxAdYRyjMIcQvCQ2ja7YOkdFGNCkW1cE",
+    authDomain: "member-b458f.firebaseapp.com",
+    databaseURL: "https://member-b458f-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "member-b458f",
+    storageBucket: "member-b458f.firebasestorage.app",
+    messagingSenderId: "399411166551",
+    appId: "1:399411166551:web:3c693da51daaa042751212"
+  };
+
+  function getMemberListExternalDb() {
+    const appName = "memberListExternalSync";
+    const app = getApps().some((item) => item.name === appName)
+      ? getApp(appName)
+      : initializeApp(MEMBER_LIST_EXTERNAL_FIREBASE_CONFIG, appName);
+    return getDatabase(app);
+  }
+
   /* 회원 DB 경로 호환 보강
      회원관리/로그인이 반드시 같은 DB를 보도록 모든 사용 이력 경로를 통합 조회한다.
      - 기본 저장: busSeatApp/membership/members
@@ -7260,18 +7281,17 @@ function renderAll() {
     return true;
   }
 
-  async function mergeMemberIntoMemberListMain(member) {
-    if (!member || !member.code) return;
-    const snap = await get(ref(membershipDb, MEMBER_LIST_MAIN_PATH));
+  async function mergeMemberIntoOneMemberListDb(targetDb, member, label) {
+    const snap = await get(ref(targetDb, MEMBER_LIST_MAIN_PATH));
     const currentValue = snap.exists() ? snap.val() : null;
     const normalized = normalizeMemberListMainPayload(currentValue);
     const changed = applyMemberToMemberListData(normalized.data, member);
-    if (!changed) return;
+    if (!changed) return false;
     const nextPayload = {
       ...(currentValue && typeof currentValue === "object" && currentValue.data ? currentValue : {}),
       type: "member-list-table-data",
       version: "membel-list-realtime-2.0",
-      source: "bus-seat-approval-merge",
+      source: `bus-seat-approval-merge-${label || "default"}`,
       reason: "bus-seat-member-approval-merge",
       updatedBy: "bus-seat-approval",
       clientId: "bus-seat-approval",
@@ -7279,7 +7299,19 @@ function renderAll() {
       updatedAtISO: new Date().toISOString(),
       data: normalized.data
     };
-    await update(ref(membershipDb), { [MEMBER_LIST_MAIN_PATH]: nextPayload });
+    await update(ref(targetDb), { [MEMBER_LIST_MAIN_PATH]: nextPayload });
+    return true;
+  }
+
+  async function mergeMemberIntoMemberListMain(member) {
+    if (!member || !member.code) return;
+    await mergeMemberIntoOneMemberListDb(membershipDb, member, "bus-seat");
+    try {
+      await mergeMemberIntoOneMemberListDb(getMemberListExternalDb(), member, "member-list-external");
+    } catch (error) {
+      console.warn("외부 멤버리스트 DB 반영 실패:", error);
+      // 회원 승인 자체는 이미 저장되었으므로 중단하지 않는다. 다만 콘솔에서 권한/연결 문제를 확인할 수 있게 남긴다.
+    }
   }
 
 
