@@ -6019,7 +6019,7 @@ function renderAll() {
       });
       bindIfPresent("tripScheduleBtn", "click", openTripPlanWithIndependentPassword);
       bindIfPresent("memberListBtn", "click", () => {
-        window.location.href = "https://coretechms.github.io/memble-list/";
+        window.location.href = "https://coretechms.github.io/member-list/";
       });
       // 👉 GitHub Pages에 있는 bus-route.html 열기 (주소를 실제 URL로 변경하세요)
       bindIfPresent("boardingPointBtn", "click", () => {
@@ -7418,19 +7418,48 @@ function renderAll() {
   async function getLoginIndexMembersByName(name) {
     const key = makeNameKey(name);
     if (!key) return [];
-    try {
-      const snap = await get(ref(membershipDb, `${MEMBER_LOGIN_INDEX_PATH}/${key}`));
-      if (!snap.exists()) return [];
-      const value = snap.val() || {};
-      return Object.keys(value).map((code) => ({
-        ...(value[code] || {}),
-        code: (value[code] && value[code].code) || code,
-        __loginIndexOnly: true
-      })).filter((m) => memberNameMatches(m, name));
-    } catch (error) {
-      console.warn("회원 로그인 인덱스 조회 실패:", error);
-      return [];
+
+    /*
+      모바일 로그인 보강:
+      회원관리 표시 DB(memberList/joinCodes)는 비밀번호가 없는 미러 DB라서 로그인 판정 기준으로 쓰면
+      모바일에서 members 전체 조회가 Rules/캐시 영향으로 실패했을 때
+      "회원관리 목록에만 있고 passwordHash가 없음"으로 막힐 수 있다.
+
+      따라서 로그인은 공개/최소 로그인 인덱스(loginIndex)를 여러 호환 경로에서 먼저 찾는다.
+      PC는 members 전체 조회가 되어 통과하지만 모바일은 loginIndex만 읽히는 상황을 같이 처리한다.
+    */
+    const loginIndexPathCandidates = Array.from(new Set([
+      MEMBER_LOGIN_INDEX_PATH,
+      `${MEMBERS_ROOT}/loginIndex`,
+      "busSeatApp/membership/loginIndex",
+      "membership/loginIndex",
+      "loginIndex",
+      "busSeatApp/loginIndex"
+    ]));
+
+    const byCode = new Map();
+    for (const basePath of loginIndexPathCandidates) {
+      try {
+        const snap = await get(ref(membershipDb, `${basePath}/${key}`));
+        if (!snap.exists()) continue;
+        const value = snap.val() || {};
+        Object.keys(value).forEach((code) => {
+          const item = value[code] || {};
+          const record = {
+            ...item,
+            code: item.code || code,
+            __loginIndexOnly: true,
+            __loginIndexPath: basePath
+          };
+          if (memberNameMatches(record, name)) {
+            byCode.set(String(record.code || code), record);
+          }
+        });
+      } catch (error) {
+        console.warn("회원 로그인 인덱스 조회 실패:", basePath, error);
+      }
     }
+    return Array.from(byCode.values());
   }
 
   async function findMembersByName(name) {
@@ -7548,8 +7577,8 @@ function renderAll() {
       const joinOnly = members.some((m) => m && m.__joinCodesOnly);
       setAuthMessage(hasNoPasswordData
         ? (joinOnly
-          ? "DB 확인 결과: 회원관리 목록(memberList/joinCodes)에만 회원이 있고 로그인 비밀번호(passwordHash)가 없습니다. 기존 회원 JSON 복구 또는 비밀번호 재설정이 필요합니다."
-          : "회원 이름은 찾았지만 로그인 비밀번호 정보가 없습니다. 회원관리 JSON 복구 또는 비밀번호 재설정이 필요합니다.")
+          ? "DB 확인 결과: 회원관리 목록(memberList/joinCodes)에만 회원이 있고 로그인 비밀번호(passwordHash)가 없습니다. 회원관리에서 DB정리 또는 JSON 전체복구를 실행해 로그인DB(loginIndex)를 복구하세요."
+          : "회원 이름은 찾았지만 로그인 비밀번호 정보가 없습니다. 회원관리 JSON 전체복구 또는 비밀번호 재설정이 필요합니다.")
         : "비밀번호가 맞지 않습니다.");
       return;
     }
@@ -9942,7 +9971,7 @@ function renderAll() {
     const memberManageMemberListBtn = event.target.closest('#memberManagePanel #memberManageMemberListBtn');
     if (memberManageMemberListBtn) {
       event.preventDefault();
-      window.location.href = "https://coretechms.github.io/memble-list/";
+      window.location.href = "https://coretechms.github.io/member-list/";
       return;
     }
     const adminGroupToggle = event.target.closest('#memberManagePanel #memberManageAdminToggleBtn');
