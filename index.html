@@ -2275,6 +2275,7 @@ body.admin-mode #adminMarkNamedPaidBtn {
                   <input id="memberApprovalSearchInput" type="search" autocomplete="off" placeholder="이름검색" aria-label="회원 이름 검색" />
                 </div>
                 <div class="member-manage-header-actions">
+                  <button class="btn btn-outline member-manage-close-btn" id="memberManageCloseBtn" type="button">닫기</button>
                   <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button">새로고침</button>
                   <button class="btn btn-outline" id="memberManageAdminToggleBtn" type="button" aria-expanded="false">관리자</button>
                   <div id="memberManageAdminGroupPanel" class="member-manage-admin-group-panel" hidden>
@@ -5588,6 +5589,7 @@ function renderAll() {
       bindIfPresent("memberTab", "click", () => switchMode("member"));
       bindIfPresent("adminTab", "click", () => switchMode("admin"));
       bindIfPresent("memberManageTab", "click", () => switchMode("memberManage"));
+      bindIfPresent("memberManageCloseBtn", "click", () => switchMode("member"));
       bindIfPresent("memberName", "input", (e) => {
         if (state.nameEntryLocked && !state.isAdminAuthenticated) return;
         const rawValue = e.target.value;
