@@ -9268,6 +9268,66 @@ function renderAll() {
     if (Number.isNaN(d.getTime())) return "";
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
+
+
+  /* 승인 처리 중 memberList/main 병합에 필요한 컬럼 인덱스 보강
+     - 보안 분리/전체화면 병합 과정에서 누락된 함수 복구
+     - 기존 멤버리스트 헤더명이 조금 달라도 fallback 인덱스로 동작 */
+  function cleanManageMemberListCellText(cell) {
+    if (cell == null) return "";
+    if (typeof cell === "object") return stripManageMemberListHtml(cell.html || "");
+    return stripManageMemberListHtml(cell);
+  }
+
+  function getManageMemberListIndexes(headersOrData) {
+    const defaultHeaders = MANAGE_MEMBER_LIST_TABLE_HEADERS || [];
+    let headerCells = [];
+    if (Array.isArray(headersOrData)) {
+      headerCells = headersOrData;
+    } else if (headersOrData && Array.isArray(headersOrData.rows) && Array.isArray(headersOrData.rows[0])) {
+      headerCells = headersOrData.rows[0];
+    } else if (headersOrData && Array.isArray(headersOrData.headers)) {
+      headerCells = headersOrData.headers;
+    } else {
+      headerCells = defaultHeaders;
+    }
+
+    const normalizedHeaders = headerCells.map((cell) => normalizeManageMemberListLabel(
+      typeof cell === "object" ? (cell.html || "") : cell
+    ));
+
+    const find = (labels, fallback) => {
+      const wanted = Array.isArray(labels) ? labels : [labels];
+      const wantedNorm = wanted.map((v) => normalizeManageMemberListLabel(v));
+      for (let i = 0; i < normalizedHeaders.length; i += 1) {
+        const h = normalizedHeaders[i];
+        if (!h) continue;
+        if (wantedNorm.some((w) => h === w || h.includes(w) || w.includes(h))) return i;
+      }
+      return fallback;
+    };
+
+    return {
+      role: find(["직책", "직 책"], 0),
+      name: find(["이름", "이 름"], 1),
+      gender: find(["성별"], 2),
+      birth: find(["출생년도", "출생연도"], 3),
+      rrn: find(["주민번호"], 4),
+      phone: find(["연락처", "전화", "전화번호"], 5),
+      emergency: find(["비상연락처", "가족"], 6),
+      district: find(["구"], 7),
+      dong: find(["거주지", "동"], 8),
+      home: find(["집"], 9),
+      spouse: find(["배우자"], 10),
+      nickname: find(["닉네임"], 11),
+      busStop: find(["버스타는곳", "승차지", "탑승지"], 12),
+      attendance: find(["참석"], 13),
+      approval: find(["가입승인", "가입:승인", "승인"], 19),
+      uid: find(["회원UID", "회원UID값", "회원코드", "UID"], 20),
+      joinDate: find(["가입일", "가입날짜"], 21),
+      result: find(["승인결과", "처리결과"], 22)
+    };
+  }
   function normalizeManageMemberListMainPayload(rawValue) {
     const payload = rawValue && typeof rawValue === "object" ? { ...rawValue } : {};
     let data = payload.data && typeof payload.data === "object" ? payload.data : payload;
