@@ -9269,6 +9269,13 @@ function renderAll() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
+  /* 승인 처리 호환 보강
+     - 승인 로직에서 기존 함수명 formatManageJoinDate()를 호출하므로
+       현재 날짜 포맷 함수 formatManageMemberListDate()에 연결한다. */
+  function formatManageJoinDate(ms) {
+    return formatManageMemberListDate(ms);
+  }
+
 
   /* 승인 처리 중 memberList/main 병합에 필요한 컬럼 인덱스 보강
      - 보안 분리/전체화면 병합 과정에서 누락된 함수 복구
