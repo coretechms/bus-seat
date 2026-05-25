@@ -6019,7 +6019,7 @@ function renderAll() {
       });
       bindIfPresent("tripScheduleBtn", "click", openTripPlanWithIndependentPassword);
       bindIfPresent("memberListBtn", "click", () => {
-        window.location.href = "https://coretechms.github.io/memble-list/";
+        window.location.href = "https://coretechms.github.io/member-list/";
       });
       // 👉 GitHub Pages에 있는 bus-route.html 열기 (주소를 실제 URL로 변경하세요)
       bindIfPresent("boardingPointBtn", "click", () => {
@@ -9877,7 +9877,7 @@ function renderAll() {
     const memberManageMemberListBtn = event.target.closest('#memberManagePanel #memberManageMemberListBtn');
     if (memberManageMemberListBtn) {
       event.preventDefault();
-      window.location.href = "https://coretechms.github.io/memble-list/";
+      window.location.href = "https://coretechms.github.io/member-list/";
       return;
     }
     const adminGroupToggle = event.target.closest('#memberManagePanel #memberManageAdminToggleBtn');
