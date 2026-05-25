@@ -11,10 +11,9 @@
       try {
         const savedSession = sessionStorage.getItem("bus-seat-approved-member-session-v1");
         const savedMode = sessionStorage.getItem("bus-seat-admin-refresh-mode-v1");
-        const savedAdminAuth = sessionStorage.getItem("bus-seat-admin-auth-refresh-v1") === "1";
         const savedAdminEntry = sessionStorage.getItem("bus-seat-admin-entry-refresh-v1") === "1" ||
           localStorage.getItem("bus-seat-admin-entry-persist-v1") === "1";
-        if (savedAdminEntry || savedMode === "adminEntry" || (savedAdminAuth && (savedMode === "admin" || savedMode === "memberManage")) || (savedSession && (savedMode === "admin" || savedMode === "memberManage"))) {
+        if (savedAdminEntry || savedMode === "adminEntry" || savedMode === "memberManage" || (savedSession && (savedMode === "admin" || savedMode === "memberManage"))) {
           document.documentElement.classList.add("restore-admin-session");
         }
       } catch (error) {}
@@ -5068,10 +5067,7 @@ function renderAll() {
       }
 
       state.isAdminAuthenticated = true;
-      try {
-        sessionStorage.removeItem(ADMIN_ENTRY_REFRESH_SESSION_KEY);
-        sessionStorage.setItem("bus-seat-admin-auth-refresh-v1", "1");
-      } catch (error) {}
+      try { sessionStorage.removeItem(ADMIN_ENTRY_REFRESH_SESSION_KEY); } catch (error) {}
       saveAdminRefreshMode("admin");
       const pwInput = byId("adminPasswordInput");
       if (pwInput) pwInput.value = "";
@@ -5103,7 +5099,6 @@ function renderAll() {
       try {
         sessionStorage.setItem(ADMIN_ENTRY_REFRESH_SESSION_KEY, "1");
         sessionStorage.setItem(ADMIN_REFRESH_MODE_SESSION_KEY, "adminEntry");
-        sessionStorage.removeItem("bus-seat-admin-auth-refresh-v1");
         localStorage.setItem(ADMIN_ENTRY_PERSIST_KEY, "1");
         document.documentElement.classList.add("restore-admin-session");
       } catch (error) {}
@@ -5649,15 +5644,6 @@ function renderAll() {
         } else {
           sessionStorage.removeItem(ADMIN_REFRESH_MODE_SESSION_KEY);
         }
-
-        // F5 새로고침 복구용: 관리자 비밀번호로만 진입한 경우에는 회원 로그인 세션이 없으므로
-        // 별도 관리자 복구 플래그가 있어야 회원관리/관리자 모드가 밖으로 빠지지 않는다.
-        if ((nextMode === "admin" || nextMode === "memberManage") && state.isAdminAuthenticated) {
-          sessionStorage.setItem("bus-seat-admin-auth-refresh-v1", "1");
-        }
-        if (nextMode === "member" || nextMode === "adminEntry") {
-          sessionStorage.removeItem("bus-seat-admin-auth-refresh-v1");
-        }
       } catch (error) {}
     }
 
@@ -6033,7 +6019,7 @@ function renderAll() {
       });
       bindIfPresent("tripScheduleBtn", "click", openTripPlanWithIndependentPassword);
       bindIfPresent("memberListBtn", "click", () => {
-        window.location.href = "https://coretechms.github.io/member-list/";
+        window.location.href = "https://coretechms.github.io/memble-list/";
       });
       // 👉 GitHub Pages에 있는 bus-route.html 열기 (주소를 실제 URL로 변경하세요)
       bindIfPresent("boardingPointBtn", "click", () => {
@@ -6507,7 +6493,6 @@ function renderAll() {
       localStorage.removeItem("bus-seat-approved-member-session-v1");
       sessionStorage.removeItem("bus-seat-approved-member-session-v1");
       sessionStorage.removeItem("bus-seat-admin-refresh-mode-v1");
-      sessionStorage.removeItem("bus-seat-admin-auth-refresh-v1");
       sessionStorage.removeItem("bus-seat-admin-entry-refresh-v1");
       localStorage.removeItem("bus-seat-admin-entry-persist-v1");
       document.documentElement.classList.remove("restore-admin-session");
@@ -7927,39 +7912,6 @@ function renderAll() {
       }
     }
 
-    const isAdminModeRefresh = (() => {
-      try {
-        const savedMode = sessionStorage.getItem("bus-seat-admin-refresh-mode-v1");
-        return sessionStorage.getItem("bus-seat-admin-auth-refresh-v1") === "1" &&
-          (savedMode === "admin" || savedMode === "memberManage");
-      } catch (error) { return false; }
-    })();
-
-    if (isAdminModeRefresh) {
-      try {
-        const savedMode = sessionStorage.getItem("bus-seat-admin-refresh-mode-v1");
-        document.documentElement.classList.add("restore-admin-session");
-        document.body.classList.remove("membership-locked", "admin-entry-only");
-        byId("memberAuthGate")?.classList.add("is-hidden");
-        const gate = byId("memberAuthGate");
-        if (gate) gate.style.display = "none";
-        const app = document.querySelector(".app");
-        if (app) {
-          app.style.visibility = "visible";
-          app.style.pointerEvents = "auto";
-        }
-        if (typeof window.__busSeatEnterAdminFromMembership === "function") {
-          window.__busSeatEnterAdminFromMembership(savedMode);
-        } else if (typeof window.__busSeatSwitchMode === "function") {
-          window.__busSeatSwitchMode(savedMode);
-        }
-        setAuthMessage("관리자 화면 상태가 유지되었습니다.", true);
-        return;
-      } catch (error) {
-        console.warn("관리자 새로고침 복구 실패:", error);
-      }
-    }
-
     if (isAdminEntryRefresh) {
       // 혹시 회원 세션이 없어도 관리자 로그오프 후 새로고침에서는 회원 로그인 화면으로 보내지 않는다.
       try {
@@ -9312,20 +9264,13 @@ function renderAll() {
   }
 
   async function forceLoadMemberManageList() {
-    const loadToken = Date.now();
-    window.__memberManageLastLoadToken = loadToken;
     setListMessage('가입자 DB 불러오는 중...');
     try {
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('회원목록 조회 시간초과')), 8000);
-      });
-      const members = await Promise.race([readAllMembers(), timeoutPromise]);
-      if (window.__memberManageLastLoadToken !== loadToken) return;
-      renderMembers(Array.isArray(members) ? members : []);
+      const members = await readAllMembers();
+      renderMembers(members);
     } catch (error) {
       console.error('강제 회원관리 리스트 불러오기 오류:', error);
-      if (window.__memberManageLastLoadToken !== loadToken) return;
-      setListMessage(`가입자 DB를 읽지 못했습니다. 새로고침 버튼을 다시 누르거나 Firebase Rules/연결을 확인하세요. (${error?.code || error?.message || error})`);
+      setListMessage(`가입자 DB를 읽지 못했습니다. Firebase Rules 또는 연결을 확인하세요. (${error?.code || error?.message || error})`);
     }
   }
   // member-list-ver3.html 자동등록용 핵심 미러 경로.
@@ -9932,7 +9877,7 @@ function renderAll() {
     const memberManageMemberListBtn = event.target.closest('#memberManagePanel #memberManageMemberListBtn');
     if (memberManageMemberListBtn) {
       event.preventDefault();
-      window.location.href = "https://coretechms.github.io/member-list/";
+      window.location.href = "https://coretechms.github.io/memble-list/";
       return;
     }
     const adminGroupToggle = event.target.closest('#memberManagePanel #memberManageAdminToggleBtn');
@@ -9993,10 +9938,10 @@ function renderAll() {
     const list = listNode();
     if (!panel || !list) return;
     const panelVisible = !panel.classList.contains('hidden') && panel.offsetParent !== null;
-    const needsLoad = /회원관리 탭|관리자 로그인|불러옵니다|불러오는 중|가입자 DB 불러오는 중|회원 목록 불러오는 중|사용할 수 있습니다/.test(list.textContent || '');
+    const needsLoad = /회원관리 탭|관리자 로그인|불러옵니다|사용할 수 있습니다/.test(list.textContent || '');
     if (panelVisible && needsLoad && !window.__memberManageAutoLoading) {
       window.__memberManageAutoLoading = true;
-      forceLoadMemberManageList().finally(() => setTimeout(() => { window.__memberManageAutoLoading = false; }, 1200));
+      forceLoadMemberManageList().finally(() => setTimeout(() => { window.__memberManageAutoLoading = false; }, 1000));
     }
   }, 1000);
 </script>
@@ -10050,56 +9995,6 @@ function renderAll() {
     }catch(e){}
     if(shouldRestore) showAdminEntryScreen();
   });
-})();
-</script>
-
-<script>
-/* F5 후 회원관리 목록 로딩 멈춤 방지: 패널 복구 뒤 목록 로드를 여러 번 확인 */
-(function(){
-  const MODE_KEY = "bus-seat-admin-refresh-mode-v1";
-  function isMemberManageRestore(){
-    try { return sessionStorage.getItem(MODE_KEY) === "memberManage"; } catch(e) { return false; }
-  }
-  function showMemberManagePanelForRestore(){
-    try{
-      document.documentElement.classList.add("restore-admin-session");
-      document.body.classList.remove("membership-locked", "admin-entry-only", "member-mode");
-      document.body.classList.add("admin-mode", "member-manage-mode", "approval-admin-mode");
-      const gate = document.getElementById("memberAuthGate");
-      if (gate) { gate.classList.add("is-hidden"); gate.style.display = "none"; }
-      const app = document.querySelector(".app");
-      if (app) { app.style.visibility = "visible"; app.style.pointerEvents = "auto"; }
-      document.getElementById("memberPanel")?.classList.add("hidden");
-      document.getElementById("adminLoginPanel")?.classList.add("hidden");
-      document.getElementById("adminPanel")?.classList.add("hidden");
-      document.getElementById("memberManagePanel")?.classList.remove("hidden");
-      document.getElementById("memberTab")?.classList.remove("active");
-      document.getElementById("adminTab")?.classList.remove("active");
-      document.getElementById("memberManageTab")?.classList.add("active");
-      const approvalPanel = document.getElementById("memberApprovalPanel");
-      if (approvalPanel) approvalPanel.classList.add("is-open", "is-auth");
-    }catch(e){}
-  }
-  function loadListIfNeeded(){
-    const panel = document.getElementById("memberManagePanel");
-    const list = document.getElementById("memberApprovalList");
-    if (!panel || panel.classList.contains("hidden") || !list) return;
-    const text = list.textContent || "";
-    if (/불러오는 중|회원관리 탭|관리자 로그인|사용할 수 있습니다|가입자 DB/.test(text)) {
-      if (typeof window.__forceLoadMemberManageList === "function") window.__forceLoadMemberManageList();
-      else if (window.__busSeatMembershipGate && typeof window.__busSeatMembershipGate.loadApprovalMembers === "function") window.__busSeatMembershipGate.loadApprovalMembers();
-    }
-  }
-  function run(){
-    if (!isMemberManageRestore()) return;
-    showMemberManagePanelForRestore();
-    setTimeout(loadListIfNeeded, 200);
-    setTimeout(loadListIfNeeded, 900);
-    setTimeout(loadListIfNeeded, 1800);
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
-  else run();
-  window.addEventListener("pageshow", run);
 })();
 </script>
 
@@ -10277,113 +10172,116 @@ function renderAll() {
 </script>
 
 
-<script id="admin-membermanage-f5-restore-fix">
+
+<script id="member-manage-f5-restore-only-patch">
+/* 회원관리 모드 F5 복구 전용 패치: 기존 기능은 변경하지 않고, 새로고침 후 회원관리 화면과 목록 로드만 복구한다. */
 (function(){
-  const MODE_KEY = "bus-seat-admin-refresh-mode-v1";
-  const AUTH_KEY = "bus-seat-admin-auth-refresh-v1";
-
-  function currentModeFromBody(){
-    try {
-      if (document.body.classList.contains("member-manage-mode")) return "memberManage";
-      if (document.body.classList.contains("admin-mode") && !document.body.classList.contains("admin-entry-only")) return "admin";
-      const active = document.querySelector(".tab.active");
-      if (active && active.id === "memberManageTab") return "memberManage";
-      if (active && active.id === "adminTab") return "admin";
-    } catch(e) {}
-    return "";
-  }
-
-  function saveAdminModeForRefresh(){
-    try {
-      const isAdmin = typeof window.__busSeatIsAdminAuthenticated === "function" && window.__busSeatIsAdminAuthenticated();
-      if (!isAdmin) return;
-      const mode = currentModeFromBody();
-      if (mode === "admin" || mode === "memberManage") {
-        sessionStorage.setItem(AUTH_KEY, "1");
-        sessionStorage.setItem(MODE_KEY, mode);
-        document.documentElement.classList.add("restore-admin-session");
-      }
-    } catch(e) {}
-  }
-
-  document.addEventListener("click", function(event){
-    const target = event.target && event.target.closest ? event.target.closest("#adminTab,#memberManageTab,#adminLoginBtn,#memberApprovalRefreshBtn") : null;
-    if (!target) return;
-    setTimeout(saveAdminModeForRefresh, 80);
-    setTimeout(saveAdminModeForRefresh, 500);
-  }, true);
-
-  window.addEventListener("beforeunload", saveAdminModeForRefresh);
-  window.addEventListener("pagehide", saveAdminModeForRefresh);
-})();
-</script>
-
-
-
-<script id="member-info-button-safe-link-fix">
-/* 회원정보 버튼 안전 연결 보정
-   - 관리자 진입 화면의 #memberListBtn
-   - 회원관리 화면의 #memberManageMemberListBtn
-   두 버튼 모두 캡처 단계에서 먼저 잡아 member-list 페이지로 이동시킨다.
-   기존 스크립트가 로딩 중이거나 일부 모듈 오류가 있어도 버튼이 작동하도록 독립 처리한다. */
-(function(){
-  var MEMBER_LIST_URL = "https://coretechms.github.io/member-list/";
   var MODE_KEY = "bus-seat-admin-refresh-mode-v1";
-  var AUTH_KEY = "bus-seat-admin-auth-refresh-v1";
+  var ENTRY_KEY = "bus-seat-admin-entry-refresh-v1";
+  var ENTRY_PERSIST_KEY = "bus-seat-admin-entry-persist-v1";
 
-  function preserveCurrentAdminState(){
-    try {
-      var mode = "adminEntry";
-      if (document.body && document.body.classList.contains("member-manage-mode")) mode = "memberManage";
-      else if (document.body && document.body.classList.contains("admin-mode") && !document.body.classList.contains("admin-entry-only")) mode = "admin";
-      var active = document.querySelector(".tab.active");
-      if (active && active.id === "memberManageTab") mode = "memberManage";
-      if (active && active.id === "adminTab") mode = "admin";
-      sessionStorage.setItem(MODE_KEY, mode);
-      sessionStorage.setItem(AUTH_KEY, "1");
-      sessionStorage.setItem("bus-seat-admin-entry-refresh-v1", "1");
-      localStorage.setItem("bus-seat-admin-entry-persist-v1", "1");
-      document.documentElement.classList.add("restore-admin-session");
-    } catch(e) {}
+  function $(id){ return document.getElementById(id); }
+
+  function panelVisible(el){
+    return !!el && !el.classList.contains("hidden") && el.offsetParent !== null;
   }
 
-  function openMemberList(){
-    preserveCurrentAdminState();
-    var url = MEMBER_LIST_URL + "?from=bus-seat&t=" + Date.now();
-    try {
-      window.location.assign(url);
-    } catch(e) {
-      window.location.href = url;
+  function rememberMemberManageMode(){
+    try{
+      sessionStorage.setItem(MODE_KEY, "memberManage");
+      sessionStorage.removeItem(ENTRY_KEY);
+      localStorage.removeItem(ENTRY_PERSIST_KEY);
+      document.documentElement.classList.add("restore-admin-session");
+    }catch(e){}
+  }
+
+  function isMemberManageModeSaved(){
+    try{ return sessionStorage.getItem(MODE_KEY) === "memberManage"; }
+    catch(e){ return false; }
+  }
+
+  function isMemberManageVisible(){
+    var panel = $("memberManagePanel");
+    var tab = $("memberManageTab");
+    return panelVisible(panel) || !!(tab && tab.classList.contains("active"));
+  }
+
+  function restoreMemberManageScreen(){
+    try{
+      rememberMemberManageMode();
+      document.body.classList.remove("membership-locked", "admin-entry-only", "member-mode", "approval-admin-mode");
+      document.body.classList.add("admin-mode", "member-manage-mode");
+
+      var gate = $("memberAuthGate");
+      if(gate){ gate.classList.add("is-hidden"); gate.style.display = "none"; }
+      var app = document.querySelector(".app");
+      if(app){ app.style.visibility = "visible"; app.style.pointerEvents = "auto"; }
+
+      $("memberPanel")?.classList.add("hidden");
+      $("adminLoginPanel")?.classList.add("hidden");
+      $("adminPanel")?.classList.add("hidden");
+      $("memberManagePanel")?.classList.remove("hidden");
+
+      $("memberTab")?.classList.remove("active");
+      $("adminTab")?.classList.remove("active");
+      $("memberManageTab")?.classList.add("active");
+    }catch(e){}
+  }
+
+  function loadMemberManageListWithRetry(attempt){
+    attempt = attempt || 0;
+    var fn = window.__forceLoadMemberManageList || window.__loadMembershipApprovalMembers;
+    if(typeof fn === "function"){
+      try{
+        Promise.resolve(fn()).catch(function(error){
+          console.error("회원관리 F5 목록 복구 오류:", error);
+          var list = $("memberApprovalList");
+          if(list){
+            list.innerHTML = '<div class="member-approval-empty">회원 목록을 불러오지 못했습니다. 새로고침 버튼을 눌러주세요.</div>';
+          }
+        });
+      }catch(error){
+        console.error("회원관리 F5 목록 복구 실행 오류:", error);
+      }
+      return;
+    }
+    if(attempt < 30){
+      setTimeout(function(){ loadMemberManageListWithRetry(attempt + 1); }, 200);
     }
   }
 
-  function bindDirect(){
-    ["memberListBtn", "memberManageMemberListBtn"].forEach(function(id){
-      var btn = document.getElementById(id);
-      if (!btn || btn.dataset.memberInfoSafeBound === "1") return;
-      btn.dataset.memberInfoSafeBound = "1";
-      btn.setAttribute("type", "button");
-      btn.addEventListener("click", function(event){
-        event.preventDefault();
-        event.stopPropagation();
-        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
-        openMemberList();
-      }, true);
-    });
+  function restoreAndLoadIfNeeded(){
+    if(!isMemberManageModeSaved()) return;
+    restoreMemberManageScreen();
+    setTimeout(function(){ loadMemberManageListWithRetry(0); }, 350);
+    setTimeout(function(){
+      var list = $("memberApprovalList");
+      var text = list ? String(list.textContent || "") : "";
+      if(/불러오는 중|불러옵니다|관리자 로그인 후 회원관리|회원관리 탭/.test(text)){
+        loadMemberManageListWithRetry(0);
+      }
+    }, 1600);
   }
 
   document.addEventListener("click", function(event){
-    var target = event.target && event.target.closest ? event.target.closest("#memberListBtn,#memberManageMemberListBtn") : null;
-    if (!target) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
-    openMemberList();
+    var tab = event.target && event.target.closest ? event.target.closest("#memberManageTab") : null;
+    if(!tab) return;
+    rememberMemberManageMode();
+    setTimeout(function(){ loadMemberManageListWithRetry(0); }, 250);
   }, true);
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindDirect);
-  else bindDirect();
-  window.addEventListener("pageshow", bindDirect);
+  window.addEventListener("beforeunload", function(){
+    if(isMemberManageVisible()) rememberMemberManageMode();
+  });
+
+  document.addEventListener("DOMContentLoaded", function(){
+    restoreAndLoadIfNeeded();
+    setTimeout(restoreAndLoadIfNeeded, 700);
+  });
+  window.addEventListener("pageshow", function(){
+    restoreAndLoadIfNeeded();
+    setTimeout(restoreAndLoadIfNeeded, 700);
+  });
 })();
 </script>
 
