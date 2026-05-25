@@ -10318,5 +10318,74 @@ function renderAll() {
 })();
 </script>
 
+
+
+<script id="member-info-button-safe-link-fix">
+/* 회원정보 버튼 안전 연결 보정
+   - 관리자 진입 화면의 #memberListBtn
+   - 회원관리 화면의 #memberManageMemberListBtn
+   두 버튼 모두 캡처 단계에서 먼저 잡아 member-list 페이지로 이동시킨다.
+   기존 스크립트가 로딩 중이거나 일부 모듈 오류가 있어도 버튼이 작동하도록 독립 처리한다. */
+(function(){
+  var MEMBER_LIST_URL = "https://coretechms.github.io/member-list/";
+  var MODE_KEY = "bus-seat-admin-refresh-mode-v1";
+  var AUTH_KEY = "bus-seat-admin-auth-refresh-v1";
+
+  function preserveCurrentAdminState(){
+    try {
+      var mode = "adminEntry";
+      if (document.body && document.body.classList.contains("member-manage-mode")) mode = "memberManage";
+      else if (document.body && document.body.classList.contains("admin-mode") && !document.body.classList.contains("admin-entry-only")) mode = "admin";
+      var active = document.querySelector(".tab.active");
+      if (active && active.id === "memberManageTab") mode = "memberManage";
+      if (active && active.id === "adminTab") mode = "admin";
+      sessionStorage.setItem(MODE_KEY, mode);
+      sessionStorage.setItem(AUTH_KEY, "1");
+      sessionStorage.setItem("bus-seat-admin-entry-refresh-v1", "1");
+      localStorage.setItem("bus-seat-admin-entry-persist-v1", "1");
+      document.documentElement.classList.add("restore-admin-session");
+    } catch(e) {}
+  }
+
+  function openMemberList(){
+    preserveCurrentAdminState();
+    var url = MEMBER_LIST_URL + "?from=bus-seat&t=" + Date.now();
+    try {
+      window.location.assign(url);
+    } catch(e) {
+      window.location.href = url;
+    }
+  }
+
+  function bindDirect(){
+    ["memberListBtn", "memberManageMemberListBtn"].forEach(function(id){
+      var btn = document.getElementById(id);
+      if (!btn || btn.dataset.memberInfoSafeBound === "1") return;
+      btn.dataset.memberInfoSafeBound = "1";
+      btn.setAttribute("type", "button");
+      btn.addEventListener("click", function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        openMemberList();
+      }, true);
+    });
+  }
+
+  document.addEventListener("click", function(event){
+    var target = event.target && event.target.closest ? event.target.closest("#memberListBtn,#memberManageMemberListBtn") : null;
+    if (!target) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    openMemberList();
+  }, true);
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindDirect);
+  else bindDirect();
+  window.addEventListener("pageshow", bindDirect);
+})();
+</script>
+
 </body>
 </html>
