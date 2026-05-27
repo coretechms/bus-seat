@@ -2568,7 +2568,7 @@ body.member-manage-mode #loginManagePanel .login-log-list {
         </div>
         <div class="member-auth-row">
           <label for="memberJoinBirthInput">출생년도</label>
-          <input id="memberJoinBirthInput" type="text" inputmode="numeric" placeholder="출생년도 ( 70 )" value="" />
+          <input id="memberJoinBirthInput" type="text" inputmode="numeric" placeholder="출생년도 ( 1970 )" value="" />
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPhoneInput">전화번호</label>
@@ -8283,7 +8283,7 @@ function renderAll() {
     const a = document.createElement("a");
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     a.href = url;
-    a.download = `bus-seat-login-story-${stamp}.txt`;
+    a.download = `busseat-log-story-${stamp}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
