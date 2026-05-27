@@ -2208,6 +2208,98 @@ body.member-manage-mode .member-approval-card-actions button {
 }
 
 
+
+
+/* ===== 로그관리 별도 화면 ===== */
+body.member-manage-mode #loginManagePanel {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147482600 !important;
+  display: block !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  background: #fff7ed !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+body.member-manage-mode #loginManagePanel.hidden {
+  display: none !important;
+}
+body.member-manage-mode #loginManagePanel > div {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  border-radius: 14px !important;
+  background: #fffaf3 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+.login-manage-topbar {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  padding-bottom: 6px !important;
+  margin-bottom: 6px !important;
+  border-bottom: 1px solid #fed7aa !important;
+}
+.login-manage-title {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  color: #9a3412 !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  text-align: center !important;
+}
+.login-manage-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 4px !important;
+  flex: 0 0 auto !important;
+}
+#loginManageBackBtn,
+#memberLoginManageBtn {
+  white-space: nowrap !important;
+}
+#loginManageBody {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  display: grid !important;
+  gap: 8px !important;
+  align-content: start !important;
+}
+body.member-manage-mode #loginManagePanel .active-login-list {
+  max-height: 28vh !important;
+}
+body.member-manage-mode #loginManagePanel .login-log-list {
+  max-height: none !important;
+}
+@media (min-width: 761px) {
+  body.member-manage-mode #loginManagePanel { padding: 14px !important; }
+  body.member-manage-mode #loginManagePanel > div { padding: 14px !important; border-radius: 18px !important; }
+  .login-manage-title { font-size: 16px !important; }
+  #loginManageBackBtn,
+  #memberLoginManageBtn { height: 28px !important; font-size: 12px !important; border-radius: 12px !important; }
+}
+@media (max-width: 760px) {
+  body.member-manage-mode #loginManagePanel { padding: 5px !important; }
+  body.member-manage-mode #loginManagePanel > div { padding: 6px !important; border-radius: 10px !important; }
+  .login-manage-topbar { gap: 3px !important; }
+  .login-manage-title { font-size: 12px !important; }
+  .login-manage-actions { gap: 2px !important; }
+  #loginManageBackBtn,
+  #memberLoginManageBtn { height: 21px !important; min-height: 21px !important; font-size: 9px !important; padding: 0 5px !important; }
+}
+
 /* ===== 현재 로그인 회원 현황 ===== */
 .active-login-panel {
   display: grid;
@@ -2271,6 +2363,142 @@ body.member-manage-mode .member-approval-card-actions button {
 .active-login-warning {
   color: #d80000;
   font-weight: 900;
+}
+
+
+/* ===== 로그인 기록 / 로그파일 ===== */
+.login-log-panel {
+  display: grid;
+  gap: 5px;
+  margin: 0 0 8px;
+  padding: 7px;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  background: #fff7ed;
+}
+.login-log-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  color: #9a3412;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+.login-log-title-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.login-log-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.login-log-actions .btn {
+  width: auto !important;
+  min-width: 42px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  padding: 0 6px !important;
+  border-radius: 10px !important;
+  font-size: 9px !important;
+  line-height: 1 !important;
+}
+.login-log-count {
+  color: #d80000;
+  font-weight: 900;
+}
+.login-log-list {
+  display: grid;
+  gap: 4px;
+  max-height: 122px;
+  overflow-y: auto;
+}
+.login-log-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  align-items: center;
+  padding: 5px 6px;
+  border: 1px solid #ffedd5;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 10px;
+  line-height: 1.35;
+}
+.login-log-name { font-weight: 900; color: #111; }
+.login-log-sub { color: #555; }
+.login-log-badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ffedd5;
+  color: #9a3412;
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.login-log-empty {
+  padding: 6px;
+  text-align: center;
+  color: #666;
+  font-size: 10px;
+  font-weight: 800;
+}
+@media(max-width:760px){
+  .login-log-actions .btn {
+    min-width: 36px !important;
+    padding: 0 4px !important;
+    font-size: 8px !important;
+  }
+}
+
+.login-log-retention-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-wrap: nowrap;
+  margin-top: 4px;
+}
+.login-log-retention-row label {
+  width: auto !important;
+  margin: 0 !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  color: #9a3412 !important;
+  white-space: nowrap !important;
+}
+#loginLogRetentionDaysInput {
+  width: 48px !important;
+  max-width: 48px !important;
+  min-width: 48px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  padding: 0 4px !important;
+  border-radius: 8px !important;
+  font-size: 9px !important;
+  text-align: center !important;
+}
+#loginLogDeleteBtn {
+  background: #fff2f2 !important;
+  border-color: #d80000 !important;
+  color: #b30000 !important;
+}
+@media(max-width:760px){
+  .login-log-retention-row { gap: 2px !important; }
+  .login-log-retention-row label { font-size: 8px !important; }
+  #loginLogRetentionDaysInput {
+    width: 38px !important;
+    max-width: 38px !important;
+    min-width: 38px !important;
+    height: 20px !important;
+    font-size: 8px !important;
+    padding: 0 2px !important;
+  }
 }
 
 </style>
@@ -2554,6 +2782,7 @@ body.member-manage-mode .member-approval-card-actions button {
                   <button class="btn btn-outline" id="memberManageMemberListBtn" type="button" title="회원정보 페이지로 이동">회원정보</button>
                 </div>
                 <div class="member-manage-header-actions">
+                  <button class="btn btn-outline" id="memberLoginManageBtn" type="button">로그관리</button>
                   <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button">새로고침</button>
                   <button class="btn btn-outline" id="memberManageAdminToggleBtn" type="button" aria-expanded="false">관리자</button>
                   <div id="memberManageAdminGroupPanel" class="member-manage-admin-group-panel" hidden>
@@ -2567,21 +2796,57 @@ body.member-manage-mode .member-approval-card-actions button {
               <div style="font-size:11px; color:#555; line-height:1.5; margin-bottom:8px;">
 
               </div>
-
-              <div id="activeLoginPanel" class="active-login-panel">
-                <div class="active-login-title">
-                  <span>현재 로그인 회원</span>
-                  <span id="activeLoginCount" class="active-login-count">0명</span>
-                </div>
-                <div id="activeLoginList" class="active-login-list">
-                  <div class="active-login-empty">현재 로그인 회원을 불러옵니다.</div>
-                </div>
-              </div>
               <div id="memberApprovalPanel" class="member-approval-panel is-open is-auth" style="display:block; max-height:48vh; margin-top:0;">
                 <div id="memberApprovalList" class="member-approval-list">
                   <div class="member-approval-empty">회원관리 탭을 열면 가입대기 회원 목록을 불러옵니다.</div>
                 </div>
                 <div id="memberApprovalSearchEmpty" class="member-approval-search-empty">검색 결과가 없습니다.</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="loginManagePanel" class="hidden" style="margin-top:10px;">
+            <div>
+              <div class="login-manage-topbar">
+                <button class="btn btn-outline" id="loginManageBackBtn" type="button">나가기</button>
+                <div class="login-manage-title">로그관리</div>
+                <div class="login-manage-actions">
+                  <button class="btn btn-outline" id="loginLogRefreshBtn" type="button">새로고침</button>
+                  <button class="btn btn-outline" id="loginLogDownloadBtn" type="button">텍스트저장</button>
+                  <button class="btn btn-outline" id="loginLogDeleteBtn" type="button">기록삭제</button>
+                </div>
+              </div>
+              <div id="loginManageBody">
+                <div class="active-login-panel">
+                  <div class="active-login-title">
+                    <span>현재 로그인 회원</span>
+                    <span id="activeLoginCount" class="active-login-count">0명</span>
+                  </div>
+                  <div id="activeLoginList" class="active-login-list">
+                    <div class="active-login-empty">로그관리 화면을 열면 현재 접속자를 불러옵니다.</div>
+                  </div>
+                </div>
+
+                <div class="login-log-panel">
+                  <div class="login-log-title">
+                    <div class="login-log-title-left">
+                      <span>로그인 기록</span>
+                      <span id="loginLogCount" class="login-log-count">0건</span>
+                    </div>
+                    <div class="login-log-actions">
+                      <span style="font-size:10px; color:#777; font-weight:700;">누가 · 언제 · 무엇으로 로그인했는지 기록</span>
+                    </div>
+                  </div>
+                  <div class="login-log-retention-row">
+                    <label for="loginLogRetentionDaysInput">저장기간</label>
+                    <input id="loginLogRetentionDaysInput" type="number" min="1" max="365" step="1" value="30" inputmode="numeric" />
+                    <span style="font-size:10px; color:#777; font-weight:800; white-space:nowrap;">일</span>
+                    <button class="btn btn-outline" id="loginLogRetentionSaveBtn" type="button">기간저장</button>
+                  </div>
+                  <div id="loginLogList" class="login-log-list">
+                    <div class="login-log-empty">로그인 기록을 불러오는 중입니다.</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -6746,7 +7011,7 @@ function renderAll() {
 
 <script type="module" id="bus-seat-membership-gate-script">
   import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getDatabase, ref, get, set, update, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+  import { getDatabase, ref, get, set, update, runTransaction, onValue, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
   const MEMBERSHIP_FIREBASE_CONFIG = {
     apiKey: "AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgwQ",
@@ -6765,12 +7030,17 @@ function renderAll() {
   const LOGIN_SESSION_KEY = "bus-seat-approved-member-session-v1";
   const LOGIN_DEVICE_KEY = "bus-seat-member-device-id-v1";
   const ACTIVE_SESSIONS_PATH = `${MEMBERS_ROOT}/activeSessions`;
+  const LOGIN_LOGS_PATH = `${MEMBERS_ROOT}/loginLogs`;
+  const LOGIN_LOG_SETTINGS_PATH = `${MEMBERS_ROOT}/loginLogSettings`;
+  const DEFAULT_LOGIN_LOG_RETENTION_DAYS = 30;
   const ACTIVE_SESSION_STALE_MS = 2 * 60 * 1000;
   const ACTIVE_SESSION_HEARTBEAT_MS = 15000;
   let currentApprovedMemberSession = null;
   let activeSessionHeartbeatTimer = null;
   let activeSessionUnsubscribe = null;
   let memberManageActiveSessionUnsubscribe = null;
+  let memberManageLoginLogUnsubscribe = null;
+  let latestLoginLogs = [];
   let isProcessingRemoteLogout = false;
 
   const membershipApp = getApps().length ? getApp() : initializeApp(MEMBERSHIP_FIREBASE_CONFIG);
@@ -7622,6 +7892,7 @@ function renderAll() {
       const snap = await get(ref(membershipDb, `${ACTIVE_SESSIONS_PATH}/${session.code}/${session.deviceId}`));
       const active = snap.exists() ? snap.val() : null;
       if (active && active.deviceId === session.deviceId) {
+        await writeLoginLog("logout", session, { message: "접속 종료" });
         await update(ref(membershipDb), { [`${ACTIVE_SESSIONS_PATH}/${session.code}/${session.deviceId}`]: null });
       }
     } catch (error) {
@@ -7644,6 +7915,7 @@ function renderAll() {
     if (isProcessingRemoteLogout) return;
     isProcessingRemoteLogout = true;
     stopActiveSessionWatchers();
+    try { await writeLoginLog("remote_logout", currentApprovedMemberSession, { message: message || "다른 기기 로그인" }); } catch (error) {}
     try {
       currentApprovedMemberSession = null;
       localStorage.removeItem(LOGIN_SESSION_KEY);
@@ -7695,7 +7967,15 @@ function renderAll() {
       otherFresh.forEach((item) => {
         clearUpdates[`${ACTIVE_SESSIONS_PATH}/${session.code}/${item.deviceId}`] = null;
       });
+      await writeLoginLog("duplicate_detected", session, { message: "다른 기기 접속 발견" });
       await update(ref(membershipDb), clearUpdates);
+      for (const item of otherFresh) {
+        await writeLoginLog("force_logout_old_device", item, {
+          message: "새 기기 로그인으로 기존 접속 종료",
+          byDeviceId: deviceId,
+          byDeviceLabel: deviceLabel
+        });
+      }
     }
 
     const nextSession = {
@@ -7718,6 +7998,7 @@ function renderAll() {
         userAgent: (navigator.userAgent || "").slice(0, 120)
       }
     });
+    await writeLoginLog("login", nextSession, { message: "로그인 성공" });
     return nextSession;
   }
 
@@ -7784,6 +8065,229 @@ function renderAll() {
       const list = byId("activeLoginList");
       if (list) list.innerHTML = '<div class="active-login-empty">현재 로그인 목록을 불러오지 못했습니다.</div>';
     });
+  }
+
+
+  function makeLoginLogKey(time = Date.now()) {
+    return `${time}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function formatLogDateTime(value) {
+    const time = Number(value || 0);
+    if (!time) return "-";
+    const d = new Date(time);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    return `${mm}/${dd} ${hh}:${mi}:${ss}`;
+  }
+
+  function getLoginActionLabel(action) {
+    const map = {
+      login: "로그인",
+      logout: "로그아웃",
+      duplicate_detected: "중복감지",
+      force_logout_old_device: "기존종료",
+      remote_logout: "강제종료",
+      session_removed: "세션삭제"
+    };
+    return map[action] || action || "기록";
+  }
+
+  async function writeLoginLog(action, session, extra = {}) {
+    try {
+      const now = Date.now();
+      const source = session || currentApprovedMemberSession || {};
+      const deviceId = source.deviceId || getLoginDeviceId();
+      const deviceLabel = source.deviceLabel || getLoginDeviceLabel();
+      const log = {
+        action: action || "log",
+        actionLabel: getLoginActionLabel(action),
+        code: source.code || extra.code || "-",
+        name: source.name || extra.name || "-",
+        role: source.role || extra.role || "member",
+        adminAccess: !!(source.adminAccess || extra.adminAccess),
+        deviceId,
+        deviceLabel,
+        createdAt: now,
+        message: extra.message || "",
+        byDeviceId: extra.byDeviceId || "",
+        byDeviceLabel: extra.byDeviceLabel || "",
+        userAgent: (navigator.userAgent || "").slice(0, 120)
+      };
+      await update(ref(membershipDb), { [`${LOGIN_LOGS_PATH}/${makeLoginLogKey(now)}`]: log });
+      cleanupOldLoginLogs().catch((cleanupError) => console.warn("로그 기록 자동 정리 실패:", cleanupError));
+    } catch (error) {
+      console.warn("로그인 기록 저장 실패:", error);
+    }
+  }
+
+  function renderLoginLogList(logs) {
+    const list = byId("loginLogList");
+    const count = byId("loginLogCount");
+    if (!list || !count) return;
+    const rows = Array.isArray(logs) ? logs.slice() : [];
+    rows.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    latestLoginLogs = rows;
+    count.textContent = `${rows.length}건`;
+    if (rows.length === 0) {
+      list.innerHTML = '<div class="login-log-empty">로그인 기록이 없습니다.</div>';
+      return;
+    }
+    list.innerHTML = rows.slice(0, 80).map((item) => {
+      const label = getLoginActionLabel(item.action || item.actionLabel);
+      const msg = item.message ? ` · ${escapeHtml(item.message)}` : "";
+      return `<div class="login-log-item">
+        <div>
+          <div class="login-log-name">${escapeHtml(item.name || "-")} / ${escapeHtml(item.code || "-")}</div>
+          <div class="login-log-sub">${formatLogDateTime(item.createdAt)} · ${escapeHtml(item.deviceLabel || "기기")}${msg}</div>
+        </div>
+        <div class="login-log-badge">${escapeHtml(label)}</div>
+      </div>`;
+    }).join("");
+  }
+
+  function startMemberManageLoginLogList() {
+    if (typeof memberManageLoginLogUnsubscribe === "function") {
+      try { memberManageLoginLogUnsubscribe(); } catch (error) {}
+      memberManageLoginLogUnsubscribe = null;
+    }
+    const logQuery = query(ref(membershipDb, LOGIN_LOGS_PATH), orderByChild("createdAt"), limitToLast(80));
+    memberManageLoginLogUnsubscribe = onValue(logQuery, (snap) => {
+      const logs = [];
+      const value = snap.exists() ? (snap.val() || {}) : {};
+      Object.keys(value).forEach((key) => logs.push({ ...(value[key] || {}), key }));
+      renderLoginLogList(logs);
+    }, (error) => {
+      console.warn("로그인 기록 조회 실패:", error);
+      const list = byId("loginLogList");
+      if (list) list.innerHTML = '<div class="login-log-empty">로그인 기록을 불러오지 못했습니다.</div>';
+    });
+  }
+
+
+  async function loadLoginLogRetentionDays() {
+    try {
+      const snap = await get(ref(membershipDb, `${LOGIN_LOG_SETTINGS_PATH}/retentionDays`));
+      const days = Number(snap.exists() ? snap.val() : DEFAULT_LOGIN_LOG_RETENTION_DAYS);
+      const safeDays = Number.isFinite(days) && days > 0 ? Math.min(Math.max(Math.floor(days), 1), 365) : DEFAULT_LOGIN_LOG_RETENTION_DAYS;
+      const input = byId("loginLogRetentionDaysInput");
+      if (input) input.value = String(safeDays);
+      return safeDays;
+    } catch (error) {
+      console.warn("로그 저장기간 조회 실패:", error);
+      return DEFAULT_LOGIN_LOG_RETENTION_DAYS;
+    }
+  }
+
+  async function saveLoginLogRetentionDays() {
+    const input = byId("loginLogRetentionDaysInput");
+    const raw = Number(input?.value || DEFAULT_LOGIN_LOG_RETENTION_DAYS);
+    const days = Number.isFinite(raw) && raw > 0 ? Math.min(Math.max(Math.floor(raw), 1), 365) : DEFAULT_LOGIN_LOG_RETENTION_DAYS;
+    if (input) input.value = String(days);
+    await update(ref(membershipDb), {
+      [`${LOGIN_LOG_SETTINGS_PATH}/retentionDays`]: days,
+      [`${LOGIN_LOG_SETTINGS_PATH}/updatedAt`]: Date.now()
+    });
+    await cleanupOldLoginLogs(days);
+    alert(`로그 기록 저장기간을 ${days}일로 저장했습니다.`);
+  }
+
+  async function cleanupOldLoginLogs(daysOverride) {
+    try {
+      const days = Number(daysOverride || await loadLoginLogRetentionDays() || DEFAULT_LOGIN_LOG_RETENTION_DAYS);
+      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+      const snap = await get(ref(membershipDb, LOGIN_LOGS_PATH));
+      if (!snap.exists()) return 0;
+      const value = snap.val() || {};
+      const updates = {};
+      let removed = 0;
+      Object.keys(value).forEach((key) => {
+        const item = value[key] || {};
+        const createdAt = Number(item.createdAt || 0);
+        if (createdAt && createdAt < cutoff) {
+          updates[`${LOGIN_LOGS_PATH}/${key}`] = null;
+          removed += 1;
+        }
+      });
+      if (removed > 0) await update(ref(membershipDb), updates);
+      return removed;
+    } catch (error) {
+      console.warn("오래된 로그인 기록 자동 삭제 실패:", error);
+      return 0;
+    }
+  }
+
+  async function deleteAllLoginLogs() {
+    if (!confirm("로그인 기록을 모두 삭제할까요?\n삭제 후에는 복구할 수 없습니다.")) return;
+    try {
+      await set(ref(membershipDb, LOGIN_LOGS_PATH), null);
+      latestLoginLogs = [];
+      renderLoginLogList([]);
+      alert("로그인 기록을 삭제했습니다.");
+    } catch (error) {
+      console.error("로그인 기록 삭제 실패:", error);
+      alert("로그인 기록 삭제 실패: Firebase 저장 규칙을 확인하세요.");
+    }
+  }
+
+  function formatLogStoryDateTime(value) {
+    const time = Number(value || 0);
+    if (!time) return "0000.00.00_00:00:00";
+    const d = new Date(time);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    return `${yyyy}.${mm}.${dd}_${hh}:${mi}:${ss}`;
+  }
+
+  function getLoginStoryActionText(item) {
+    const action = String(item?.action || "");
+    const message = item?.message ? ` (${item.message})` : "";
+    const map = {
+      login: "로그인했습니다",
+      logout: "로그아웃했습니다",
+      duplicate_detected: "다른 기기에서 같은 아이디로 로그인하려는 중복 로그인이 감지되었습니다",
+      force_logout_old_device: "새 로그인 때문에 기존 접속 기기가 종료 처리되었습니다",
+      remote_logout: "다른 기기의 로그인으로 현재 접속이 강제 종료되었습니다",
+      session_removed: "로그인 세션이 삭제되었습니다"
+    };
+    return `${map[action] || getLoginActionLabel(action) || "기록되었습니다"}${message}`;
+  }
+
+  function makeLoginLogStoryText(logs) {
+    const rows = Array.isArray(logs) ? logs.slice() : [];
+    rows.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+    if (rows.length === 0) return "로그인 기록이 없습니다.";
+
+    return rows.map((item, index) => {
+      const dt = formatLogStoryDateTime(item.createdAt);
+      const name = String(item.name || "이름없음").trim();
+      const device = String(item.deviceLabel || "기기").includes("모바일") ? "모바일" : "PC";
+      const roleCode = item.adminAccess || item.role === "admin" ? "Admin" : "Member";
+      const roleText = item.adminAccess || item.role === "admin" ? "관리자" : "회원";
+      return `${index + 1}. ${dt} ${name} ${device.padEnd(5, " ")} ${roleCode}, ${roleText}`;
+    }).join("\r\n");
+  }
+
+  function downloadLoginLogFile() {
+    const logs = Array.isArray(latestLoginLogs) ? latestLoginLogs : [];
+    const storyText = makeLoginLogStoryText(logs);
+    const blob = new Blob([storyText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    a.href = url;
+    a.download = `bus-seat-login-story-${stamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   async function loginMember() {
@@ -8571,6 +9075,7 @@ function renderAll() {
 
   function bindApprovalAdminMode() {
     startMemberManageActiveSessionList();
+    startMemberManageLoginLogList();
     const panel = byId("memberApprovalPanel");
     function forceMembershipLogout() {
       removeCurrentActiveSession();
@@ -8777,6 +9282,42 @@ function renderAll() {
 
     byId("memberTopLogoutBtn")?.addEventListener("click", () => {
       if (confirm("로그아웃하시겠습니까?")) showMembershipLoginScreenAfterLogout();
+    });
+
+    byId("memberLoginManageBtn")?.addEventListener("click", () => {
+      byId("memberManagePanel")?.classList.add("hidden");
+      byId("loginManagePanel")?.classList.remove("hidden");
+      loadLoginLogRetentionDays().then((days) => cleanupOldLoginLogs(days)).finally(() => {
+        startMemberManageActiveSessionList();
+        startMemberManageLoginLogList();
+      });
+    });
+
+    byId("loginManageBackBtn")?.addEventListener("click", () => {
+      byId("loginManagePanel")?.classList.add("hidden");
+      byId("memberManagePanel")?.classList.remove("hidden");
+    });
+
+    byId("loginLogRefreshBtn")?.addEventListener("click", () => {
+      loadLoginLogRetentionDays().then((days) => cleanupOldLoginLogs(days)).finally(() => {
+        startMemberManageActiveSessionList();
+        startMemberManageLoginLogList();
+      });
+    });
+
+    byId("loginLogDownloadBtn")?.addEventListener("click", () => {
+      downloadLoginLogFile();
+    });
+
+    byId("loginLogDeleteBtn")?.addEventListener("click", () => {
+      deleteAllLoginLogs();
+    });
+
+    byId("loginLogRetentionSaveBtn")?.addEventListener("click", () => {
+      saveLoginLogRetentionDays().catch((error) => {
+        console.error("로그 저장기간 저장 실패:", error);
+        alert("로그 저장기간 저장 실패: Firebase 저장 규칙을 확인하세요.");
+      });
     });
 
     byId("memberJoinSubmitBtn")?.addEventListener("click", () => {
@@ -10287,6 +10828,7 @@ function renderAll() {
       document.getElementById("adminLoginPanel")?.classList.remove("hidden");
       document.getElementById("adminPanel")?.classList.add("hidden");
       document.getElementById("memberManagePanel")?.classList.add("hidden");
+      document.getElementById("loginManagePanel")?.classList.add("hidden");
       document.getElementById("memberTab")?.classList.remove("active");
       document.getElementById("adminTab")?.classList.add("active");
       document.getElementById("memberManageTab")?.classList.remove("active");
@@ -10468,6 +11010,7 @@ function renderAll() {
       document.body.classList.remove("member-manage-mode");
       document.body.classList.add("member-mode");
       document.getElementById("memberManagePanel")?.classList.add("hidden");
+      document.getElementById("loginManagePanel")?.classList.add("hidden");
       document.getElementById("memberPanel")?.classList.remove("hidden");
       document.getElementById("memberManageTab")?.classList.remove("active");
       document.getElementById("memberTab")?.classList.add("active");
