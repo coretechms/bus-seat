@@ -2207,6 +2207,72 @@ body.member-manage-mode .member-approval-card-actions button {
   }
 }
 
+
+/* ===== 현재 로그인 회원 현황 ===== */
+.active-login-panel {
+  display: grid;
+  gap: 5px;
+  margin: 0 0 8px;
+  padding: 7px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+}
+.active-login-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  color: #1428c8;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+.active-login-count {
+  color: #d80000;
+  font-weight: 900;
+}
+.active-login-list {
+  display: grid;
+  gap: 4px;
+  max-height: 104px;
+  overflow-y: auto;
+}
+.active-login-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  align-items: center;
+  padding: 5px 6px;
+  border: 1px solid #d7e7ff;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 10px;
+  line-height: 1.35;
+}
+.active-login-name { font-weight: 900; color: #111; }
+.active-login-sub { color: #555; }
+.active-login-device {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.active-login-empty {
+  padding: 6px;
+  text-align: center;
+  color: #666;
+  font-size: 10px;
+  font-weight: 800;
+}
+.active-login-warning {
+  color: #d80000;
+  font-weight: 900;
+}
+
 </style>
 </head>
 <body class="membership-locked">
@@ -2500,6 +2566,16 @@ body.member-manage-mode .member-approval-card-actions button {
               </div>
               <div style="font-size:11px; color:#555; line-height:1.5; margin-bottom:8px;">
 
+              </div>
+
+              <div id="activeLoginPanel" class="active-login-panel">
+                <div class="active-login-title">
+                  <span>현재 로그인 회원</span>
+                  <span id="activeLoginCount" class="active-login-count">0명</span>
+                </div>
+                <div id="activeLoginList" class="active-login-list">
+                  <div class="active-login-empty">현재 로그인 회원을 불러옵니다.</div>
+                </div>
               </div>
               <div id="memberApprovalPanel" class="member-approval-panel is-open is-auth" style="display:block; max-height:48vh; margin-top:0;">
                 <div id="memberApprovalList" class="member-approval-list">
@@ -6670,7 +6746,7 @@ function renderAll() {
 
 <script type="module" id="bus-seat-membership-gate-script">
   import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getDatabase, ref, get, set, update, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+  import { getDatabase, ref, get, set, update, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
   const MEMBERSHIP_FIREBASE_CONFIG = {
     apiKey: "AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgwQ",
@@ -6687,7 +6763,15 @@ function renderAll() {
   const MEMBER_LIST_MAIN_PATH = "memberList/main";
   const MEMBER_LOGIN_INDEX_PATH = `${MEMBERS_ROOT}/loginIndex`;
   const LOGIN_SESSION_KEY = "bus-seat-approved-member-session-v1";
+  const LOGIN_DEVICE_KEY = "bus-seat-member-device-id-v1";
+  const ACTIVE_SESSIONS_PATH = `${MEMBERS_ROOT}/activeSessions`;
+  const ACTIVE_SESSION_STALE_MS = 2 * 60 * 1000;
+  const ACTIVE_SESSION_HEARTBEAT_MS = 15000;
   let currentApprovedMemberSession = null;
+  let activeSessionHeartbeatTimer = null;
+  let activeSessionUnsubscribe = null;
+  let memberManageActiveSessionUnsubscribe = null;
+  let isProcessingRemoteLogout = false;
 
   const membershipApp = getApps().length ? getApp() : initializeApp(MEMBERSHIP_FIREBASE_CONFIG);
   const membershipDb = getDatabase(membershipApp);
@@ -7488,6 +7572,220 @@ function renderAll() {
     } catch (error) {}
   }
 
+
+  function getLoginDeviceId() {
+    try {
+      let id = localStorage.getItem(LOGIN_DEVICE_KEY);
+      if (!id) {
+        id = `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem(LOGIN_DEVICE_KEY, id);
+      }
+      return id;
+    } catch (error) {
+      return `dev_session_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+  }
+
+  function getLoginDeviceLabel() {
+    const ua = navigator.userAgent || "";
+    if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) return "모바일";
+    return "PC";
+  }
+
+  function formatSessionTime(value) {
+    const time = Number(value || 0);
+    if (!time) return "-";
+    const d = new Date(time);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  function isFreshActiveSession(item, now = Date.now()) {
+    return item && Number(item.lastSeen || item.loginAt || 0) > now - ACTIVE_SESSION_STALE_MS;
+  }
+
+  async function getFreshActiveSessionsByCode(code) {
+    const snap = await get(ref(membershipDb, `${ACTIVE_SESSIONS_PATH}/${code}`));
+    if (!snap.exists()) return [];
+    const now = Date.now();
+    const value = snap.val() || {};
+    return Object.keys(value)
+      .map((deviceId) => ({ ...(value[deviceId] || {}), deviceId }))
+      .filter((item) => isFreshActiveSession(item, now));
+  }
+
+  async function removeCurrentActiveSession() {
+    const session = currentApprovedMemberSession;
+    if (!session || !session.code || !session.deviceId) return;
+    try {
+      const snap = await get(ref(membershipDb, `${ACTIVE_SESSIONS_PATH}/${session.code}/${session.deviceId}`));
+      const active = snap.exists() ? snap.val() : null;
+      if (active && active.deviceId === session.deviceId) {
+        await update(ref(membershipDb), { [`${ACTIVE_SESSIONS_PATH}/${session.code}/${session.deviceId}`]: null });
+      }
+    } catch (error) {
+      console.warn("현재 로그인 세션 제거 실패:", error);
+    }
+  }
+
+  function stopActiveSessionWatchers() {
+    if (activeSessionHeartbeatTimer) {
+      clearInterval(activeSessionHeartbeatTimer);
+      activeSessionHeartbeatTimer = null;
+    }
+    if (typeof activeSessionUnsubscribe === "function") {
+      try { activeSessionUnsubscribe(); } catch (error) {}
+      activeSessionUnsubscribe = null;
+    }
+  }
+
+  async function forceLogoutByRemoteSession(message) {
+    if (isProcessingRemoteLogout) return;
+    isProcessingRemoteLogout = true;
+    stopActiveSessionWatchers();
+    try {
+      currentApprovedMemberSession = null;
+      localStorage.removeItem(LOGIN_SESSION_KEY);
+      sessionStorage.removeItem(LOGIN_SESSION_KEY);
+    } catch (error) {}
+    try {
+      if (typeof window.__busSeatForceFullLogoutFromMembership === "function") {
+        window.__busSeatForceFullLogoutFromMembership();
+      }
+    } catch (error) {}
+    document.body.classList.add("membership-locked");
+    document.body.classList.remove("admin-mode", "member-manage-mode", "member-mode", "admin-entry-only");
+    const gate = byId("memberAuthGate");
+    if (gate) {
+      gate.classList.remove("is-hidden");
+      gate.style.display = "flex";
+    }
+    const app = document.querySelector(".app");
+    if (app) {
+      app.style.visibility = "hidden";
+      app.style.pointerEvents = "none";
+    }
+    clearMemberAuthInputValues();
+    setMemberAuthViewMode("main");
+    setAuthMessage(message || "다른 기기에서 로그인되어 현재 접속이 종료되었습니다.");
+    setTimeout(() => { isProcessingRemoteLogout = false; }, 500);
+  }
+
+  async function registerActiveMemberSession(session) {
+    if (!session || !session.code) return session;
+    const deviceId = getLoginDeviceId();
+    const deviceLabel = getLoginDeviceLabel();
+    const now = Date.now();
+    const isAdmin = session.adminAccess || session.role === "admin" || session.code === "ADMIN";
+    const activeList = await getFreshActiveSessionsByCode(session.code);
+    const otherFresh = activeList.filter((item) => item.deviceId && item.deviceId !== deviceId);
+
+    if (!isAdmin && otherFresh.length > 0) {
+      const otherText = otherFresh.map((item) => `${item.deviceLabel || "다른기기"} ${formatSessionTime(item.loginAt)}`).join(", ");
+      const ok = confirm(`이미 다른 기기에서 로그인 중입니다.
+(${otherText})
+
+기존 접속을 종료하고 이 기기에서 로그인하시겠습니까?`);
+      if (!ok) {
+        setAuthMessage("기존 접속이 있어 로그인을 취소했습니다.");
+        return null;
+      }
+      const clearUpdates = {};
+      otherFresh.forEach((item) => {
+        clearUpdates[`${ACTIVE_SESSIONS_PATH}/${session.code}/${item.deviceId}`] = null;
+      });
+      await update(ref(membershipDb), clearUpdates);
+    }
+
+    const nextSession = {
+      ...session,
+      deviceId,
+      deviceLabel,
+      loginAt: session.loginAt || now,
+      lastSeen: now
+    };
+    await update(ref(membershipDb), {
+      [`${ACTIVE_SESSIONS_PATH}/${session.code}/${deviceId}`]: {
+        code: nextSession.code,
+        name: nextSession.name,
+        role: nextSession.role || "member",
+        adminAccess: !!nextSession.adminAccess,
+        deviceId,
+        deviceLabel,
+        loginAt: nextSession.loginAt,
+        lastSeen: now,
+        userAgent: (navigator.userAgent || "").slice(0, 120)
+      }
+    });
+    return nextSession;
+  }
+
+  function startActiveSessionWatch(session) {
+    stopActiveSessionWatchers();
+    if (!session || !session.code || !session.deviceId) return;
+    const sessionPath = `${ACTIVE_SESSIONS_PATH}/${session.code}/${session.deviceId}`;
+    const touch = () => {
+      if (!currentApprovedMemberSession || currentApprovedMemberSession.deviceId !== session.deviceId) return;
+      update(ref(membershipDb), { [`${sessionPath}/lastSeen`]: Date.now() }).catch(() => {});
+    };
+    activeSessionHeartbeatTimer = setInterval(touch, ACTIVE_SESSION_HEARTBEAT_MS);
+    touch();
+    activeSessionUnsubscribe = onValue(ref(membershipDb, sessionPath), (snap) => {
+      if (!currentApprovedMemberSession || currentApprovedMemberSession.deviceId !== session.deviceId) return;
+      if (!snap.exists()) {
+        forceLogoutByRemoteSession("다른 기기에서 같은 아이디로 로그인하여 현재 접속이 종료되었습니다.");
+      }
+    });
+  }
+
+  function renderActiveLoginList(sessions) {
+    const list = byId("activeLoginList");
+    const count = byId("activeLoginCount");
+    if (!list || !count) return;
+    const now = Date.now();
+    const fresh = sessions.filter((item) => isFreshActiveSession(item, now));
+    count.textContent = `${fresh.length}명`;
+    if (fresh.length === 0) {
+      list.innerHTML = '<div class="active-login-empty">현재 로그인 회원이 없습니다.</div>';
+      return;
+    }
+    fresh.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ko") || Number(b.lastSeen || 0) - Number(a.lastSeen || 0));
+    list.innerHTML = fresh.map((item) => {
+      const staleMs = now - Number(item.lastSeen || 0);
+      const staleText = staleMs > ACTIVE_SESSION_HEARTBEAT_MS * 3 ? '<span class="active-login-warning">확인중</span>' : '접속중';
+      return `<div class="active-login-item">
+        <div>
+          <div class="active-login-name">${escapeHtml(item.name || "-")} / ${escapeHtml(item.code || "-")}</div>
+          <div class="active-login-sub">로그인 ${formatSessionTime(item.loginAt)} · 최근 ${formatSessionTime(item.lastSeen)} · ${staleText}</div>
+        </div>
+        <div class="active-login-device">${escapeHtml(item.deviceLabel || "기기")}</div>
+      </div>`;
+    }).join("");
+  }
+
+  function startMemberManageActiveSessionList() {
+    if (typeof memberManageActiveSessionUnsubscribe === "function") {
+      try { memberManageActiveSessionUnsubscribe(); } catch (error) {}
+      memberManageActiveSessionUnsubscribe = null;
+    }
+    memberManageActiveSessionUnsubscribe = onValue(ref(membershipDb, ACTIVE_SESSIONS_PATH), (snap) => {
+      const sessions = [];
+      const value = snap.exists() ? (snap.val() || {}) : {};
+      Object.keys(value).forEach((code) => {
+        const byDevice = value[code] || {};
+        Object.keys(byDevice).forEach((deviceId) => {
+          sessions.push({ ...(byDevice[deviceId] || {}), code, deviceId });
+        });
+      });
+      renderActiveLoginList(sessions);
+    }, (error) => {
+      console.warn("현재 로그인 회원 목록 조회 실패:", error);
+      const list = byId("activeLoginList");
+      if (list) list.innerHTML = '<div class="active-login-empty">현재 로그인 목록을 불러오지 못했습니다.</div>';
+    });
+  }
+
   async function loginMember() {
     const name = normalizeName(byId("memberLoginNameInput")?.value);
     const password = String(byId("memberLoginPasswordInput")?.value || "");
@@ -7503,14 +7801,17 @@ function renderAll() {
           adminAccess: true,
           loginAt: Date.now()
         };
-        currentApprovedMemberSession = adminSession;
+        const registeredAdminSession = await registerActiveMemberSession(adminSession);
+        if (!registeredAdminSession) return;
+        currentApprovedMemberSession = registeredAdminSession;
         try {
           // 보안 수정: 로그인 세션은 현재 탭(sessionStorage)에만 저장한다.
           // localStorage에 남기면 로그인 화면에서 새로고침 시 자동 진입되는 문제가 생긴다.
           localStorage.removeItem(LOGIN_SESSION_KEY);
-          sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(adminSession));
+          sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(registeredAdminSession));
         } catch (e) {}
-        unlockApp(adminSession);
+        unlockApp(registeredAdminSession);
+        startActiveSessionWatch(registeredAdminSession);
         if (typeof window.__busSeatEnterAdminFromMembership === "function") {
           window.__busSeatEnterAdminFromMembership();
         } else if (typeof window.__busSeatSwitchMode === "function") {
@@ -7579,15 +7880,18 @@ function renderAll() {
       adminAccess: !!matched.adminAccess,
       loginAt: Date.now()
     };
-    currentApprovedMemberSession = session;
+    const registeredSession = await registerActiveMemberSession(session);
+    if (!registeredSession) return;
+    currentApprovedMemberSession = registeredSession;
     try {
       // 보안 수정: 로그인 세션은 현재 탭(sessionStorage)에만 저장한다.
       // localStorage에 남기면 로그인 화면에서 새로고침 시 자동 진입되는 문제가 생긴다.
       localStorage.removeItem(LOGIN_SESSION_KEY);
-      sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(session));
+      sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(registeredSession));
     } catch (e) {}
 
-    unlockApp(session);
+    unlockApp(registeredSession);
+    startActiveSessionWatch(registeredSession);
     try {
       if (typeof window.__busSeatSwitchMode === "function") {
         window.__busSeatSwitchMode("member");
@@ -7879,6 +8183,7 @@ function renderAll() {
         if (session && session.code && session.name) {
           currentApprovedMemberSession = session;
           unlockApp(session);
+          if (session.deviceId) startActiveSessionWatch(session);
           if (isAdminEntryRefresh && (session.adminAccess || session.role === "admin" || session.code === "ADMIN")) {
             if (typeof window.__busSeatShowAdminEntryAfterLogoff === "function") {
               window.__busSeatShowAdminEntryAfterLogoff();
@@ -7951,6 +8256,8 @@ function renderAll() {
   }
 
   function clearApprovedMemberSession() {
+    removeCurrentActiveSession();
+    stopActiveSessionWatchers();
     currentApprovedMemberSession = null;
     try {
       localStorage.removeItem(LOGIN_SESSION_KEY);
@@ -8263,8 +8570,11 @@ function renderAll() {
   }
 
   function bindApprovalAdminMode() {
+    startMemberManageActiveSessionList();
     const panel = byId("memberApprovalPanel");
     function forceMembershipLogout() {
+      removeCurrentActiveSession();
+      stopActiveSessionWatchers();
       currentApprovedMemberSession = null;
       memberApprovalAdminAuthed = false;
 
@@ -8529,7 +8839,11 @@ function renderAll() {
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       clearMemberAuthInputValues();
-      bindMembershipGate();
+      window.addEventListener("beforeunload", () => {
+    try { removeCurrentActiveSession(); } catch (error) {}
+  });
+
+  bindMembershipGate();
       restoreSessionIfValid().catch((error) => {
         console.error("회원 세션 복구 오류:", error);
         setAuthMessage("회원정보 확인 오류: Firebase 연결을 확인하세요.");
