@@ -1,10 +1,22 @@
-
+   
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>탑승좌석 실시간 공유</title>
+  
+  <!-- 검암산악회 홈화면 앱 아이콘/PWA 설정 -->
+  <meta name="application-name" content="검암산악회" />
+  <meta name="apple-mobile-web-app-title" content="검암산악회" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0b2d58" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="180x180" href="geomam-icon-180.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="geomam-icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="geomam-icon-512.png" />
+<title>검암산악회</title>
   <script>
     /* 새로고침 순간 회원 로그인 화면이 깜빡이지 않도록 관리자/회원관리 세션을 HTML 로딩 초기에 감지 */
     (function () {
@@ -1101,6 +1113,25 @@ html.restore-admin-session body.membership-locked .app {
 .member-auth-gate.is-hidden {
   display: none !important;
 }
+
+.member-login-logo {
+  display: block;
+  width: 118px;
+  height: 118px;
+  object-fit: cover;
+  border-radius: 26px;
+  margin: 0 auto 8px;
+  box-shadow: 0 8px 22px rgba(20, 40, 200, 0.18);
+}
+@media (max-width: 430px) {
+  .member-login-logo {
+    width: 104px;
+    height: 104px;
+    border-radius: 24px;
+    margin-bottom: 7px;
+  }
+}
+
 .member-auth-box {
   width: min(340px, 92vw);
   background: #fff;
@@ -2530,7 +2561,7 @@ body.member-manage-mode #loginManagePanel .login-log-list {
 
   <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
-      <h2 id="memberAuthTitle" class="member-auth-title">검 암 산 악 회</h2>
+      <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
       <h2 id="memberAuthTitle" class="member-auth-title">GUM_AM Mountain Members'</h2>
       <h2 id="memberAuthTitle" class="member-auth-title">회원 로그인</h2>
 
@@ -11213,5 +11244,14 @@ function renderAll() {
 })();
 </script>
 
+
+<script>
+  // 검암산악회 PWA 서비스워커 등록: Android 설치성/오프라인 캐시 보조
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js").catch(function () {});
+    });
+  }
+</script>
 </body>
 </html>
