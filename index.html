@@ -2271,17 +2271,34 @@ body.member-manage-mode #loginManagePanel > div {
 #loginManageBody {
   flex: 1 1 auto !important;
   min-height: 0 !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  display: grid !important;
-  gap: 8px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
   align-content: start !important;
+  padding: 0 2px 6px !important;
 }
-body.member-manage-mode #loginManagePanel .active-login-list {
-  max-height: 28vh !important;
+/* 로그관리 화면 높이 배분
+   - 현재 로그인 회원: 접속자 수만큼 자동 높이, 최대 40%, 내부 별도 스크롤
+   - 로그인 기록 화면: 남은 높이를 자동 사용, 내부 별도 스크롤
+*/
+body.member-manage-mode #loginManagePanel .active-login-panel {
+  flex: 0 1 auto !important;
+  max-height: 40% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
+body.member-manage-mode #loginManagePanel .login-log-panel {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+body.member-manage-mode #loginManagePanel .active-login-list,
 body.member-manage-mode #loginManagePanel .login-log-list {
-  max-height: none !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 @media (min-width: 761px) {
   body.member-manage-mode #loginManagePanel { padding: 14px !important; }
@@ -2303,11 +2320,12 @@ body.member-manage-mode #loginManagePanel .login-log-list {
 /* ===== 현재 로그인 회원 현황 ===== */
 .active-login-panel {
   display: grid;
+  grid-template-rows: auto minmax(0, auto);
   gap: 5px;
-  margin: 0 0 8px;
-  padding: 7px;
-  border: 1px solid #bfdbfe;
-  border-radius: 12px;
+  margin: 0;
+  padding: 9px;
+  border: 2px solid #bfdbfe;
+  border-radius: 14px;
   background: #eff6ff;
 }
 .active-login-title {
@@ -2326,9 +2344,11 @@ body.member-manage-mode #loginManagePanel .login-log-list {
 }
 .active-login-list {
   display: grid;
+  align-content: start;
   gap: 4px;
-  max-height: 104px;
+  max-height: none;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 .active-login-item {
   display: grid;
@@ -2369,11 +2389,12 @@ body.member-manage-mode #loginManagePanel .login-log-list {
 /* ===== 로그인 기록 / 로그파일 ===== */
 .login-log-panel {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 5px;
-  margin: 0 0 8px;
-  padding: 7px;
-  border: 1px solid #fed7aa;
-  border-radius: 12px;
+  margin: 0;
+  padding: 9px;
+  border: 2px solid #fed7aa;
+  border-radius: 14px;
   background: #fff7ed;
 }
 .login-log-title {
@@ -2414,9 +2435,11 @@ body.member-manage-mode #loginManagePanel .login-log-list {
 }
 .login-log-list {
   display: grid;
+  align-content: start;
   gap: 4px;
-  max-height: 122px;
+  max-height: none;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 .login-log-item {
   display: grid;
@@ -2830,11 +2853,11 @@ body.member-manage-mode #loginManagePanel .login-log-list {
                 <div class="login-log-panel">
                   <div class="login-log-title">
                     <div class="login-log-title-left">
-                      <span>로그인 기록</span>
+                      <span>로그인 기록 화면</span>
                       <span id="loginLogCount" class="login-log-count">0건</span>
                     </div>
                     <div class="login-log-actions">
-                      <span style="font-size:10px; color:#777; font-weight:700;"> 로그인 기록</span>
+                      <span style="font-size:10px; color:#777; font-weight:700;">아래로 스크롤</span>
                     </div>
                   </div>
                   <div class="login-log-retention-row">
