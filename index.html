@@ -1,4 +1,4 @@
-
+    /bus-seat_ver11-완성본.html/
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -2834,7 +2834,7 @@ body.member-manage-mode #loginManagePanel .login-log-list {
                       <span id="loginLogCount" class="login-log-count">0건</span>
                     </div>
                     <div class="login-log-actions">
-                      <span style="font-size:10px; color:#777; font-weight:700;">누가 · 언제 · 무엇으로 로그인했는지 기록</span>
+                      <span style="font-size:10px; color:#777; font-weight:700;"> 로그인 기록</span>
                     </div>
                   </div>
                   <div class="login-log-retention-row">
@@ -8102,6 +8102,16 @@ function renderAll() {
       const source = session || currentApprovedMemberSession || {};
       const deviceId = source.deviceId || getLoginDeviceId();
       const deviceLabel = source.deviceLabel || getLoginDeviceLabel();
+      const isAdminLoginLog = String(action || "") === "login" && !!(source.adminAccess || extra.adminAccess || source.role === "admin" || extra.role === "admin" || source.code === "ADMIN" || extra.code === "ADMIN");
+      if (isAdminLoginLog) {
+        const dedupKey = `${action || "log"}|${source.code || extra.code || "-"}|${source.name || extra.name || "-"}|${deviceId}`;
+        const last = window.__busSeatLastAdminLoginLogDedup || {};
+        if (last.key === dedupKey && now - Number(last.time || 0) < 3000) {
+          return;
+        }
+        window.__busSeatLastAdminLoginLogDedup = { key: dedupKey, time: now };
+      }
+
       const log = {
         action: action || "log",
         actionLabel: getLoginActionLabel(action),
