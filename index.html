@@ -2536,11 +2536,11 @@ body.member-manage-mode #loginManagePanel .login-log-list {
 
       <div class="member-auth-row">
         <label for="memberLoginNameInput">아이디</label>
-        <input id="memberLoginNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" placeholder="이  름" value="" />
+        <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" placeholder="이  름" value="" />
       </div>
       <div class="member-auth-row">
         <label for="memberLoginPasswordInput">비밀번호</label>
-        <input id="memberLoginPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*">
+        <input id="memberLoginPasswordInput" type="password" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*">
       </div>
 
       <div class="member-auth-actions">
@@ -6891,7 +6891,15 @@ function renderAll() {
 
       const name = document.getElementById("memberLoginNameInput");
       const pw = document.getElementById("memberLoginPasswordInput");
-      if(name) name.value = "";
+      if (name) {
+        try {
+          const savedName = localStorage.getItem("bus-seat-member-saved-login-name-v1") || "";
+          name.value = savedName;
+          name.placeholder = savedName ? "저장된 아이디" : "이  름";
+        } catch (error) {
+          name.value = "";
+        }
+      }
       if(pw) pw.value = "";
 
       const signup = document.getElementById("memberSignupPanel");
@@ -7051,6 +7059,7 @@ function renderAll() {
   const MEMBER_LIST_MAIN_PATH = "memberList/main";
   const MEMBER_LOGIN_INDEX_PATH = `${MEMBERS_ROOT}/loginIndex`;
   const LOGIN_SESSION_KEY = "bus-seat-approved-member-session-v1";
+  const MEMBER_SAVED_LOGIN_NAME_KEY = "bus-seat-member-saved-login-name-v1";
   const LOGIN_DEVICE_KEY = "bus-seat-member-device-id-v1";
   const ACTIVE_SESSIONS_PATH = `${MEMBERS_ROOT}/activeSessions`;
   const LOGIN_LOGS_PATH = `${MEMBERS_ROOT}/loginLogs`;
@@ -8323,6 +8332,35 @@ function renderAll() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+
+  function getSavedMemberLoginName() {
+    try {
+      return String(localStorage.getItem(MEMBER_SAVED_LOGIN_NAME_KEY) || "").trim();
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function saveMemberLoginName(name) {
+    const cleanName = normalizeName(name);
+    if (!cleanName) return;
+    try {
+      localStorage.setItem(MEMBER_SAVED_LOGIN_NAME_KEY, cleanName);
+    } catch (error) {}
+  }
+
+  function applySavedMemberLoginName() {
+    const input = byId("memberLoginNameInput");
+    if (!input) return;
+    const savedName = getSavedMemberLoginName();
+    if (savedName) {
+      input.value = savedName;
+      input.placeholder = "저장된 아이디";
+    } else {
+      input.placeholder = "이  름";
+    }
+  }
+
   async function loginMember() {
     const name = normalizeName(byId("memberLoginNameInput")?.value);
     const password = String(byId("memberLoginPasswordInput")?.value || "");
@@ -8427,6 +8465,7 @@ function renderAll() {
       sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(registeredSession));
     } catch (e) {}
 
+    saveMemberLoginName(matched.name || name);
     unlockApp(registeredSession);
     startActiveSessionWatch(registeredSession);
     try {
@@ -8634,7 +8673,6 @@ function renderAll() {
 
   function clearMemberAuthInputValues() {
     [
-      "memberLoginNameInput",
       "memberLoginPasswordInput",
       "memberJoinNameInput",
       "memberJoinPasswordInput",
@@ -8656,19 +8694,20 @@ function renderAll() {
 
     const genderInput = byId("memberJoinGenderInput");
     if (genderInput) genderInput.value = "";
+    applySavedMemberLoginName();
   }
 
 
   function clearMemberLoginTypingInputs() {
-    // 회원 로그인 화면에서 입력 중 다른 화면/탭으로 이동하면 아이디·비밀번호를 즉시 비운다.
-    ["memberLoginNameInput", "memberLoginPasswordInput"].forEach((id) => {
-      const el = byId(id);
-      if (el) {
-        el.value = "";
-        el.setAttribute("autocomplete", "off");
-      }
-    });
+    // 로그인 화면을 벗어날 때 비밀번호만 비우고, 아이디는 마지막 성공 로그인 이름을 자동 입력한다.
+    const passwordInput = byId("memberLoginPasswordInput");
+    if (passwordInput) {
+      passwordInput.value = "";
+      passwordInput.setAttribute("autocomplete", "off");
+    }
+    applySavedMemberLoginName();
   }
+
 
   function clearMemberAuthTypingInputsOnScreenSwitch() {
     // 로그인 박스 안에서 회원가입/비밀번호변경 화면으로 전환하거나,
@@ -9147,8 +9186,7 @@ function renderAll() {
       const nameInput = byId("memberLoginNameInput");
       const passwordInput = byId("memberLoginPasswordInput");
       if (nameInput) {
-        nameInput.value = "";
-        nameInput.placeholder = "이  름";
+        applySavedMemberLoginName();
       }
       if (passwordInput) {
         passwordInput.value = "";
