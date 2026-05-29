@@ -11095,6 +11095,61 @@ function renderAll() {
     .board .title#titleMain,
     #titleMain.title { font-size: 13.5px !important; }
   }
+
+
+/* 요청 수정: 회원입력/관리자 모드 상단 UI 고정 + 하단 UI만 스크롤 허용 */
+html:has(body.member-mode),
+html:has(body.admin-mode:not(.member-manage-mode)),
+body.member-mode,
+body.admin-mode:not(.member-manage-mode) {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+body.member-mode .app,
+body.admin-mode:not(.member-manage-mode) .app {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+body.member-mode .shell,
+body.admin-mode:not(.member-manage-mode) .shell {
+  height: calc(100dvh - 16px) !important;
+  max-height: calc(100dvh - 16px) !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+body.member-mode .board-wrap,
+body.admin-mode:not(.member-manage-mode) .board-wrap {
+  flex: 0 0 auto !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+body.member-mode .controls,
+body.admin-mode:not(.member-manage-mode) .controls {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  touch-action: pan-y !important;
+}
+@media (max-width: 760px) {
+  body.member-mode .shell,
+  body.admin-mode:not(.member-manage-mode) .shell {
+    height: calc(100dvh - 24px) !important;
+    max-height: calc(100dvh - 24px) !important;
+  }
+}
 </style>
 <script id="title-main-readable-no-wrap-patch">
 (function(){
