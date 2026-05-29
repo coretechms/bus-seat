@@ -1929,7 +1929,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
 
 
 
-/* 요청 수정: 가입신청 닫기 버튼은 로그인 버튼과 같은 가로 사이즈 */
+/* 요청 수정: 가입신청 나가기 버튼은 로그인 버튼과 같은 가로 사이즈 */
 #memberJoinCloseBtn {
   width: 92px !important;
   min-width: 92px !important;
@@ -2562,7 +2562,7 @@ body.member-manage-mode #loginManagePanel .login-log-list {
   <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
-      <h2 id="memberAuthTitle" class="member-auth-title">검 암 산 악 회</h2>
+
       <h2 id="memberAuthTitle" class="member-auth-title">GUM_AM Mountain Members'</h2>
       <h2 id="memberAuthTitle" class="member-auth-title">회원 로그인</h2>
 
@@ -2831,7 +2831,7 @@ body.member-manage-mode #loginManagePanel .login-log-list {
           <div id="memberManagePanel" class="hidden" style="margin-top:10px;">
             <div style="border:1px solid #cfd8ff; border-radius:16px; padding:10px; background:#f7f9ff;">
               <div class="member-manage-topbar">
-                <button class="btn btn-outline" id="memberManageCloseBtn" type="button" title="좌석 화면으로 돌아가기">닫기</button>
+                <button class="btn btn-outline" id="memberManageCloseBtn" type="button" title="좌석 화면으로 돌아가기">나가기</button>
                 <div class="member-manage-title-search">
                   <input id="memberApprovalSearchInput" type="search" autocomplete="off" placeholder="이름검색" aria-label="회원 이름 검색" />
                   <button class="btn btn-outline" id="memberManageMemberListBtn" type="button" title="회원정보 페이지로 이동">회원정보</button>
@@ -8210,7 +8210,7 @@ function renderAll() {
       list.innerHTML = '<div class="login-log-empty">로그인 기록이 없습니다.</div>';
       return;
     }
-    list.innerHTML = rows.slice(0, 80).map((item) => {
+    list.innerHTML = rows.slice(0, 300).map((item) => {
       const label = getLoginActionLabel(item.action || item.actionLabel);
       const msg = item.message ? ` · ${escapeHtml(item.message)}` : "";
       return `<div class="login-log-item">
@@ -8228,7 +8228,7 @@ function renderAll() {
       try { memberManageLoginLogUnsubscribe(); } catch (error) {}
       memberManageLoginLogUnsubscribe = null;
     }
-    const logQuery = query(ref(membershipDb, LOGIN_LOGS_PATH), orderByChild("createdAt"), limitToLast(80));
+    const logQuery = query(ref(membershipDb, LOGIN_LOGS_PATH), orderByChild("createdAt"), limitToLast(300));
     memberManageLoginLogUnsubscribe = onValue(logQuery, (snap) => {
       const logs = [];
       const value = snap.exists() ? (snap.val() || {}) : {};
@@ -8349,8 +8349,24 @@ function renderAll() {
     }).join("\r\n");
   }
 
-  function downloadLoginLogFile() {
-    const logs = Array.isArray(latestLoginLogs) ? latestLoginLogs : [];
+  async function downloadLoginLogFile() {
+    let logs = [];
+    try {
+      const input = byId("loginLogRetentionDaysInput");
+      const rawDays = Number(input?.value || DEFAULT_LOGIN_LOG_RETENTION_DAYS);
+      const days = Number.isFinite(rawDays) && rawDays > 0 ? Math.min(Math.max(Math.floor(rawDays), 1), 365) : DEFAULT_LOGIN_LOG_RETENTION_DAYS;
+      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+      const snap = await get(ref(membershipDb, LOGIN_LOGS_PATH));
+      const value = snap.exists() ? (snap.val() || {}) : {};
+      Object.keys(value).forEach((key) => {
+        const item = value[key] || {};
+        const createdAt = Number(item.createdAt || 0);
+        if (createdAt && createdAt >= cutoff) logs.push({ ...item, key });
+      });
+    } catch (error) {
+      console.error("로그파일 저장용 전체 기록 조회 실패:", error);
+      logs = Array.isArray(latestLoginLogs) ? latestLoginLogs : [];
+    }
     const storyText = makeLoginLogStoryText(logs);
     const blob = new Blob([storyText], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -9409,7 +9425,10 @@ function renderAll() {
     });
 
     byId("loginLogDownloadBtn")?.addEventListener("click", () => {
-      downloadLoginLogFile();
+      downloadLoginLogFile().catch((error) => {
+        console.error("로그파일 저장 실패:", error);
+        alert("로그파일 저장 실패: Firebase 연결 또는 읽기 권한을 확인하세요.");
+      });
     });
 
     byId("loginLogDeleteBtn")?.addEventListener("click", () => {
@@ -10868,6 +10887,8 @@ function renderAll() {
     const memberDbCleanup = event.target.closest('#memberManagePanel #memberDbCleanupBtn');
     if (memberDbCleanup) {
       event.preventDefault();
+      if (!confirm('DB정리를 실행할까요?
+정리 작업을 진행하려면 [예]를 선택하세요.')) return;
       cleanupOrphanMemberDb().catch((error) => {
         console.error('회원 DB 정리 오류:', error);
         alert(`회원 DB 정리 오류: ${error?.code || error?.message || error}`);
