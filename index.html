@@ -2613,7 +2613,7 @@ body.member-mode .controls {
       <h2 id="memberAuthTitle" class="member-auth-title">GUM_AM Mountain Members'</h2>
       <div class="member-auth-row">
         <label for="memberLoginNameInput">아이디</label>
-        <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" placeholder="이  름" value="" />
+        <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" />
       </div>
       <div class="member-auth-row">
         <label for="memberLoginPasswordInput">비밀번호</label>
@@ -9350,6 +9350,9 @@ function renderAll() {
     el.setAttribute("lang", "ko");
     el.setAttribute("inputmode", "text");
     el.setAttribute("autocomplete", "off");
+    el.setAttribute("autocapitalize", "off");
+    el.setAttribute("autocorrect", "off");
+    el.setAttribute("spellcheck", "false");
     // 중요: 한글 IME 조합 중에는 값을 강제로 바꾸면 키보드 입력이 막힌다.
     // 따라서 입력 중 자동삭제는 하지 않고, 로그인/가입 버튼을 누를 때 한글 이름 여부를 검사한다.
     let isComposing = false;
@@ -9362,6 +9365,9 @@ function renderAll() {
     el.addEventListener("focus", () => {
       el.setAttribute("lang", "ko");
       el.setAttribute("inputmode", "text");
+      el.setAttribute("autocapitalize", "off");
+      el.setAttribute("autocorrect", "off");
+      el.setAttribute("spellcheck", "false");
     });
   }
 
