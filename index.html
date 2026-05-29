@@ -8212,6 +8212,8 @@ function renderAll() {
     try {
       const now = Date.now();
       const source = session || currentApprovedMemberSession || {};
+      const isAdminLog = !!(source.adminAccess || extra.adminAccess || source.role === "admin" || extra.role === "admin" || source.code === "ADMIN" || extra.code === "ADMIN");
+      if (isAdminLog) return;
       const deviceId = source.deviceId || getLoginDeviceId();
       const deviceLabel = source.deviceLabel || getLoginDeviceLabel();
       const dedupKey = [
@@ -8255,7 +8257,7 @@ function renderAll() {
     const list = byId("loginLogList");
     const count = byId("loginLogCount");
     if (!list || !count) return;
-    const rows = Array.isArray(logs) ? logs.slice() : [];
+    const rows = (Array.isArray(logs) ? logs.slice() : []).filter((item) => !(item && (item.adminAccess || item.role === "admin" || item.code === "ADMIN")));
     rows.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
     latestLoginLogs = rows;
     count.textContent = `${rows.length}건`;
@@ -8388,7 +8390,7 @@ function renderAll() {
   }
 
   function makeLoginLogStoryText(logs) {
-    const rows = Array.isArray(logs) ? logs.slice() : [];
+    const rows = (Array.isArray(logs) ? logs.slice() : []).filter((item) => !(item && (item.adminAccess || item.role === "admin" || item.code === "ADMIN")));
     rows.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
     if (rows.length === 0) return "로그인 기록이 없습니다.";
 
