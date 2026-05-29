@@ -2564,8 +2564,6 @@ body.member-manage-mode #loginManagePanel .login-log-list {
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
       <h2 id="memberAuthTitle" class="member-auth-title">GUM_AM Mountain Members'</h2>
-      <h2 id="memberAuthTitle" class="member-auth-title">회원 로그인</h2>
-
       <div class="member-auth-row">
         <label for="memberLoginNameInput">아이디</label>
         <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" placeholder="이  름" value="" />
@@ -2639,7 +2637,7 @@ body.member-manage-mode #loginManagePanel .login-log-list {
         </div>
       </div>
 
-      <div id="memberAuthMessage" class="member-auth-message">아이디와 비밀번호를 입력하세요.</div>
+
     </div>
   </div>
 
@@ -8166,15 +8164,20 @@ function renderAll() {
       const source = session || currentApprovedMemberSession || {};
       const deviceId = source.deviceId || getLoginDeviceId();
       const deviceLabel = source.deviceLabel || getLoginDeviceLabel();
-      const isAdminLoginLog = String(action || "") === "login" && !!(source.adminAccess || extra.adminAccess || source.role === "admin" || extra.role === "admin" || source.code === "ADMIN" || extra.code === "ADMIN");
-      if (isAdminLoginLog) {
-        const dedupKey = `${action || "log"}|${source.code || extra.code || "-"}|${source.name || extra.name || "-"}|${deviceId}`;
-        const last = window.__busSeatLastAdminLoginLogDedup || {};
-        if (last.key === dedupKey && now - Number(last.time || 0) < 3000) {
-          return;
-        }
-        window.__busSeatLastAdminLoginLogDedup = { key: dedupKey, time: now };
+      const dedupKey = [
+        action || "log",
+        source.code || extra.code || "-",
+        source.name || extra.name || "-",
+        source.role || extra.role || "member",
+        source.adminAccess || extra.adminAccess ? "admin" : "member",
+        deviceId,
+        extra.message || ""
+      ].join("|");
+      const last = window.__busSeatLastLoginLogDedup || {};
+      if (last.key === dedupKey && now - Number(last.time || 0) < 3000) {
+        return;
       }
+      window.__busSeatLastLoginLogDedup = { key: dedupKey, time: now };
 
       const log = {
         action: action || "log",
@@ -11274,5 +11277,170 @@ function renderAll() {
     });
   }
 </script>
+
+
+<script id="member-log-mobile-back-flow-patch">
+/* 요청 수정: 모바일 기기 뒤로가기 흐름 고정
+   - 로그관리 화면 뒤로가기: 회원관리 화면으로 이동
+   - 회원관리 화면 뒤로가기: 회원입력 화면으로 이동
+   - 로그인 화면으로 빠지는 현상 방지 */
+(function(){
+  if (window.__memberLogMobileBackFlowPatchApplied) return;
+  window.__memberLogMobileBackFlowPatchApplied = true;
+
+  function isHidden(el){
+    return !el || el.classList.contains("hidden") || el.offsetParent === null;
+  }
+
+  function currentScreen(){
+    var loginPanel = document.getElementById("loginManagePanel");
+    var managePanel = document.getElementById("memberManagePanel");
+    if (!isHidden(loginPanel)) return "loginManage";
+    if (!isHidden(managePanel) || document.body.classList.contains("member-manage-mode")) return "memberManage";
+    return "member";
+  }
+
+  function showMemberScreen(){
+    try {
+      if (typeof window.__busSeatSwitchMode === "function") {
+        window.__busSeatSwitchMode("member");
+      }
+    } catch (error) {}
+    try {
+      document.body.classList.remove("member-manage-mode", "admin-entry-only");
+      document.body.classList.add("member-mode");
+      document.getElementById("loginManagePanel")?.classList.add("hidden");
+      document.getElementById("memberManagePanel")?.classList.add("hidden");
+      document.getElementById("memberPanel")?.classList.remove("hidden");
+      document.getElementById("adminLoginPanel")?.classList.add("hidden");
+      document.getElementById("adminPanel")?.classList.add("hidden");
+      document.getElementById("memberTab")?.classList.add("active");
+      document.getElementById("adminTab")?.classList.remove("active");
+      document.getElementById("memberManageTab")?.classList.remove("active");
+      try { sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "member"); } catch (error) {}
+    } catch (error) {}
+  }
+
+  function showMemberManageScreen(){
+    try {
+      if (typeof window.__busSeatSwitchMode === "function") {
+        window.__busSeatSwitchMode("memberManage");
+      }
+    } catch (error) {}
+    try {
+      document.body.classList.add("member-manage-mode");
+      document.body.classList.remove("member-mode", "admin-entry-only");
+      document.getElementById("loginManagePanel")?.classList.add("hidden");
+      document.getElementById("memberManagePanel")?.classList.remove("hidden");
+      document.getElementById("memberPanel")?.classList.add("hidden");
+      document.getElementById("adminLoginPanel")?.classList.add("hidden");
+      document.getElementById("adminPanel")?.classList.add("hidden");
+      document.getElementById("memberTab")?.classList.remove("active");
+      document.getElementById("adminTab")?.classList.remove("active");
+      document.getElementById("memberManageTab")?.classList.add("active");
+      try { sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "memberManage"); } catch (error) {}
+    } catch (error) {}
+  }
+
+  function showLoginManageScreen(){
+    showMemberManageScreen();
+    try {
+      document.getElementById("memberManagePanel")?.classList.add("hidden");
+      document.getElementById("loginManagePanel")?.classList.remove("hidden");
+    } catch (error) {}
+  }
+
+  function replaceWithMemberBase(){
+    try {
+      if (!history.state || !history.state.busSeatBackFlowBase) {
+        history.replaceState({ busSeatScreen: "member", busSeatBackFlowBase: true }, "", location.href);
+      }
+    } catch (error) {}
+  }
+
+  function pushScreenState(screen){
+    try {
+      var state = history.state || {};
+      if (state.busSeatScreen === screen && state.busSeatBackFlowPatch) return;
+      history.pushState({ busSeatScreen: screen, busSeatBackFlowPatch: true }, "", location.href);
+    } catch (error) {}
+  }
+
+  function syncHistoryToScreen(){
+    var screen = currentScreen();
+    if (screen === "member") {
+      replaceWithMemberBase();
+      return;
+    }
+    replaceWithMemberBase();
+    if (screen === "memberManage") {
+      pushScreenState("memberManage");
+      return;
+    }
+    if (screen === "loginManage") {
+      try {
+        if (!history.state || history.state.busSeatScreen !== "memberManage") pushScreenState("memberManage");
+      } catch (error) { pushScreenState("memberManage"); }
+      pushScreenState("loginManage");
+    }
+  }
+
+  window.addEventListener("popstate", function(event){
+    var state = event.state || {};
+    if (state.busSeatScreen === "loginManage") {
+      showLoginManageScreen();
+      return;
+    }
+    if (state.busSeatScreen === "memberManage") {
+      showMemberManageScreen();
+      return;
+    }
+    if (currentScreen() === "loginManage") {
+      showMemberManageScreen();
+      try { history.replaceState({ busSeatScreen: "memberManage", busSeatBackFlowPatch: true }, "", location.href); } catch (error) {}
+      return;
+    }
+    if (currentScreen() === "memberManage") {
+      showMemberScreen();
+      try { history.replaceState({ busSeatScreen: "member", busSeatBackFlowBase: true }, "", location.href); } catch (error) {}
+      return;
+    }
+    showMemberScreen();
+  }, true);
+
+  document.addEventListener("click", function(event){
+    var manageBtn = event.target && event.target.closest ? event.target.closest("#memberManageTab") : null;
+    var logBtn = event.target && event.target.closest ? event.target.closest("#memberLoginManageBtn") : null;
+    var logBackBtn = event.target && event.target.closest ? event.target.closest("#loginManageBackBtn") : null;
+    var manageCloseBtn = event.target && event.target.closest ? event.target.closest("#memberManageCloseBtn") : null;
+
+    if (manageBtn) {
+      setTimeout(function(){ replaceWithMemberBase(); pushScreenState("memberManage"); }, 0);
+      return;
+    }
+    if (logBtn) {
+      setTimeout(function(){
+        replaceWithMemberBase();
+        try {
+          if (!history.state || history.state.busSeatScreen !== "memberManage") pushScreenState("memberManage");
+        } catch (error) { pushScreenState("memberManage"); }
+        pushScreenState("loginManage");
+      }, 0);
+      return;
+    }
+    if (logBackBtn) {
+      setTimeout(function(){ showMemberManageScreen(); try { history.replaceState({ busSeatScreen: "memberManage", busSeatBackFlowPatch: true }, "", location.href); } catch (error) {} }, 0);
+      return;
+    }
+    if (manageCloseBtn) {
+      setTimeout(function(){ showMemberScreen(); try { history.replaceState({ busSeatScreen: "member", busSeatBackFlowBase: true }, "", location.href); } catch (error) {} }, 0);
+    }
+  }, true);
+
+  window.addEventListener("pageshow", function(){ setTimeout(syncHistoryToScreen, 80); });
+  document.addEventListener("DOMContentLoaded", function(){ setTimeout(syncHistoryToScreen, 120); });
+})();
+</script>
+
 </body>
 </html>
