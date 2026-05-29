@@ -170,6 +170,7 @@
       color: var(--blue);
     }
     .seat-number.paid-new { color: #d32f2f; font-weight: 700; }
+    .seat-number.paid-reserved { color: var(--blue); font-weight: 700; }
     .seat.unavailable .seat-number,
     .seat.unavailable .seat-name,
     .seat.unavailable .status-pill {
@@ -2555,6 +2556,52 @@ body.member-manage-mode #loginManagePanel .login-log-list {
   }
 }
 
+
+/* 요청 수정: 회원입력 모드 화면 스크롤 방지 + 하단 메뉴박스만 스크롤 허용 */
+html:has(body.member-mode),
+body.member-mode {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+}
+body.member-mode .app {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+body.member-mode .shell {
+  height: calc(100dvh - 16px) !important;
+  max-height: calc(100dvh - 16px) !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+body.member-mode .board-wrap {
+  flex: 0 0 auto !important;
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+body.member-mode .controls {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  touch-action: pan-y !important;
+}
+@media (max-width: 760px) {
+  body.member-mode .shell {
+    height: calc(100dvh - 24px) !important;
+    max-height: calc(100dvh - 24px) !important;
+  }
+}
+
 </style>
 </head>
 <body class="membership-locked">
@@ -2705,8 +2752,8 @@ body.member-manage-mode #loginManagePanel .login-log-list {
               </div>
             </div>
             <div id="memberQuickButtonRow" class="member-quick-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px;">
-              <button class="btn btn-outline" id="boardingPointBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">탑승지</button>
               <button class="btn btn-outline" id="hikingNoticeBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">공지확인</button>
+              <button class="btn btn-outline" id="boardingPointBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">탑승지</button>
               <button class="btn btn-outline" id="tripScheduleBtn" type="button" style="width:100%; height:28px; font-size:12px; white-space:nowrap;">산행계획</button>
             </div>
             <button class="btn btn-primary" id="memberSaveBtn" type="button" style="display:none;">저장</button>
@@ -2733,6 +2780,7 @@ body.member-manage-mode #loginManagePanel .login-log-list {
                 <option value="waiting">입금대기</option>
                 <option value="reserved">이름만 표기</option>
                 <option value="paid_new">완납/신입</option>
+                <option value="paid_reserved">완납/예약완료</option>
               </select>
             </div>
 
@@ -2861,7 +2909,6 @@ body.member-manage-mode #loginManagePanel .login-log-list {
           <div id="loginManagePanel" class="hidden" style="margin-top:10px;">
             <div>
               <div class="login-manage-topbar">
-
                 <div class="login-manage-title">로그관리</div>
                 <div class="login-manage-actions">
                   <button class="btn btn-outline" id="loginLogRefreshBtn" type="button">새로고침</button>
@@ -3150,6 +3197,7 @@ const firebaseConfig = {
       if (status === "waiting") return "입금대기";
       if (status === "waiting_alt") return "자리이동";
       if (status === "paid_new") return "완납/신입";
+      if (status === "paid_reserved") return "완납/예약완료";
       if (status === "paid_new_move") return "자리이동";
       return "";
     }
@@ -3157,6 +3205,7 @@ const firebaseConfig = {
     function normalizeSeatStatus(status) {
       if (status === "waiting_alt") return "reserved";
       if (status === "paid_new") return "paid_new";
+      if (status === "paid_reserved") return "paid_reserved";
       if (status === "paid_new_move") return "paid_new";
       return status || "empty";
     }
@@ -3532,7 +3581,7 @@ const firebaseConfig = {
       if (isBlockedSeat(seat.number)) return true;
       if (state.mode !== "member") return false;
       if (isAdminOnlySeatForMember(seat.number)) return true;
-      if (seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_new_move") return true;
+      if (seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_new_move" || seat.status === "paid_reserved") return true;
       if (!seat.name) return false;
       const duplicateRole = getDuplicateSeatRole(seat);
       return duplicateRole === "normal";
@@ -3625,15 +3674,16 @@ const firebaseConfig = {
       const nameColorClass = duplicateRole === "old" ? "duplicate-old" : (duplicateRole === "new" ? "duplicate-new" : "");
       const waitingWarning = isWaitingBlinkTarget(seat);
       const isPaidNew = seat.status === "paid_new" || seat.status === "paid_new_move";
+      const isPaidReserved = seat.status === "paid_reserved";
       const hasMemo = Boolean(String(seat.memo || "").trim());
       const hasSecurityMemo = Boolean(seat.hasSecurityMemo || String(state.securityMemos?.[seat.number]?.memo || "").trim());
       const memoMarkClass = hasMemo && hasSecurityMemo ? "memo-both" : (hasSecurityMemo ? "memo-security" : "memo-normal");
-      const status = occupied && seat.status !== "reserved" && seat.status !== "empty" && seat.status !== "paid" && seat.status !== "paid_new"
+      const status = occupied && seat.status !== "reserved" && seat.status !== "empty" && seat.status !== "paid" && seat.status !== "paid_new" && seat.status !== "paid_reserved"
         ? `<div class="status-pill status-${seat.status}">${statusLabel(seat.status)}</div>`
         : "";
       return `
         <button id="seat-btn-${seat.number}" class="seat ${seat.number <= 4 ? "light" : ""} ${occupied ? "occupied" : ""} ${locked ? "locked" : ""} ${blocked ? "unavailable" : ""} ${isJustSaved ? "seat-save-flash" : ""} ${waitingWarning ? "waiting-warning" : ""}" data-seat="${seat.number}" type="button" title="${blocked ? "사용할 수 없는 좌석입니다." : (locked ? "회원모드에서는 수정할 수 없는 좌석입니다." : "")}">
-          <div class="seat-number ${side} ${isPaidNew ? "paid-new" : ""}">${getSeatDisplayNumber(seat.number)}</div>
+          <div class="seat-number ${side} ${isPaidNew ? "paid-new" : ""} ${isPaidReserved ? "paid-reserved" : ""}">${getSeatDisplayNumber(seat.number)}</div>
           ${(hasMemo || hasSecurityMemo) ? `<div class="seat-memo-mark ${memoMarkClass}">M</div>` : ''}
           <div class="seat-name-hit-zone" aria-hidden="true"></div>
           <div class="seat-inner">
@@ -5167,7 +5217,7 @@ function renderAll() {
           alert("현재 전체 입력이 제한되어 있습니다.");
           return;
         }
-        if (seat.status === "paid" || seat.status === "paid_new") {
+        if (seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_reserved") {
           alert("완납 처리된 좌석은 회원 모드에서 접근할 수 없습니다.");
           return;
         }
