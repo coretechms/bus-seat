@@ -10887,8 +10887,7 @@ function renderAll() {
     const memberDbCleanup = event.target.closest('#memberManagePanel #memberDbCleanupBtn');
     if (memberDbCleanup) {
       event.preventDefault();
-      if (!confirm('DB정리를 실행할까요?
-정리 작업을 진행하려면 [예]를 선택하세요.')) return;
+      if (!confirm('DB정리를 실행할까요?\n정리 작업을 진행하려면 [예]를 선택하세요.')) return;
       cleanupOrphanMemberDb().catch((error) => {
         console.error('회원 DB 정리 오류:', error);
         alert(`회원 DB 정리 오류: ${error?.code || error?.message || error}`);
