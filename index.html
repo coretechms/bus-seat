@@ -1,10 +1,22 @@
-
+    
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>탑승좌석 실시간 공유</title>
+  
+  <!-- 검암산악회 홈화면 앱 아이콘/PWA 설정 -->
+  <meta name="application-name" content="검암산악회" />
+  <meta name="apple-mobile-web-app-title" content="검암산악회" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0b2d58" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="180x180" href="geomam-icon-180.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="geomam-icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="geomam-icon-512.png" />
+<title>검암산악회</title>
   <script>
     /* 새로고침 순간 회원 로그인 화면이 깜빡이지 않도록 관리자/회원관리 세션을 HTML 로딩 초기에 감지 */
     (function () {
@@ -1101,6 +1113,25 @@ html.restore-admin-session body.membership-locked .app {
 .member-auth-gate.is-hidden {
   display: none !important;
 }
+
+.member-login-logo {
+  display: block;
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 34px;
+  margin: 0 auto 12px;
+  box-shadow: 0 10px 28px rgba(20, 40, 200, 0.20);
+}
+@media (max-width: 430px) {
+  .member-login-logo {
+    width: 142px;
+    height: 142px;
+    border-radius: 30px;
+    margin-bottom: 10px;
+  }
+}
+
 .member-auth-box {
   width: min(340px, 92vw);
   background: #fff;
@@ -2524,99 +2555,13 @@ body.member-manage-mode #loginManagePanel .login-log-list {
   }
 }
 
-
-
-/* ===== 로그인 화면 상단 이미지 복구 ===== */
-.member-login-hero {
-  width: 100%;
-  display: flex !important;
-  justify-content: center;
-  align-items: center;
-  margin: 0 0 10px;
-  pointer-events: none;
-}
-.member-login-hero svg {
-  display: block !important;
-  width: min(250px, 82vw);
-  max-width: 100%;
-  height: auto;
-  border-radius: 18px;
-  box-shadow: 0 8px 22px rgba(20,40,200,0.16);
-  background: #eaf7ff;
-}
-.member-auth-box.signup-open .member-login-hero,
-.member-auth-box.change-open .member-login-hero {
-  display: flex !important;
-}
-@media (max-width: 430px) {
-  .member-login-hero {
-    margin-bottom: 8px;
-  }
-  .member-login-hero svg {
-    width: min(230px, 84vw);
-    border-radius: 16px;
-  }
-}
-
-  </style>
+</style>
 </head>
 <body class="membership-locked">
 
   <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
-
-      <div class="member-login-hero" aria-hidden="true">
-        <svg viewBox="0 0 420 210" role="img" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="loginSkyGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#bfe9ff"/>
-              <stop offset="58%" stop-color="#f7fbff"/>
-              <stop offset="100%" stop-color="#fff7d9"/>
-            </linearGradient>
-            <linearGradient id="loginMountainBack" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#6fb78f"/>
-              <stop offset="100%" stop-color="#2f7557"/>
-            </linearGradient>
-            <linearGradient id="loginMountainFront" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#4b9b68"/>
-              <stop offset="100%" stop-color="#226143"/>
-            </linearGradient>
-            <filter id="loginSoftShadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#234" flood-opacity="0.18"/>
-            </filter>
-          </defs>
-          <rect x="0" y="0" width="420" height="210" rx="26" fill="url(#loginSkyGrad)"/>
-          <circle cx="326" cy="48" r="24" fill="#ffd76a" opacity="0.95"/>
-          <path d="M0 151 L74 75 L137 145 L192 62 L287 153 L356 88 L420 153 L420 210 L0 210 Z"
-                fill="url(#loginMountainBack)" opacity="0.92"/>
-          <path d="M0 168 L52 112 L101 160 L147 100 L196 163 L250 87 L330 168 L380 128 L420 166 L420 210 L0 210 Z"
-                fill="url(#loginMountainFront)" filter="url(#loginSoftShadow)"/>
-          <path d="M0 180 C68 158, 118 184, 184 166 C250 149, 306 168, 420 148 L420 210 L0 210 Z"
-                fill="#d9f0b5" opacity="0.95"/>
-          <path d="M36 178 C108 164, 174 171, 246 158 C302 148, 360 147, 420 136"
-                fill="none" stroke="#ffffff" stroke-width="5" opacity="0.75"/>
-          <g transform="translate(172 103)" filter="url(#loginSoftShadow)">
-            <circle cx="24" cy="18" r="11" fill="#2f3a56"/>
-            <path d="M18 31 L31 31 L37 77 L10 77 Z" fill="#2563eb"/>
-            <path d="M17 41 L-3 60" stroke="#2f3a56" stroke-width="7" stroke-linecap="round"/>
-            <path d="M32 41 L54 63" stroke="#2f3a56" stroke-width="7" stroke-linecap="round"/>
-            <path d="M18 77 L5 108" stroke="#2f3a56" stroke-width="8" stroke-linecap="round"/>
-            <path d="M31 77 L46 108" stroke="#2f3a56" stroke-width="8" stroke-linecap="round"/>
-            <path d="M57 57 L72 112" stroke="#6b4f2a" stroke-width="4" stroke-linecap="round"/>
-          </g>
-          <g transform="translate(228 108)" filter="url(#loginSoftShadow)">
-            <circle cx="22" cy="15" r="10" fill="#4b2e2a"/>
-            <path d="M13 29 C19 22, 29 22, 35 29 L39 77 L9 77 Z" fill="#ef6aa5"/>
-            <path d="M14 40 L-4 61" stroke="#4b2e2a" stroke-width="7" stroke-linecap="round"/>
-            <path d="M34 39 L54 57" stroke="#4b2e2a" stroke-width="7" stroke-linecap="round"/>
-            <path d="M17 77 L7 107" stroke="#4b2e2a" stroke-width="8" stroke-linecap="round"/>
-            <path d="M31 77 L45 107" stroke="#4b2e2a" stroke-width="8" stroke-linecap="round"/>
-            <path d="M-7 58 L-21 112" stroke="#6b4f2a" stroke-width="4" stroke-linecap="round"/>
-          </g>
-          <text x="210" y="32" text-anchor="middle" font-family="Arial, 'Malgun Gothic', sans-serif"
-                font-size="18" font-weight="800" fill="#1428c8" letter-spacing="3">검암산악회</text>
-        </svg>
-      </div>
+      <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
       <h2 id="memberAuthTitle" class="member-auth-title">검 암 산 악 회</h2>
       <h2 id="memberAuthTitle" class="member-auth-title">GUM_AM Mountain Members'</h2>
       <h2 id="memberAuthTitle" class="member-auth-title">회원 로그인</h2>
@@ -4288,40 +4233,6 @@ const firebaseConfig = {
         });
         overlay.querySelector("#recoveryConfirmYes").addEventListener("click", () => cleanup(true));
         overlay.querySelector("#recoveryConfirmNo").addEventListener("click", () => cleanup(false));
-      });
-    }
-
-
-    function showRunCancelConfirmDialog(message, title = "실행 확인") {
-      return new Promise((resolve) => {
-        const existing = document.getElementById("runCancelConfirmOverlay");
-        if (existing) existing.remove();
-
-        const overlay = document.createElement("div");
-        overlay.className = "yn-overlay";
-        overlay.id = "runCancelConfirmOverlay";
-        overlay.innerHTML = `
-          <div class="yn-dialog" role="dialog" aria-modal="true" aria-labelledby="runCancelConfirmTitle">
-            <div class="yn-title" id="runCancelConfirmTitle">${escapeHtml(title)}</div>
-            <div class="yn-message">${escapeHtml(message)}</div>
-            <div class="yn-actions">
-              <button type="button" class="yn-btn primary" id="runCancelConfirmRun">실행</button>
-              <button type="button" class="yn-btn" id="runCancelConfirmCancel">취소</button>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(overlay);
-
-        const cleanup = (value) => {
-          overlay.remove();
-          resolve(value);
-        };
-
-        overlay.addEventListener("click", (e) => {
-          if (e.target === overlay) cleanup(false);
-        });
-        overlay.querySelector("#runCancelConfirmRun").addEventListener("click", () => cleanup(true));
-        overlay.querySelector("#runCancelConfirmCancel").addEventListener("click", () => cleanup(false));
       });
     }
 
@@ -8255,29 +8166,14 @@ function renderAll() {
       const source = session || currentApprovedMemberSession || {};
       const deviceId = source.deviceId || getLoginDeviceId();
       const deviceLabel = source.deviceLabel || getLoginDeviceLabel();
-
-      /*
-       * 로그인 기록 중복 방지
-       * - 관리자/회원 로그인 처리 중 registerActiveMemberSession()이 짧은 시간 안에 다시 호출되면
-       *   같은 로그인 기록이 2건 저장될 수 있다.
-       * - action=login에 한해 같은 회원코드 + 이름 + 기기 + 권한 조합은 10초 동안 1건만 남긴다.
-       * - 로그아웃/중복감지/강제종료 기록은 운영 기록이므로 차단하지 않는다.
-       */
-      if (String(action || "") === "login") {
-        const loginDedupKey = [
-          action || "login",
-          source.code || extra.code || "-",
-          source.name || extra.name || "-",
-          source.role || extra.role || "member",
-          source.adminAccess || extra.adminAccess ? "adminAccess" : "memberAccess",
-          deviceId || "-"
-        ].join("|");
-        const lastLoginLog = window.__busSeatLastLoginLogDedup || {};
-        if (lastLoginLog.key === loginDedupKey && now - Number(lastLoginLog.time || 0) < 10000) {
-          console.info("중복 로그인 기록 차단:", loginDedupKey);
+      const isAdminLoginLog = String(action || "") === "login" && !!(source.adminAccess || extra.adminAccess || source.role === "admin" || extra.role === "admin" || source.code === "ADMIN" || extra.code === "ADMIN");
+      if (isAdminLoginLog) {
+        const dedupKey = `${action || "log"}|${source.code || extra.code || "-"}|${source.name || extra.name || "-"}|${deviceId}`;
+        const last = window.__busSeatLastAdminLoginLogDedup || {};
+        if (last.key === dedupKey && now - Number(last.time || 0) < 3000) {
           return;
         }
-        window.__busSeatLastLoginLogDedup = { key: loginDedupKey, time: now };
+        window.__busSeatLastAdminLoginLogDedup = { key: dedupKey, time: now };
       }
 
       const log = {
@@ -8314,7 +8210,7 @@ function renderAll() {
       list.innerHTML = '<div class="login-log-empty">로그인 기록이 없습니다.</div>';
       return;
     }
-    list.innerHTML = rows.slice(0, 200).map((item) => {
+    list.innerHTML = rows.slice(0, 80).map((item) => {
       const label = getLoginActionLabel(item.action || item.actionLabel);
       const msg = item.message ? ` · ${escapeHtml(item.message)}` : "";
       return `<div class="login-log-item">
@@ -8332,7 +8228,7 @@ function renderAll() {
       try { memberManageLoginLogUnsubscribe(); } catch (error) {}
       memberManageLoginLogUnsubscribe = null;
     }
-    const logQuery = query(ref(membershipDb, LOGIN_LOGS_PATH), orderByChild("createdAt"), limitToLast(200));
+    const logQuery = query(ref(membershipDb, LOGIN_LOGS_PATH), orderByChild("createdAt"), limitToLast(80));
     memberManageLoginLogUnsubscribe = onValue(logQuery, (snap) => {
       const logs = [];
       const value = snap.exists() ? (snap.val() || {}) : {};
@@ -8453,31 +8349,19 @@ function renderAll() {
     }).join("\r\n");
   }
 
-  async function downloadLoginLogFile() {
-    try {
-      const days = await loadLoginLogRetentionDays();
-      const safeDays = Number.isFinite(Number(days)) && Number(days) > 0 ? Number(days) : DEFAULT_LOGIN_LOG_RETENTION_DAYS;
-      const cutoff = Date.now() - safeDays * 24 * 60 * 60 * 1000;
-      const snap = await get(ref(membershipDb, LOGIN_LOGS_PATH));
-      const value = snap.exists() ? (snap.val() || {}) : {};
-      const logs = Object.keys(value)
-        .map((key) => ({ ...(value[key] || {}), key }))
-        .filter((item) => Number(item.createdAt || 0) >= cutoff);
-      const storyText = makeLoginLogStoryText(logs);
-      const blob = new Blob([storyText], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-      a.href = url;
-      a.download = `busseat-log-story-${safeDays}days-${stamp}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (error) {
-      console.error("로그파일 저장 실패:", error);
-      alert("로그파일 저장 실패: Firebase 연결 또는 읽기 권한을 확인하세요.");
-    }
+  function downloadLoginLogFile() {
+    const logs = Array.isArray(latestLoginLogs) ? latestLoginLogs : [];
+    const storyText = makeLoginLogStoryText(logs);
+    const blob = new Blob([storyText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    a.href = url;
+    a.download = `busseat-log-story-${stamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
 
@@ -10735,12 +10619,11 @@ function renderAll() {
   }
 
   async function cleanupOrphanMemberDb() {
-    const ok = await showRunCancelConfirmDialog(
+    const ok = confirm(
       '회원 로그인 DB에 없는 고아 회원코드만 정리합니다.\n\n' +
       '- memberList/joinCodes에는 있지만 members DB에는 없는 코드\n' +
       '- pending에만 남은 코드\n\n' +
-      '정상 members DB 회원은 삭제하지 않습니다.',
-      'DB정리 실행 확인'
+      '정상 members DB 회원은 삭제하지 않습니다. 계속할까요?'
     );
     if (!ok) return;
 
@@ -11362,5 +11245,14 @@ function renderAll() {
 })();
 </script>
 
+
+<script>
+  // 검암산악회 PWA 서비스워커 등록: Android 설치성/오프라인 캐시 보조
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js").catch(function () {});
+    });
+  }
+</script>
 </body>
 </html>
