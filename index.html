@@ -25,6 +25,9 @@
         const savedMode = sessionStorage.getItem("bus-seat-admin-refresh-mode-v1");
         const savedAdminEntry = sessionStorage.getItem("bus-seat-admin-entry-refresh-v1") === "1" ||
           localStorage.getItem("bus-seat-admin-entry-persist-v1") === "1";
+        if (savedSession) {
+          document.documentElement.classList.add("restore-member-session");
+        }
         if (savedAdminEntry || savedMode === "adminEntry" || savedMode === "memberManage" || (savedSession && (savedMode === "admin" || savedMode === "memberManage"))) {
           document.documentElement.classList.add("restore-admin-session");
         }
@@ -1092,10 +1095,12 @@ body.membership-locked .app {
   pointer-events: none !important;
 }
 /* 새로고침 복구 중에는 회원 로그인 게이트를 보여주지 않고, 기존 관리자/회원관리 화면만 유지 */
-html.restore-admin-session body.membership-locked .member-auth-gate {
+html.restore-admin-session body.membership-locked .member-auth-gate,
+html.restore-member-session body.membership-locked .member-auth-gate {
   display: none !important;
 }
-html.restore-admin-session body.membership-locked .app {
+html.restore-admin-session body.membership-locked .app,
+html.restore-member-session body.membership-locked .app {
   visibility: visible !important;
   pointer-events: auto !important;
 }
@@ -8297,18 +8302,36 @@ function renderAll() {
   }
 
 
-  async function loadLoginLogRetentionDays() {
+  const LOGIN_LOG_RETENTION_LOCAL_KEY = "bus-seat-login-log-retention-days-v1";
+
+  function getLocalLoginLogRetentionDays() {
     try {
-      const snap = await get(ref(membershipDb, `${LOGIN_LOG_SETTINGS_PATH}/retentionDays`));
-      const days = Number(snap.exists() ? snap.val() : DEFAULT_LOGIN_LOG_RETENTION_DAYS);
-      const safeDays = Number.isFinite(days) && days > 0 ? Math.min(Math.max(Math.floor(days), 1), 365) : DEFAULT_LOGIN_LOG_RETENTION_DAYS;
-      const input = byId("loginLogRetentionDaysInput");
-      if (input) input.value = String(safeDays);
-      return safeDays;
+      const raw = Number(localStorage.getItem(LOGIN_LOG_RETENTION_LOCAL_KEY) || DEFAULT_LOGIN_LOG_RETENTION_DAYS);
+      return Number.isFinite(raw) && raw > 0 ? Math.min(Math.max(Math.floor(raw), 1), 365) : DEFAULT_LOGIN_LOG_RETENTION_DAYS;
     } catch (error) {
-      console.warn("로그 저장기간 조회 실패:", error);
       return DEFAULT_LOGIN_LOG_RETENTION_DAYS;
     }
+  }
+
+  function saveLocalLoginLogRetentionDays(days) {
+    try {
+      localStorage.setItem(LOGIN_LOG_RETENTION_LOCAL_KEY, String(days));
+    } catch (error) {}
+  }
+
+  async function loadLoginLogRetentionDays() {
+    let safeDays = getLocalLoginLogRetentionDays();
+    try {
+      const snap = await get(ref(membershipDb, `${LOGIN_LOG_SETTINGS_PATH}/retentionDays`));
+      const days = Number(snap.exists() ? snap.val() : safeDays);
+      safeDays = Number.isFinite(days) && days > 0 ? Math.min(Math.max(Math.floor(days), 1), 365) : DEFAULT_LOGIN_LOG_RETENTION_DAYS;
+      saveLocalLoginLogRetentionDays(safeDays);
+    } catch (error) {
+      console.warn("로그 저장기간 조회 실패, 로컬 저장값을 사용합니다:", error);
+    }
+    const input = byId("loginLogRetentionDaysInput");
+    if (input) input.value = String(safeDays);
+    return safeDays;
   }
 
   async function saveLoginLogRetentionDays() {
@@ -8316,12 +8339,25 @@ function renderAll() {
     const raw = Number(input?.value || DEFAULT_LOGIN_LOG_RETENTION_DAYS);
     const days = Number.isFinite(raw) && raw > 0 ? Math.min(Math.max(Math.floor(raw), 1), 365) : DEFAULT_LOGIN_LOG_RETENTION_DAYS;
     if (input) input.value = String(days);
-    await update(ref(membershipDb), {
-      [`${LOGIN_LOG_SETTINGS_PATH}/retentionDays`]: days,
-      [`${LOGIN_LOG_SETTINGS_PATH}/updatedAt`]: Date.now()
-    });
+    saveLocalLoginLogRetentionDays(days);
+
+    let firebaseSaved = true;
+    try {
+      await update(ref(membershipDb), {
+        [`${LOGIN_LOG_SETTINGS_PATH}/retentionDays`]: days,
+        [`${LOGIN_LOG_SETTINGS_PATH}/updatedAt`]: Date.now()
+      });
+    } catch (error) {
+      firebaseSaved = false;
+      console.warn("로그 저장기간 Firebase 저장 실패, 로컬 저장값으로 유지합니다:", error);
+    }
+
     await cleanupOldLoginLogs(days);
-    alert(`로그 기록 저장기간을 ${days}일로 저장했습니다.`);
+    alert(firebaseSaved
+      ? `로그 기록 저장기간을 ${days}일로 저장했습니다.`
+      : `로그 기록 저장기간을 ${days}일로 저장했습니다.
+
+단, Firebase 저장 권한이 없어 이 기기 로컬 저장값으로 유지됩니다.`);
   }
 
   async function cleanupOldLoginLogs(daysOverride) {
@@ -8566,6 +8602,7 @@ function renderAll() {
       // localStorage에 남기면 로그인 화면에서 새로고침 시 자동 진입되는 문제가 생긴다.
       localStorage.removeItem(LOGIN_SESSION_KEY);
       sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(registeredSession));
+      document.documentElement.classList.add("restore-member-session");
     } catch (e) {}
 
     saveMemberLoginName(matched.name || name);
@@ -8861,6 +8898,7 @@ function renderAll() {
         const session = JSON.parse(saved);
         if (session && session.code && session.name) {
           currentApprovedMemberSession = session;
+          try { document.documentElement.classList.add("restore-member-session"); } catch (_) {}
           unlockApp(session);
           if (session.deviceId) startActiveSessionWatch(session);
           if (isAdminEntryRefresh && (session.adminAccess || session.role === "admin" || session.code === "ADMIN")) {
@@ -8913,7 +8951,7 @@ function renderAll() {
       return;
     }
 
-    try { document.documentElement.classList.remove("restore-admin-session"); } catch (_) {}
+    try { document.documentElement.classList.remove("restore-admin-session", "restore-member-session"); } catch (_) {}
     document.body.classList.add("membership-locked");
     const gate = byId("memberAuthGate");
     if (gate) {
@@ -8939,6 +8977,7 @@ function renderAll() {
     stopActiveSessionWatchers();
     currentApprovedMemberSession = null;
     try {
+      document.documentElement.classList.remove("restore-member-session");
       localStorage.removeItem(LOGIN_SESSION_KEY);
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
       sessionStorage.removeItem("bus-seat-admin-refresh-mode-v1");
@@ -9564,8 +9603,9 @@ function renderAll() {
     document.addEventListener("DOMContentLoaded", () => {
       clearMemberAuthInputValues();
       window.addEventListener("beforeunload", () => {
-    try { removeCurrentActiveSession(); } catch (error) {}
-  });
+        // 모바일 손가락 새로고침/브라우저 새로고침에서는 로그인 세션을 삭제하지 않는다.
+        // 실제 로그아웃 버튼을 눌렀을 때만 clearApprovedMemberSession()에서 세션을 정리한다.
+      });
 
   bindMembershipGate();
       restoreSessionIfValid().catch((error) => {
