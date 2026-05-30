@@ -5547,21 +5547,23 @@ function renderAll() {
     }
 
     function handleAdminLogout() {
-      // 관리자 모드의 로그오프는 회원 앱 로그아웃이 아니다.
-      // 관리자 인증만 해제하고 관리자 비밀번호 입력 화면 상태를 새로고침 후에도 유지한다.
+      // 관리자 로그오프: 회원 로그인은 유지하고 관리자 권한/관리자모드에서만 빠져나온다.
       state.isAdminAuthenticated = false;
       state.isSystemAdminAuthenticated = false;
+      state.mode = "member";
+      state.adminSeat = "";
+      state.editingSeat = null;
+      state.editName = "";
       try {
         sessionStorage.setItem(ADMIN_ENTRY_REFRESH_SESSION_KEY, "1");
         sessionStorage.setItem(ADMIN_REFRESH_MODE_SESSION_KEY, "adminEntry");
         localStorage.setItem(ADMIN_ENTRY_PERSIST_KEY, "1");
         document.documentElement.classList.add("restore-admin-session");
       } catch (error) {}
-      state.mode = "admin";
-      state.adminSeat = "";
-      state.editingSeat = null;
-      state.editName = "";
       renderAll();
+      try {
+        if (typeof goToAdminEntryOnlyPatch === "function") goToAdminEntryOnlyPatch();
+      } catch (error) {}
     }
 
     async function handleSystemAdminLogin() {
@@ -7096,11 +7098,11 @@ function renderAll() {
       e.stopPropagation();
       if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       try {
-        if (typeof window.__busSeatShowAdminEntryAfterLogoff === "function") window.__busSeatShowAdminEntryAfterLogoff();
-        else goToAdminEntryOnlyPatch();
+        if (typeof handleAdminLogout === "function") handleAdminLogout();
+        else if (typeof goToAdminEntryOnlyPatch === "function") goToAdminEntryOnlyPatch();
       } catch (error) {
         console.error("admin logout failed", error);
-        goToAdminEntryOnlyPatch();
+        try { if (typeof goToAdminEntryOnlyPatch === "function") goToAdminEntryOnlyPatch(); } catch(e) {}
       }
       return;
     }
@@ -7111,11 +7113,11 @@ function renderAll() {
       e.stopPropagation();
       if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       try {
-        if (typeof window.__busSeatShowAdminEntryAfterLogoff === "function") window.__busSeatShowAdminEntryAfterLogoff();
-        else goToAdminEntryOnlyPatch();
+        if (typeof window.__busSeatMembershipLogout === "function") window.__busSeatMembershipLogout();
+        else showMemberLoginScreenPatch();
       } catch (error) {
         console.error("manage logout failed", error);
-        goToAdminEntryOnlyPatch();
+        showMemberLoginScreenPatch();
       }
       return;
     }
