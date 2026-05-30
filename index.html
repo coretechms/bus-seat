@@ -8990,9 +8990,19 @@ function renderAll() {
       window.__busSeatForceFullLogoutFromMembership();
     }
     document.body.classList.add("membership-locked");
-    document.body.classList.remove("admin-mode", "member-manage-mode");
+    document.body.classList.remove("admin-mode", "member-manage-mode", "admin-entry-only", "approval-admin-mode", "member-mode");
     const gate = byId("memberAuthGate");
-    if (gate) gate.classList.remove("is-hidden");
+    if (gate) {
+      gate.classList.remove("is-hidden");
+      gate.style.display = "";
+      gate.style.visibility = "visible";
+      gate.style.pointerEvents = "auto";
+    }
+    const app = document.querySelector(".app");
+    if (app) {
+      app.style.visibility = "hidden";
+      app.style.pointerEvents = "none";
+    }
     byId("memberSignupPanel")?.classList.remove("is-open");
     byId("memberPasswordChangePanel")?.classList.remove("is-open");
     clearMemberAuthInputValues();
@@ -11584,6 +11594,58 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
   window.addEventListener("pageshow", function(){ setTimeout(syncHistoryToScreen, 80); });
   document.addEventListener("DOMContentLoaded", function(){ setTimeout(syncHistoryToScreen, 120); });
+})();
+</script>
+
+
+<script>
+/* 요청 수정: 회원 로그아웃은 로그인 화면을 반드시 다시 표시하고, 관리자 로그오프는 관리자 진입 화면만 유지 */
+(function(){
+  function forceShowMemberLoginGate(){
+    try{ document.documentElement.classList.remove("restore-admin-session"); }catch(e){}
+    try{
+      sessionStorage.removeItem("bus-seat-admin-refresh-mode-v1");
+      sessionStorage.removeItem("bus-seat-admin-entry-refresh-v1");
+      localStorage.removeItem("bus-seat-admin-entry-persist-v1");
+    }catch(e){}
+    try{
+      document.body.classList.add("membership-locked");
+      document.body.classList.remove("admin-mode", "member-manage-mode", "admin-entry-only", "approval-admin-mode", "member-mode");
+      const gate = document.getElementById("memberAuthGate");
+      if(gate){
+        gate.classList.remove("is-hidden");
+        gate.style.display = "";
+        gate.style.visibility = "visible";
+        gate.style.pointerEvents = "auto";
+      }
+      const app = document.querySelector(".app");
+      if(app){
+        app.style.visibility = "hidden";
+        app.style.pointerEvents = "none";
+      }
+      const signup = document.getElementById("memberSignupPanel");
+      const change = document.getElementById("memberPasswordChangePanel");
+      if(signup) signup.classList.remove("is-open");
+      if(change) change.classList.remove("is-open");
+      const msg = document.getElementById("memberAuthMessage");
+      if(msg){
+        msg.classList.remove("ok");
+        msg.textContent = "로그아웃되었습니다. 다시 로그인하세요.";
+      }
+    }catch(e){}
+  }
+
+  document.addEventListener("click", function(event){
+    const btn = event.target && event.target.closest ? event.target.closest("#memberTopLogoutBtn") : null;
+    if(!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if(event.stopImmediatePropagation) event.stopImmediatePropagation();
+    try{
+      if(typeof window.__busSeatMembershipLogout === "function") window.__busSeatMembershipLogout();
+    }catch(e){}
+    forceShowMemberLoginGate();
+  }, true);
 })();
 </script>
 
