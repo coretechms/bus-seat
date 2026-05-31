@@ -2602,6 +2602,12 @@ body.member-mode .controls {
   }
 }
 
+
+
+/* 요청 수정: 회원관리 목록은 실시간 자동 감시로 갱신하므로 새로고침 버튼 숨김 */
+#memberApprovalRefreshBtn{
+  display:none !important;
+}
 </style>
 </head>
 <body class="membership-locked">
@@ -9793,14 +9799,30 @@ function renderAll() {
   }
 
   async function readAllMembers() {
-    const [membersSnap, pendingSnap, joinCodesSnap, rootMembershipSnap, rootMembersSnap, legacySecureMembersSnap, legacySecurePendingSnap] = await Promise.all([
+    const [
+      membersSnap,
+      pendingSnap,
+      joinCodesSnap,
+      rootMembershipSnap,
+      rootMembersSnap,
+      legacySecureMembersSnap,
+      legacySecurePendingSnap,
+      membershipPendingSnap,
+      rootPendingSnap,
+      busSeatRootPendingSnap,
+      busSeatRootMembersSnap
+    ] = await Promise.all([
       get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`)).catch(() => null),
       get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/pending`)).catch(() => null),
       get(ref(manageDb, MANAGE_JOIN_CODES_PATH)).catch(() => null),
       get(ref(manageDb, "membership/members")).catch(() => null),
       get(ref(manageDb, "members")).catch(() => null),
       get(ref(manageDb, "busSeatApp/membership/members")).catch(() => null),
-      get(ref(manageDb, "busSeatApp/membership/pending")).catch(() => null)
+      get(ref(manageDb, "busSeatApp/membership/pending")).catch(() => null),
+      get(ref(manageDb, "membership/pending")).catch(() => null),
+      get(ref(manageDb, "pending")).catch(() => null),
+      get(ref(manageDb, "busSeatApp/pending")).catch(() => null),
+      get(ref(manageDb, "busSeatApp/members")).catch(() => null)
     ]);
     const map = new Map();
 
@@ -9829,11 +9851,16 @@ function renderAll() {
     Object.keys(rootMembershipMembers).forEach((code) => addMemberMapRecord(map, code, rootMembershipMembers[code]));
     const rootMembers = rootMembersSnap && rootMembersSnap.exists() ? rootMembersSnap.val() || {} : {};
     Object.keys(rootMembers).forEach((code) => addMemberMapRecord(map, code, rootMembers[code]));
+    const busSeatRootMembers = busSeatRootMembersSnap && busSeatRootMembersSnap.exists() ? busSeatRootMembersSnap.val() || {} : {};
+    Object.keys(busSeatRootMembers).forEach((code) => addMemberMapRecord(map, code, busSeatRootMembers[code]));
 
     // pending 경로에 코드만 남아 있고 members 객체가 누락된 경우도 표시한다.
     const pendingSources = [
       { snap: pendingSnap, path: `${MANAGE_MEMBERS_ROOT}/pending` },
-      { snap: legacySecurePendingSnap, path: "busSeatApp/membership/pending" }
+      { snap: legacySecurePendingSnap, path: "busSeatApp/membership/pending" },
+      { snap: membershipPendingSnap, path: "membership/pending" },
+      { snap: rootPendingSnap, path: "pending" },
+      { snap: busSeatRootPendingSnap, path: "busSeatApp/pending" }
     ];
     pendingSources.forEach(({ snap, path }) => {
       const pending = snap && snap.exists() ? snap.val() || {} : {};
@@ -10981,9 +11008,61 @@ function renderAll() {
 
   window.__forceLoadMemberManageList = forceLoadMemberManageList;
 
+  // 회원관리 화면 실시간 감시: PC/모바일 모두 DB 변경 즉시 목록 자동 갱신
+  // 새로고침 버튼 없이도 가입대기/승인/차단/탈퇴/삭제 변경을 자동 반영한다.
+  const MEMBER_MANAGE_REALTIME_PATHS = [
+    `${MANAGE_MEMBERS_ROOT}/members`,
+    `${MANAGE_MEMBERS_ROOT}/pending`,
+    MANAGE_JOIN_CODES_PATH,
+    "busSeatApp/membership/members",
+    "busSeatApp/membership/pending",
+    "membership/members",
+    "membership/pending",
+    "members",
+    "pending",
+    "busSeatApp/members",
+    "busSeatApp/pending"
+  ];
+  let memberManageRealtimeStarted = false;
+  let memberManageRealtimeTimer = null;
+  let memberManageRealtimeUnsubs = [];
+
+  function isMemberManagePanelVisible() {
+    const panel = q('#memberManagePanel');
+    return !!(panel && !panel.classList.contains('hidden') && panel.offsetParent !== null);
+  }
+
+  function scheduleMemberManageRealtimeReload() {
+    if (!isMemberManagePanelVisible()) return;
+    clearTimeout(memberManageRealtimeTimer);
+    memberManageRealtimeTimer = setTimeout(() => {
+      forceLoadMemberManageList().catch((error) => {
+        console.error('회원관리 실시간 자동갱신 오류:', error);
+      });
+    }, 220);
+  }
+
+  function startMemberManageRealtimeWatch() {
+    if (memberManageRealtimeStarted) return;
+    memberManageRealtimeStarted = true;
+    memberManageRealtimeUnsubs = MEMBER_MANAGE_REALTIME_PATHS.map((path) => {
+      try {
+        return onValue(ref(manageDb, path), scheduleMemberManageRealtimeReload, (error) => {
+          console.warn(`회원관리 실시간 감시 실패: ${path}`, error);
+        });
+      } catch (error) {
+        console.warn(`회원관리 실시간 감시 연결 오류: ${path}`, error);
+        return null;
+      }
+    }).filter(Boolean);
+  }
+
+  window.__startMemberManageRealtimeWatch = startMemberManageRealtimeWatch;
+
   document.addEventListener('click', (event) => {
     const manageTab = event.target.closest('#memberManageTab');
     if (manageTab) {
+      startMemberManageRealtimeWatch();
       setTimeout(forceLoadMemberManageList, 180);
       return;
     }
@@ -11059,6 +11138,7 @@ function renderAll() {
     if (!panel || !list) return;
     const panelVisible = !panel.classList.contains('hidden') && panel.offsetParent !== null;
     const needsLoad = /회원관리 탭|관리자 로그인|불러옵니다|사용할 수 있습니다/.test(list.textContent || '');
+    if (panelVisible) startMemberManageRealtimeWatch();
     if (panelVisible && needsLoad && !window.__memberManageAutoLoading) {
       window.__memberManageAutoLoading = true;
       forceLoadMemberManageList().finally(() => setTimeout(() => { window.__memberManageAutoLoading = false; }, 1000));
