@@ -2602,16 +2602,6 @@ body.member-mode .controls {
   }
 }
 
-
-
-/* 복구 수정: 모바일 회원관리 버튼 터치 영역 보정 - 이벤트 차단 없이 버튼만 터치 가능 */
-#memberManagePanel button[data-forced-member-action],
-#memberManagePanel button[data-member-action],
-#memberManageTab,
-#adminTab,
-#memberTab {
-  pointer-events: auto !important;
-}
 </style>
 </head>
 <body class="membership-locked">
@@ -10356,7 +10346,6 @@ function renderAll() {
   async function forceLoadMemberManageList() {
     setListMessage('가입자 DB 불러오는 중...');
     try {
-      startMemberManageRealtimeSync();
       const members = await readAllMembers();
       renderMembers(members);
     } catch (error) {
@@ -10364,69 +10353,29 @@ function renderAll() {
       setListMessage(`가입자 DB를 읽지 못했습니다. Firebase Rules 또는 연결을 확인하세요. (${error?.code || error?.message || error})`);
     }
   }
-
-  /* 모바일 회원관리 실시간 동기화 보강
-     기존 코드는 탭 진입/새로고침 버튼 때만 get()으로 1회 읽어서,
-     모바일 PWA가 화면을 유지한 상태에서는 다른 기기 변경분이 자동 반영되지 않았다.
-     표시/로그인/승인대기 경로에 onValue 리스너를 붙이고, 화면이 보일 때만 목록을 다시 그린다. */
-  let memberManageRealtimeStarted = false;
-  let memberManageRealtimeReloadTimer = null;
-  const memberManageRealtimeUnsubs = [];
-
-  function isMemberManagePanelVisibleForSync() {
-    const panel = q('#memberManagePanel');
-    return !!panel && !panel.classList.contains('hidden') && panel.offsetParent !== null;
-  }
-
-  function scheduleMemberManageRealtimeReload(reason) {
-    if (!isMemberManagePanelVisibleForSync()) return;
-    clearTimeout(memberManageRealtimeReloadTimer);
-    memberManageRealtimeReloadTimer = setTimeout(async () => {
-      try {
-        const members = await readAllMembers();
-        renderMembers(members);
-      } catch (error) {
-        console.warn('회원관리 실시간 동기화 목록 갱신 실패:', reason, error);
-      }
-    }, 250);
-  }
-
-  function watchMemberManagePath(path) {
-    try {
-      const unsubscribe = onValue(ref(manageDb, path), () => {
-        scheduleMemberManageRealtimeReload(path);
-      }, (error) => {
-        // 일부 과거/보안 경로는 rules상 읽기 권한이 없을 수 있으므로 전체 동기화를 중단하지 않는다.
-        console.warn('회원관리 실시간 동기화 경로 권한/연결 오류:', path, error);
-      });
-      if (typeof unsubscribe === 'function') memberManageRealtimeUnsubs.push(unsubscribe);
-    } catch (error) {
-      console.warn('회원관리 실시간 동기화 리스너 등록 실패:', path, error);
-    }
-  }
-
-  function startMemberManageRealtimeSync() {
-    if (memberManageRealtimeStarted) return;
-    memberManageRealtimeStarted = true;
-    [
-      `${MANAGE_MEMBERS_ROOT}/members`,
-      `${MANAGE_MEMBERS_ROOT}/pending`,
-      `${MANAGE_MEMBERS_ROOT}/nameIndex`,
-      MANAGE_JOIN_CODES_PATH,
-      'busSeatApp/membership/members',
-      'busSeatApp/membership/pending',
-      'membership/members',
-      'members'
-    ].forEach(watchMemberManagePath);
-  }
-
-  window.__startMemberManageRealtimeSync = startMemberManageRealtimeSync;
   // member-list-ver3.html 자동등록용 핵심 미러 경로.
   // 승인/차단/탈퇴 결과는 bus-seat DB의 memberList/joinCodes/{회원코드}에 기록되고,
   // 멤버리스트 파일이 이 경로를 읽어서 표에 반영한다.
   async function mirrorJoinCode(member) {
     await update(ref(manageDb), {
-      [`${MANAGE_JOIN_CODES_PATH}/${member.code}`]: makeManageJoinCodeUpdate(member)
+      [`${MANAGE_JOIN_CODES_PATH}/${member.code}`]: {
+        code: member.code,
+        name: member.name || '',
+        gender: member.gender || '',
+        birthYear: member.birthYear || '',
+        phone: member.phone || '',
+        phoneLast4: member.phoneLast4 || '',
+        dong: member.dong || '',
+        status: member.status || 'pending',
+        approvalResult: joinResultLabel(member),
+        joinStatus: joinResultLabel(member),
+        approved: !!member.approved,
+        role: member.role || 'member',
+        adminAccess: !!member.adminAccess,
+        memberType: member.memberType || '',
+        createdAt: member.createdAt || Date.now(),
+        updatedAt: Date.now()
+      }
     });
   }
 
@@ -10449,126 +10398,6 @@ function renderAll() {
       apps: m.apps || {},
       updatedAt: Date.now()
     };
-  }
-
-
-  function isManagePermissionDenied(error) {
-    const code = String(error?.code || "").toLowerCase();
-    const message = String(error?.message || error || "").toLowerCase();
-    return code.includes("permission_denied") || code.includes("permission-denied") || message.includes("permission_denied") || message.includes("permission denied");
-  }
-
-  function makeManageJoinCodeUpdate(member) {
-    const m = member || {};
-    return {
-      code: m.code || "",
-      name: m.name || "",
-      gender: m.gender || "",
-      birthYear: m.birthYear || "",
-      phone: m.phone || "",
-      phoneLast4: m.phoneLast4 || "",
-      dong: m.dong || "",
-      status: m.status || "pending",
-      approvalResult: joinResultLabel(m),
-      joinStatus: joinResultLabel(m),
-      approved: !!m.approved,
-      role: m.role || "member",
-      adminAccess: !!m.adminAccess,
-      memberType: m.memberType || "",
-      createdAt: m.createdAt || Date.now(),
-      updatedAt: Date.now()
-    };
-  }
-
-
-  // 모바일 회원관리 버튼 권한 보정:
-  // Firebase update(ref(db), updates)는 updates 안에 권한 없는 경로가 하나라도 있으면 전체가 실패한다.
-  // 그래서 버튼 처리에서는 가능한 경로를 하나씩 시도하고, 권한 없는 경로는 건너뛴다.
-  async function safeManageUpdateOneByOne(updates, label = "회원 처리") {
-    const entries = Object.entries(updates || {}).filter(([path]) => path && !path.includes("undefined"));
-    let successCount = 0;
-    let lastError = null;
-    for (const [path, value] of entries) {
-      try {
-        await update(ref(manageDb), { [path]: value });
-        successCount += 1;
-      } catch (error) {
-        lastError = error;
-        if (!isManagePermissionDenied(error)) {
-          console.warn(`${label} 경로 저장 실패: ${path}`, error);
-        } else {
-          console.warn(`${label} 권한 없는 경로 건너뜀: ${path}`, error);
-        }
-      }
-    }
-    return { successCount, lastError };
-  }
-
-  function makeJoinCodeOnlyUpdate(code, member, action) {
-    const next = { ...(member || {}), code };
-    if (action === "delete") {
-      return makeDeleteUpdatesForMemberEverywhere(code, next);
-    }
-    return { [`${MANAGE_JOIN_CODES_PATH}/${code}`]: makeManageJoinCodeUpdate(next) };
-  }
-
-  function makeSourceOnlyMemberUpdates(code, member, action, source, previousNameKey) {
-    const targetMembersPath = source?.membersPath || `${MANAGE_MEMBERS_ROOT}/members`;
-    const targetPendingPath = source?.pendingPath || `${MANAGE_MEMBERS_ROOT}/pending`;
-    const targetNameIndexPath = source?.nameIndexPath || `${MANAGE_MEMBERS_ROOT}/nameIndex`;
-    const targetLoginIndexPath = source?.loginIndexPath || `${MANAGE_MEMBERS_ROOT}/loginIndex`;
-    const nameKey = makeManageNameKey(member.name || member.nameKey || "");
-    const updates = {};
-
-    if (action === "delete") {
-      updates[`${targetMembersPath}/${code}`] = null;
-      updates[`${targetPendingPath}/${code}`] = null;
-      if (previousNameKey) {
-        updates[`${targetNameIndexPath}/${previousNameKey}/${code}`] = null;
-        if (targetLoginIndexPath) updates[`${targetLoginIndexPath}/${previousNameKey}/${code}`] = null;
-      }
-      if (nameKey && nameKey !== previousNameKey) {
-        updates[`${targetNameIndexPath}/${nameKey}/${code}`] = null;
-        if (targetLoginIndexPath) updates[`${targetLoginIndexPath}/${nameKey}/${code}`] = null;
-      }
-      updates[`${MANAGE_JOIN_CODES_PATH}/${code}`] = {
-        code,
-        name: member.name || member.memberName || member.userName || member.displayName || "",
-        gender: member.gender || "",
-        birthYear: member.birthYear || "",
-        phone: member.phone || "",
-        phoneLast4: member.phoneLast4 || "",
-        dong: member.dong || "",
-        status: "deleted",
-        approvalResult: "삭제",
-        joinStatus: "삭제",
-        approved: false,
-        role: "deleted",
-        adminAccess: false,
-        memberType: member.memberType || "",
-        deletedAt: Date.now(),
-        updatedAt: Date.now()
-      };
-      return updates;
-    }
-
-    if (action === "approve" || action === "block" || action === "toggle-admin" || action === "withdraw") {
-      updates[`${targetPendingPath}/${code}`] = null;
-    }
-    updates[`${targetMembersPath}/${code}`] = member;
-    if (nameKey) updates[`${targetNameIndexPath}/${nameKey}/${code}`] = true;
-    if (previousNameKey && previousNameKey !== nameKey) {
-      updates[`${targetNameIndexPath}/${previousNameKey}/${code}`] = null;
-      if (targetLoginIndexPath) updates[`${targetLoginIndexPath}/${previousNameKey}/${code}`] = null;
-    }
-    if (targetLoginIndexPath && nameKey) {
-      const loginIndexPath = `${targetLoginIndexPath}/${nameKey}/${code}`;
-      updates[loginIndexPath] = (member.status === "active" && member.approved && member.passwordHash)
-        ? makeManageMemberLoginIndexRecord(member)
-        : null;
-    }
-    updates[`${MANAGE_JOIN_CODES_PATH}/${code}`] = makeManageJoinCodeUpdate(member);
-    return updates;
   }
 
   /* 회원관리 강제 렌더 모듈에서도 승인 처리 시 기존 memberList/main 표에 병합한다. */
@@ -11065,18 +10894,7 @@ function renderAll() {
       if (legacyPendingPath && legacyPendingPath !== `${MANAGE_MEMBERS_ROOT}/pending`) updates[`${legacyPendingPath}/${code}`] = null;
     } else if (action === 'delete') {
       Object.assign(updates, makeDeleteUpdatesForMemberEverywhere(code, member));
-      try {
-        await update(ref(manageDb), updates);
-      } catch (error) {
-        if (!isManagePermissionDenied(error)) throw error;
-        console.warn('회원 삭제 전체 경로 정리 권한 부족, 가능한 경로만 순차 삭제합니다.', error);
-        const fallbackUpdates = {
-          ...makeSourceOnlyMemberUpdates(code, member, action, source, nameKeyBefore),
-          ...makeJoinCodeOnlyUpdate(code, member, action)
-        };
-        const result = await safeManageUpdateOneByOne(fallbackUpdates, '회원 삭제');
-        if (!result.successCount && result.lastError && !isManagePermissionDenied(result.lastError)) throw result.lastError;
-      }
+      await update(ref(manageDb), updates);
       await forceLoadMemberManageList();
       return;
     }
@@ -11103,24 +10921,9 @@ function renderAll() {
       updates[loginIndexPath] = null;
     }
 
-    try {
-      await update(ref(manageDb), updates);
-      await mirrorJoinCode(member);
-    } catch (error) {
-      if (!isManagePermissionDenied(error)) throw error;
-      console.warn('회원 처리 기본 경로 권한 부족, 가능한 경로만 순차 저장합니다.', error);
-      const fallbackUpdates = {
-        ...makeSourceOnlyMemberUpdates(code, member, action, source, nameKeyBefore),
-        ...makeJoinCodeOnlyUpdate(code, member, action)
-      };
-      const result = await safeManageUpdateOneByOne(fallbackUpdates, '회원 처리');
-      if (!result.successCount && result.lastError && !isManagePermissionDenied(result.lastError)) throw result.lastError;
-    }
-    try {
-      await mergeManageMemberIntoMemberListMain(member);
-    } catch (error) {
-      console.warn('memberList/main 보조 반영 실패 또는 권한 부족, 버튼 처리는 계속 완료 처리합니다.', error);
-    }
+    await update(ref(manageDb), updates);
+    await mirrorJoinCode(member);
+    await mergeManageMemberIntoMemberListMain(member);
     await forceLoadMemberManageList();
   }
 
@@ -11197,8 +11000,6 @@ function renderAll() {
     const actionBtn = event.target.closest('#memberManagePanel button[data-forced-member-action], #memberManagePanel button[data-member-action]');
     if (actionBtn) {
       event.preventDefault();
-      event.stopPropagation();
-      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
       const action = actionBtn.getAttribute('data-forced-member-action') || actionBtn.getAttribute('data-member-action');
       const code = actionBtn.getAttribute('data-code');
       if (!code) return;
@@ -11224,19 +11025,6 @@ function renderAll() {
       forceLoadMemberManageList().finally(() => setTimeout(() => { window.__memberManageAutoLoading = false; }, 1000));
     }
   }, 1000);
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && isMemberManagePanelVisibleForSync()) {
-      startMemberManageRealtimeSync();
-      scheduleMemberManageRealtimeReload('visibilitychange');
-    }
-  });
-  window.addEventListener('pageshow', () => {
-    if (isMemberManagePanelVisibleForSync()) {
-      startMemberManageRealtimeSync();
-      scheduleMemberManageRealtimeReload('pageshow');
-    }
-  });
 </script>
 
 
