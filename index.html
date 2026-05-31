@@ -2602,6 +2602,16 @@ body.member-mode .controls {
   }
 }
 
+
+
+/* 복구 수정: 모바일 회원관리 버튼 터치 영역 보정 - 이벤트 차단 없이 버튼만 터치 가능 */
+#memberManagePanel button[data-forced-member-action],
+#memberManagePanel button[data-member-action],
+#memberManageTab,
+#adminTab,
+#memberTab {
+  pointer-events: auto !important;
+}
 </style>
 </head>
 <body class="membership-locked">
@@ -11201,28 +11211,6 @@ function renderAll() {
       });
     }
   }, true);
-
-  // 모바일 Safari/PWA에서 동적 생성 버튼의 click 전달이 끊기는 경우를 막기 위한 보조 터치 처리
-  document.addEventListener('touchend', (event) => {
-    const actionBtn = event.target && event.target.closest ? event.target.closest('#memberManagePanel button[data-forced-member-action], #memberManagePanel button[data-member-action]') : null;
-    if (!actionBtn) return;
-    if (actionBtn.dataset.memberTouchHandled === '1') return;
-    actionBtn.dataset.memberTouchHandled = '1';
-    setTimeout(() => { try { delete actionBtn.dataset.memberTouchHandled; } catch (e) {} }, 700);
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
-    const action = actionBtn.getAttribute('data-forced-member-action') || actionBtn.getAttribute('data-member-action');
-    const code = actionBtn.getAttribute('data-code');
-    if (!code) return;
-    if (action === 'withdraw' && !confirm('이 회원을 탈퇴 처리하고 비밀번호 해시를 삭제할까요?')) return;
-    if (action === 'delete' && !confirm('이 회원 데이터를 가입자 DB와 회원코드 DB에서 완전히 삭제할까요?')) return;
-    if (action === 'block' && !confirm('이 회원의 앱 접근을 차단할까요?')) return;
-    forceUpdateMember(code, action).catch((error) => {
-      console.error('회원 처리 오류:', error);
-      alert(`회원 처리 오류: ${error?.code || error?.message || error}`);
-    });
-  }, { capture: true, passive: false });
 
   // 회원관리 탭이 이미 열려 있거나 관리자 모드에서 패널이 보이면 자동 표시한다.
   setInterval(() => {
