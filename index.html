@@ -10412,6 +10412,38 @@ function renderAll() {
     };
   }
 
+
+  // 모바일 회원관리 버튼 권한 보정:
+  // Firebase update(ref(db), updates)는 updates 안에 권한 없는 경로가 하나라도 있으면 전체가 실패한다.
+  // 그래서 버튼 처리에서는 가능한 경로를 하나씩 시도하고, 권한 없는 경로는 건너뛴다.
+  async function safeManageUpdateOneByOne(updates, label = "회원 처리") {
+    const entries = Object.entries(updates || {}).filter(([path]) => path && !path.includes("undefined"));
+    let successCount = 0;
+    let lastError = null;
+    for (const [path, value] of entries) {
+      try {
+        await update(ref(manageDb), { [path]: value });
+        successCount += 1;
+      } catch (error) {
+        lastError = error;
+        if (!isManagePermissionDenied(error)) {
+          console.warn(`${label} 경로 저장 실패: ${path}`, error);
+        } else {
+          console.warn(`${label} 권한 없는 경로 건너뜀: ${path}`, error);
+        }
+      }
+    }
+    return { successCount, lastError };
+  }
+
+  function makeJoinCodeOnlyUpdate(code, member, action) {
+    const next = { ...(member || {}), code };
+    if (action === "delete") {
+      return makeDeleteUpdatesForMemberEverywhere(code, next);
+    }
+    return { [`${MANAGE_JOIN_CODES_PATH}/${code}`]: makeManageJoinCodeUpdate(next) };
+  }
+
   function makeSourceOnlyMemberUpdates(code, member, action, source, previousNameKey) {
     const targetMembersPath = source?.membersPath || `${MANAGE_MEMBERS_ROOT}/members`;
     const targetPendingPath = source?.pendingPath || `${MANAGE_MEMBERS_ROOT}/pending`;
@@ -10969,8 +11001,13 @@ function renderAll() {
         await update(ref(manageDb), updates);
       } catch (error) {
         if (!isManagePermissionDenied(error)) throw error;
-        console.warn('회원 삭제 전체 경로 정리 권한 부족, 확인된 회원 경로만 삭제합니다.', error);
-        await update(ref(manageDb), makeSourceOnlyMemberUpdates(code, member, action, source, nameKeyBefore));
+        console.warn('회원 삭제 전체 경로 정리 권한 부족, 가능한 경로만 순차 삭제합니다.', error);
+        const fallbackUpdates = {
+          ...makeSourceOnlyMemberUpdates(code, member, action, source, nameKeyBefore),
+          ...makeJoinCodeOnlyUpdate(code, member, action)
+        };
+        const result = await safeManageUpdateOneByOne(fallbackUpdates, '회원 삭제');
+        if (!result.successCount && result.lastError && !isManagePermissionDenied(result.lastError)) throw result.lastError;
       }
       await forceLoadMemberManageList();
       return;
@@ -11003,14 +11040,18 @@ function renderAll() {
       await mirrorJoinCode(member);
     } catch (error) {
       if (!isManagePermissionDenied(error)) throw error;
-      console.warn('회원 처리 기본 경로 권한 부족, 확인된 회원 경로에만 저장합니다.', error);
-      await update(ref(manageDb), makeSourceOnlyMemberUpdates(code, member, action, source, nameKeyBefore));
+      console.warn('회원 처리 기본 경로 권한 부족, 가능한 경로만 순차 저장합니다.', error);
+      const fallbackUpdates = {
+        ...makeSourceOnlyMemberUpdates(code, member, action, source, nameKeyBefore),
+        ...makeJoinCodeOnlyUpdate(code, member, action)
+      };
+      const result = await safeManageUpdateOneByOne(fallbackUpdates, '회원 처리');
+      if (!result.successCount && result.lastError && !isManagePermissionDenied(result.lastError)) throw result.lastError;
     }
     try {
       await mergeManageMemberIntoMemberListMain(member);
     } catch (error) {
-      if (!isManagePermissionDenied(error)) throw error;
-      console.warn('memberList/main 보조 반영 권한 부족, 회원 처리 결과 저장은 완료되었습니다.', error);
+      console.warn('memberList/main 보조 반영 실패 또는 권한 부족, 버튼 처리는 계속 완료 처리합니다.', error);
     }
     await forceLoadMemberManageList();
   }
