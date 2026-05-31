@@ -2,19 +2,13 @@
   "name": "검암산악회",
   "short_name": "검암산악회",
   "description": "검암산악회 버스좌석 실시간 공유 앱",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0b2d58",
   "theme_color": "#0b2d58",
   "icons": [
-    {
-      "src": "geomam-icon-180.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
-    },
     {
       "src": "geomam-icon-192.png",
       "sizes": "192x192",
