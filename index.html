@@ -11649,5 +11649,17 @@ body.admin-mode:not(.member-manage-mode) .controls {
 })();
 </script>
 
+<script>
+/* PWA Service Worker 등록: 앱 설치 안정화용 - 기존 기능 영향 없음 */
+(function () {
+  if (!("serviceWorker" in navigator)) return;
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("./service-worker.js").catch(function (error) {
+      console.log("Service Worker 등록 실패:", error);
+    });
+  });
+})();
+</script>
+
 </body>
 </html>
