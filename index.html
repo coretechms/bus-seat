@@ -10358,24 +10358,7 @@ function renderAll() {
   // 멤버리스트 파일이 이 경로를 읽어서 표에 반영한다.
   async function mirrorJoinCode(member) {
     await update(ref(manageDb), {
-      [`${MANAGE_JOIN_CODES_PATH}/${member.code}`]: {
-        code: member.code,
-        name: member.name || '',
-        gender: member.gender || '',
-        birthYear: member.birthYear || '',
-        phone: member.phone || '',
-        phoneLast4: member.phoneLast4 || '',
-        dong: member.dong || '',
-        status: member.status || 'pending',
-        approvalResult: joinResultLabel(member),
-        joinStatus: joinResultLabel(member),
-        approved: !!member.approved,
-        role: member.role || 'member',
-        adminAccess: !!member.adminAccess,
-        memberType: member.memberType || '',
-        createdAt: member.createdAt || Date.now(),
-        updatedAt: Date.now()
-      }
+      [`${MANAGE_JOIN_CODES_PATH}/${member.code}`]: makeManageJoinCodeUpdate(member)
     });
   }
 
@@ -10398,6 +10381,94 @@ function renderAll() {
       apps: m.apps || {},
       updatedAt: Date.now()
     };
+  }
+
+
+  function isManagePermissionDenied(error) {
+    const code = String(error?.code || "").toLowerCase();
+    const message = String(error?.message || error || "").toLowerCase();
+    return code.includes("permission_denied") || code.includes("permission-denied") || message.includes("permission_denied") || message.includes("permission denied");
+  }
+
+  function makeManageJoinCodeUpdate(member) {
+    const m = member || {};
+    return {
+      code: m.code || "",
+      name: m.name || "",
+      gender: m.gender || "",
+      birthYear: m.birthYear || "",
+      phone: m.phone || "",
+      phoneLast4: m.phoneLast4 || "",
+      dong: m.dong || "",
+      status: m.status || "pending",
+      approvalResult: joinResultLabel(m),
+      joinStatus: joinResultLabel(m),
+      approved: !!m.approved,
+      role: m.role || "member",
+      adminAccess: !!m.adminAccess,
+      memberType: m.memberType || "",
+      createdAt: m.createdAt || Date.now(),
+      updatedAt: Date.now()
+    };
+  }
+
+  function makeSourceOnlyMemberUpdates(code, member, action, source, previousNameKey) {
+    const targetMembersPath = source?.membersPath || `${MANAGE_MEMBERS_ROOT}/members`;
+    const targetPendingPath = source?.pendingPath || `${MANAGE_MEMBERS_ROOT}/pending`;
+    const targetNameIndexPath = source?.nameIndexPath || `${MANAGE_MEMBERS_ROOT}/nameIndex`;
+    const targetLoginIndexPath = source?.loginIndexPath || `${MANAGE_MEMBERS_ROOT}/loginIndex`;
+    const nameKey = makeManageNameKey(member.name || member.nameKey || "");
+    const updates = {};
+
+    if (action === "delete") {
+      updates[`${targetMembersPath}/${code}`] = null;
+      updates[`${targetPendingPath}/${code}`] = null;
+      if (previousNameKey) {
+        updates[`${targetNameIndexPath}/${previousNameKey}/${code}`] = null;
+        if (targetLoginIndexPath) updates[`${targetLoginIndexPath}/${previousNameKey}/${code}`] = null;
+      }
+      if (nameKey && nameKey !== previousNameKey) {
+        updates[`${targetNameIndexPath}/${nameKey}/${code}`] = null;
+        if (targetLoginIndexPath) updates[`${targetLoginIndexPath}/${nameKey}/${code}`] = null;
+      }
+      updates[`${MANAGE_JOIN_CODES_PATH}/${code}`] = {
+        code,
+        name: member.name || member.memberName || member.userName || member.displayName || "",
+        gender: member.gender || "",
+        birthYear: member.birthYear || "",
+        phone: member.phone || "",
+        phoneLast4: member.phoneLast4 || "",
+        dong: member.dong || "",
+        status: "deleted",
+        approvalResult: "삭제",
+        joinStatus: "삭제",
+        approved: false,
+        role: "deleted",
+        adminAccess: false,
+        memberType: member.memberType || "",
+        deletedAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      return updates;
+    }
+
+    if (action === "approve" || action === "block" || action === "toggle-admin" || action === "withdraw") {
+      updates[`${targetPendingPath}/${code}`] = null;
+    }
+    updates[`${targetMembersPath}/${code}`] = member;
+    if (nameKey) updates[`${targetNameIndexPath}/${nameKey}/${code}`] = true;
+    if (previousNameKey && previousNameKey !== nameKey) {
+      updates[`${targetNameIndexPath}/${previousNameKey}/${code}`] = null;
+      if (targetLoginIndexPath) updates[`${targetLoginIndexPath}/${previousNameKey}/${code}`] = null;
+    }
+    if (targetLoginIndexPath && nameKey) {
+      const loginIndexPath = `${targetLoginIndexPath}/${nameKey}/${code}`;
+      updates[loginIndexPath] = (member.status === "active" && member.approved && member.passwordHash)
+        ? makeManageMemberLoginIndexRecord(member)
+        : null;
+    }
+    updates[`${MANAGE_JOIN_CODES_PATH}/${code}`] = makeManageJoinCodeUpdate(member);
+    return updates;
   }
 
   /* 회원관리 강제 렌더 모듈에서도 승인 처리 시 기존 memberList/main 표에 병합한다. */
@@ -10894,7 +10965,13 @@ function renderAll() {
       if (legacyPendingPath && legacyPendingPath !== `${MANAGE_MEMBERS_ROOT}/pending`) updates[`${legacyPendingPath}/${code}`] = null;
     } else if (action === 'delete') {
       Object.assign(updates, makeDeleteUpdatesForMemberEverywhere(code, member));
-      await update(ref(manageDb), updates);
+      try {
+        await update(ref(manageDb), updates);
+      } catch (error) {
+        if (!isManagePermissionDenied(error)) throw error;
+        console.warn('회원 삭제 전체 경로 정리 권한 부족, 확인된 회원 경로만 삭제합니다.', error);
+        await update(ref(manageDb), makeSourceOnlyMemberUpdates(code, member, action, source, nameKeyBefore));
+      }
       await forceLoadMemberManageList();
       return;
     }
@@ -10921,9 +10998,20 @@ function renderAll() {
       updates[loginIndexPath] = null;
     }
 
-    await update(ref(manageDb), updates);
-    await mirrorJoinCode(member);
-    await mergeManageMemberIntoMemberListMain(member);
+    try {
+      await update(ref(manageDb), updates);
+      await mirrorJoinCode(member);
+    } catch (error) {
+      if (!isManagePermissionDenied(error)) throw error;
+      console.warn('회원 처리 기본 경로 권한 부족, 확인된 회원 경로에만 저장합니다.', error);
+      await update(ref(manageDb), makeSourceOnlyMemberUpdates(code, member, action, source, nameKeyBefore));
+    }
+    try {
+      await mergeManageMemberIntoMemberListMain(member);
+    } catch (error) {
+      if (!isManagePermissionDenied(error)) throw error;
+      console.warn('memberList/main 보조 반영 권한 부족, 회원 처리 결과 저장은 완료되었습니다.', error);
+    }
     await forceLoadMemberManageList();
   }
 
