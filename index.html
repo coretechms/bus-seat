@@ -3985,25 +3985,59 @@ const firebaseConfig = {
       if (!state.db) return false;
       const normalized = String(memo || "").trim();
       const now = Date.now();
-
-      // 보안메모 본문은 seatAdminMemos 전용 경로에 저장한다.
-      // 일반회원은 이 경로에 쓰기만 가능하고 읽기는 막혀 있을 수 있으므로,
-      // 본문 저장 성공 여부만 보안메모 입력 성공 기준으로 본다.
-      const memoOk = await safeUpdate(ref(state.db, `seatAdminMemos/${seatNo}`), {
+      const seatKey = String(seatNo);
+      const payload = {
         memo: normalized,
         updatedAt: now,
         updatedBy: state.clientId
-      }, {
-        label: "saveSeatSecurityMemoRemote",
-        permissionMessage: "보안메모 저장 권한이 없습니다.",
-        genericMessage: "보안메모 저장 실패"
-      });
-      if (!memoOk) return false;
+      };
+
+      // 보안메모 본문은 전용 경로에 저장한다.
+      // 핵심 수정: 일부 모바일/캐시 환경에서 update()가 신규 경로 생성 권한 판단에 걸리는 경우가 있어
+      // 1차 update 실패 시 set()으로 같은 경로를 다시 저장한다. 그래도 실패하면 예전 호환 경로까지 시도한다.
+      let memoSaved = false;
+      let lastError = null;
+      const securityMemoPaths = [
+        `seatAdminMemos/${seatKey}`,
+        `${ROOT_PATH}/seatAdminMemos/${seatKey}`
+      ];
+
+      for (const path of securityMemoPaths) {
+        try {
+          await update(ref(state.db, path), payload);
+          memoSaved = true;
+          break;
+        } catch (error) {
+          lastError = error;
+          console.warn("security memo update failed, retry with set", path, error);
+          try {
+            await set(ref(state.db, path), payload);
+            memoSaved = true;
+            break;
+          } catch (setError) {
+            lastError = setError;
+            console.warn("security memo set failed", path, setError);
+          }
+        }
+      }
+
+      if (!memoSaved) {
+        console.error("saveSeatSecurityMemoRemote failed", lastError);
+        state.canWrite = false;
+        if (isPermissionError(lastError)) {
+          setStatusMessage("보안메모 저장 권한이 없습니다. Firebase Rules의 seatAdminMemos 쓰기 권한을 확인하세요.", state.projectLabel);
+        } else {
+          setStatusMessage("보안메모 저장 실패", state.projectLabel);
+        }
+        return false;
+      }
+
+      state.canWrite = true;
 
       // 좌석의 빨간 M 표시용 플래그 저장은 선택 작업이다.
-      // Firebase Rules에서 일반회원의 busSeatApp 수정이 막혀 있어도 보안메모 입력 자체가 실패로 보이지 않게 한다.
+      // 이 작업이 권한 문제로 실패해도 보안메모 본문 저장은 성공으로 처리한다.
       try {
-        await update(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
+        await update(ref(state.db, `${ROOT_PATH}/seats/${seatKey}`), {
           hasSecurityMemo: Boolean(normalized),
           updatedAt: now,
           updatedBy: state.clientId
@@ -4011,6 +4045,7 @@ const firebaseConfig = {
       } catch (error) {
         console.warn("saveSeatSecurityMemoFlag optional update skipped", error);
       }
+
       return true;
     }
 
@@ -4224,6 +4259,10 @@ const firebaseConfig = {
             renderMemoHistory();
             alert("보안메모 저장 실패: Firebase 저장 권한을 확인하세요.");
             return;
+          }
+          setStatusMessage("보안메모 저장 완료", state.projectLabel);
+          if (!canViewSecurityMemo) {
+            alert("보안메모가 저장되었습니다.\n내용은 관리자만 확인할 수 있습니다.");
           }
           input.value = "";
           input.focus();
