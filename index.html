@@ -9754,18 +9754,14 @@ function renderAll() {
   }
 
   async function readAllMembers() {
-    const [membersSnap, pendingSnap, joinCodesSnap, rootMembershipSnap, rootMembersSnap, legacySecureMembersSnap, legacySecurePendingSnap, legacyMembershipPendingSnap, rootPendingSnap, busSeatRootMembersSnap, busSeatRootPendingSnap] = await Promise.all([
+    const [membersSnap, pendingSnap, joinCodesSnap, rootMembershipSnap, rootMembersSnap, legacySecureMembersSnap, legacySecurePendingSnap] = await Promise.all([
       get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`)).catch(() => null),
       get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/pending`)).catch(() => null),
       get(ref(manageDb, MANAGE_JOIN_CODES_PATH)).catch(() => null),
       get(ref(manageDb, "membership/members")).catch(() => null),
       get(ref(manageDb, "members")).catch(() => null),
       get(ref(manageDb, "busSeatApp/membership/members")).catch(() => null),
-      get(ref(manageDb, "busSeatApp/membership/pending")).catch(() => null),
-      get(ref(manageDb, "membership/pending")).catch(() => null),
-      get(ref(manageDb, "pending")).catch(() => null),
-      get(ref(manageDb, "busSeatApp/members")).catch(() => null),
-      get(ref(manageDb, "busSeatApp/pending")).catch(() => null)
+      get(ref(manageDb, "busSeatApp/membership/pending")).catch(() => null)
     ]);
     const map = new Map();
 
@@ -9794,16 +9790,11 @@ function renderAll() {
     Object.keys(rootMembershipMembers).forEach((code) => addMemberMapRecord(map, code, rootMembershipMembers[code]));
     const rootMembers = rootMembersSnap && rootMembersSnap.exists() ? rootMembersSnap.val() || {} : {};
     Object.keys(rootMembers).forEach((code) => addMemberMapRecord(map, code, rootMembers[code]));
-    const busSeatRootMembers = busSeatRootMembersSnap && busSeatRootMembersSnap.exists() ? busSeatRootMembersSnap.val() || {} : {};
-    Object.keys(busSeatRootMembers).forEach((code) => addMemberMapRecord(map, code, busSeatRootMembers[code]));
 
     // pending 경로에 코드만 남아 있고 members 객체가 누락된 경우도 표시한다.
     const pendingSources = [
       { snap: pendingSnap, path: `${MANAGE_MEMBERS_ROOT}/pending` },
-      { snap: legacySecurePendingSnap, path: "busSeatApp/membership/pending" },
-      { snap: legacyMembershipPendingSnap, path: "membership/pending" },
-      { snap: rootPendingSnap, path: "pending" },
-      { snap: busSeatRootPendingSnap, path: "busSeatApp/pending" }
+      { snap: legacySecurePendingSnap, path: "busSeatApp/membership/pending" }
     ];
     pendingSources.forEach(({ snap, path }) => {
       const pending = snap && snap.exists() ? snap.val() || {} : {};
@@ -10353,7 +10344,6 @@ function renderAll() {
   }
 
   async function forceLoadMemberManageList() {
-    startMemberManageRealtimeSync();
     setListMessage('가입자 DB 불러오는 중...');
     try {
       const members = await readAllMembers();
@@ -10362,48 +10352,6 @@ function renderAll() {
       console.error('강제 회원관리 리스트 불러오기 오류:', error);
       setListMessage(`가입자 DB를 읽지 못했습니다. Firebase Rules 또는 연결을 확인하세요. (${error?.code || error?.message || error})`);
     }
-  }
-
-  let memberManageRealtimeStarted = false;
-  let memberManageRealtimeTimer = null;
-  function isMemberManagePanelActuallyVisible() {
-    const panel = q('#memberManagePanel');
-    return !!panel && !panel.classList.contains('hidden') && panel.offsetParent !== null;
-  }
-  function scheduleMemberManageRealtimeLoad(reason) {
-    if (!isMemberManagePanelActuallyVisible()) return;
-    clearTimeout(memberManageRealtimeTimer);
-    memberManageRealtimeTimer = setTimeout(() => {
-      forceLoadMemberManageList().catch((error) => {
-        console.error('회원관리 실시간 동기화 오류:', reason, error);
-      });
-    }, 180);
-  }
-  function startMemberManageRealtimeSync() {
-    if (memberManageRealtimeStarted) return;
-    memberManageRealtimeStarted = true;
-    const watchPaths = [
-      `${MANAGE_MEMBERS_ROOT}/members`,
-      `${MANAGE_MEMBERS_ROOT}/pending`,
-      MANAGE_JOIN_CODES_PATH,
-      'busSeatApp/membership/members',
-      'busSeatApp/membership/pending',
-      'membership/members',
-      'membership/pending',
-      'members',
-      'pending',
-      'busSeatApp/members',
-      'busSeatApp/pending'
-    ];
-    watchPaths.forEach((path) => {
-      try {
-        onValue(ref(manageDb, path), () => scheduleMemberManageRealtimeLoad(path), (error) => {
-          console.warn('회원관리 실시간 감시 권한/연결 오류:', path, error);
-        });
-      } catch (error) {
-        console.warn('회원관리 실시간 감시 시작 오류:', path, error);
-      }
-    });
   }
   // member-list-ver3.html 자동등록용 핵심 미러 경로.
   // 승인/차단/탈퇴 결과는 bus-seat DB의 memberList/joinCodes/{회원코드}에 기록되고,
@@ -11701,26 +11649,5 @@ body.admin-mode:not(.member-manage-mode) .controls {
 })();
 </script>
 
-
-<script id="member-manage-mobile-pending-visible-patch">
-(function(){
-  function isMemberManageVisible(){
-    var panel = document.getElementById('memberManagePanel');
-    var tab = document.getElementById('memberManageTab');
-    return !!(panel && !panel.classList.contains('hidden')) || !!(tab && tab.classList.contains('active'));
-  }
-  function reloadMemberManage(){
-    if(!isMemberManageVisible()) return;
-    try{
-      if(typeof window.__forceLoadMemberManageList === 'function') window.__forceLoadMemberManageList();
-      else if(window.__busSeatMembershipGate && typeof window.__busSeatMembershipGate.loadApprovalMembers === 'function') window.__busSeatMembershipGate.loadApprovalMembers();
-    }catch(e){ console.warn('회원관리 모바일 복귀 재동기화 오류', e); }
-  }
-  document.addEventListener('visibilitychange', function(){
-    if(!document.hidden) setTimeout(reloadMemberManage, 150);
-  });
-  window.addEventListener('pageshow', function(){ setTimeout(reloadMemberManage, 150); });
-})();
-</script>
 </body>
 </html>
