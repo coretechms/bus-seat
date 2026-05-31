@@ -10346,6 +10346,7 @@ function renderAll() {
   async function forceLoadMemberManageList() {
     setListMessage('가입자 DB 불러오는 중...');
     try {
+      startMemberManageRealtimeSync();
       const members = await readAllMembers();
       renderMembers(members);
     } catch (error) {
@@ -10353,6 +10354,63 @@ function renderAll() {
       setListMessage(`가입자 DB를 읽지 못했습니다. Firebase Rules 또는 연결을 확인하세요. (${error?.code || error?.message || error})`);
     }
   }
+
+  /* 모바일 회원관리 실시간 동기화 보강
+     기존 코드는 탭 진입/새로고침 버튼 때만 get()으로 1회 읽어서,
+     모바일 PWA가 화면을 유지한 상태에서는 다른 기기 변경분이 자동 반영되지 않았다.
+     표시/로그인/승인대기 경로에 onValue 리스너를 붙이고, 화면이 보일 때만 목록을 다시 그린다. */
+  let memberManageRealtimeStarted = false;
+  let memberManageRealtimeReloadTimer = null;
+  const memberManageRealtimeUnsubs = [];
+
+  function isMemberManagePanelVisibleForSync() {
+    const panel = q('#memberManagePanel');
+    return !!panel && !panel.classList.contains('hidden') && panel.offsetParent !== null;
+  }
+
+  function scheduleMemberManageRealtimeReload(reason) {
+    if (!isMemberManagePanelVisibleForSync()) return;
+    clearTimeout(memberManageRealtimeReloadTimer);
+    memberManageRealtimeReloadTimer = setTimeout(async () => {
+      try {
+        const members = await readAllMembers();
+        renderMembers(members);
+      } catch (error) {
+        console.warn('회원관리 실시간 동기화 목록 갱신 실패:', reason, error);
+      }
+    }, 250);
+  }
+
+  function watchMemberManagePath(path) {
+    try {
+      const unsubscribe = onValue(ref(manageDb, path), () => {
+        scheduleMemberManageRealtimeReload(path);
+      }, (error) => {
+        // 일부 과거/보안 경로는 rules상 읽기 권한이 없을 수 있으므로 전체 동기화를 중단하지 않는다.
+        console.warn('회원관리 실시간 동기화 경로 권한/연결 오류:', path, error);
+      });
+      if (typeof unsubscribe === 'function') memberManageRealtimeUnsubs.push(unsubscribe);
+    } catch (error) {
+      console.warn('회원관리 실시간 동기화 리스너 등록 실패:', path, error);
+    }
+  }
+
+  function startMemberManageRealtimeSync() {
+    if (memberManageRealtimeStarted) return;
+    memberManageRealtimeStarted = true;
+    [
+      `${MANAGE_MEMBERS_ROOT}/members`,
+      `${MANAGE_MEMBERS_ROOT}/pending`,
+      `${MANAGE_MEMBERS_ROOT}/nameIndex`,
+      MANAGE_JOIN_CODES_PATH,
+      'busSeatApp/membership/members',
+      'busSeatApp/membership/pending',
+      'membership/members',
+      'members'
+    ].forEach(watchMemberManagePath);
+  }
+
+  window.__startMemberManageRealtimeSync = startMemberManageRealtimeSync;
   // member-list-ver3.html 자동등록용 핵심 미러 경로.
   // 승인/차단/탈퇴 결과는 bus-seat DB의 memberList/joinCodes/{회원코드}에 기록되고,
   // 멤버리스트 파일이 이 경로를 읽어서 표에 반영한다.
@@ -11154,6 +11212,19 @@ function renderAll() {
       forceLoadMemberManageList().finally(() => setTimeout(() => { window.__memberManageAutoLoading = false; }, 1000));
     }
   }, 1000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isMemberManagePanelVisibleForSync()) {
+      startMemberManageRealtimeSync();
+      scheduleMemberManageRealtimeReload('visibilitychange');
+    }
+  });
+  window.addEventListener('pageshow', () => {
+    if (isMemberManagePanelVisibleForSync()) {
+      startMemberManageRealtimeSync();
+      scheduleMemberManageRealtimeReload('pageshow');
+    }
+  });
 </script>
 
 
