@@ -10344,6 +10344,7 @@ function renderAll() {
   }
 
   async function forceLoadMemberManageList() {
+    startMemberManageRealtimeSync();
     setListMessage('가입자 DB 불러오는 중...');
     try {
       const members = await readAllMembers();
@@ -10352,6 +10353,44 @@ function renderAll() {
       console.error('강제 회원관리 리스트 불러오기 오류:', error);
       setListMessage(`가입자 DB를 읽지 못했습니다. Firebase Rules 또는 연결을 확인하세요. (${error?.code || error?.message || error})`);
     }
+  }
+
+  let memberManageRealtimeStarted = false;
+  let memberManageRealtimeTimer = null;
+  function isMemberManagePanelActuallyVisible() {
+    const panel = q('#memberManagePanel');
+    return !!panel && !panel.classList.contains('hidden') && panel.offsetParent !== null;
+  }
+  function scheduleMemberManageRealtimeLoad(reason) {
+    if (!isMemberManagePanelActuallyVisible()) return;
+    clearTimeout(memberManageRealtimeTimer);
+    memberManageRealtimeTimer = setTimeout(() => {
+      forceLoadMemberManageList().catch((error) => {
+        console.error('회원관리 실시간 동기화 오류:', reason, error);
+      });
+    }, 180);
+  }
+  function startMemberManageRealtimeSync() {
+    if (memberManageRealtimeStarted) return;
+    memberManageRealtimeStarted = true;
+    const watchPaths = [
+      `${MANAGE_MEMBERS_ROOT}/members`,
+      `${MANAGE_MEMBERS_ROOT}/pending`,
+      MANAGE_JOIN_CODES_PATH,
+      'busSeatApp/membership/members',
+      'busSeatApp/membership/pending',
+      'membership/members',
+      'members'
+    ];
+    watchPaths.forEach((path) => {
+      try {
+        onValue(ref(manageDb, path), () => scheduleMemberManageRealtimeLoad(path), (error) => {
+          console.warn('회원관리 실시간 감시 권한/연결 오류:', path, error);
+        });
+      } catch (error) {
+        console.warn('회원관리 실시간 감시 시작 오류:', path, error);
+      }
+    });
   }
   // member-list-ver3.html 자동등록용 핵심 미러 경로.
   // 승인/차단/탈퇴 결과는 bus-seat DB의 memberList/joinCodes/{회원코드}에 기록되고,
@@ -10942,15 +10981,23 @@ function renderAll() {
 
   window.__forceLoadMemberManageList = forceLoadMemberManageList;
 
+  function consumeMemberManageEvent(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+  }
+
   document.addEventListener('click', (event) => {
     const manageTab = event.target.closest('#memberManageTab');
     if (manageTab) {
+      startMemberManageRealtimeSync();
       setTimeout(forceLoadMemberManageList, 180);
       return;
     }
     const refresh = event.target.closest('#memberManagePanel #memberApprovalRefreshBtn');
     if (refresh) {
-      event.preventDefault();
+      consumeMemberManageEvent(event);
+      startMemberManageRealtimeSync();
       forceLoadMemberManageList();
       return;
     }
@@ -10999,7 +11046,7 @@ function renderAll() {
     }
     const actionBtn = event.target.closest('#memberManagePanel button[data-forced-member-action], #memberManagePanel button[data-member-action]');
     if (actionBtn) {
-      event.preventDefault();
+      consumeMemberManageEvent(event);
       const action = actionBtn.getAttribute('data-forced-member-action') || actionBtn.getAttribute('data-member-action');
       const code = actionBtn.getAttribute('data-code');
       if (!code) return;
@@ -11020,11 +11067,23 @@ function renderAll() {
     if (!panel || !list) return;
     const panelVisible = !panel.classList.contains('hidden') && panel.offsetParent !== null;
     const needsLoad = /회원관리 탭|관리자 로그인|불러옵니다|사용할 수 있습니다/.test(list.textContent || '');
+    if (panelVisible) startMemberManageRealtimeSync();
     if (panelVisible && needsLoad && !window.__memberManageAutoLoading) {
       window.__memberManageAutoLoading = true;
       forceLoadMemberManageList().finally(() => setTimeout(() => { window.__memberManageAutoLoading = false; }, 1000));
     }
   }, 1000);
+
+  window.addEventListener('pageshow', () => {
+    if (!isMemberManagePanelActuallyVisible()) return;
+    startMemberManageRealtimeSync();
+    forceLoadMemberManageList().catch((error) => console.error('회원관리 pageshow 재동기화 오류:', error));
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !isMemberManagePanelActuallyVisible()) return;
+    startMemberManageRealtimeSync();
+    forceLoadMemberManageList().catch((error) => console.error('회원관리 visibility 재동기화 오류:', error));
+  });
 </script>
 
 
