@@ -2608,6 +2608,22 @@ body.member-mode .controls {
 #memberApprovalRefreshBtn{
   display:none !important;
 }
+
+
+/* 회원관리 목록은 실시간 자동 동기화로 갱신하므로 새로고침 버튼 완전 숨김 */
+#memberManagePanel #memberApprovalRefreshBtn,
+#memberApprovalRefreshBtn{
+  display:none !important;
+  visibility:hidden !important;
+  width:0 !important;
+  min-width:0 !important;
+  max-width:0 !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+  overflow:hidden !important;
+}
+
 </style>
 </head>
 <body class="membership-locked">
@@ -4855,23 +4871,27 @@ function renderAll() {
         if (!data) return;
         applySnapshotData(data);
       }, 60000);
-      try {
-        const adminMemoRef = ref(state.db, "seatAdminMemos");
-        onValue(adminMemoRef, (snapshot) => {
-          const data = snapshot.val() || {};
-          state.securityMemos = data && typeof data === "object" ? data : {};
-          state.seats = state.seats.map((seat) => {
-            const entry = state.securityMemos[String(seat.number)] || state.securityMemos[seat.number] || {};
-            const memoText = typeof entry === "string" ? entry : String(entry?.memo || "");
-            return { ...seat, hasSecurityMemo: Boolean(memoText.trim()) || Boolean(seat.hasSecurityMemo) };
-          });
-          renderAll();
-        }, (error) => {
-          console.warn("seatAdminMemos read failed", error);
+      const applySecurityMemoSnapshot = (data) => {
+        const nextSecurityMemos = data && typeof data === "object" ? data : {};
+        state.securityMemos = { ...(state.securityMemos || {}), ...nextSecurityMemos };
+        state.seats = state.seats.map((seat) => {
+          const entry = state.securityMemos[String(seat.number)] || state.securityMemos[seat.number] || {};
+          const memoText = typeof entry === "string" ? entry : String(entry?.memo || "");
+          return { ...seat, hasSecurityMemo: Boolean(memoText.trim()) || Boolean(seat.hasSecurityMemo) };
         });
-      } catch (error) {
-        console.warn("seatAdminMemos subscribe failed", error);
-      }
+        renderAll();
+      };
+      ["seatAdminMemos", `${ROOT_PATH}/seatAdminMemos`].forEach((memoPath) => {
+        try {
+          onValue(ref(state.db, memoPath), (snapshot) => {
+            applySecurityMemoSnapshot(snapshot.val() || {});
+          }, (error) => {
+            console.warn("seatAdminMemos read failed", memoPath, error);
+          });
+        } catch (error) {
+          console.warn("seatAdminMemos subscribe failed", memoPath, error);
+        }
+      });
       state.isSubscribed = true;
     }
 
@@ -6173,6 +6193,9 @@ function renderAll() {
       state.editName = "";
       renderAll();
       if (nextMode === "memberManage") {
+        if (typeof window.__startMemberManageRealtimeWatch === "function") {
+          window.__startMemberManageRealtimeWatch();
+        }
         if (typeof window.__loadMembershipApprovalMembers === "function") {
           window.__loadMembershipApprovalMembers().catch((error) => {
             console.error("회원관리 목록 불러오기 오류:", error);
@@ -11029,21 +11052,35 @@ function renderAll() {
 
   function isMemberManagePanelVisible() {
     const panel = q('#memberManagePanel');
-    return !!(panel && !panel.classList.contains('hidden') && panel.offsetParent !== null);
+    if (!panel) return false;
+    // 모바일에서는 전체화면/복구 CSS 때문에 offsetParent가 null로 나오는 경우가 있어
+    // hidden 클래스와 현재 모드 저장값을 기준으로 회원관리 화면 여부를 판단한다.
+    if (panel.classList.contains('hidden')) return false;
+    try {
+      if (document.body && document.body.classList && document.body.classList.contains('member-manage-fullscreen')) return true;
+      const savedMode = sessionStorage.getItem('bus-seat-admin-refresh-mode-v1');
+      if (savedMode === 'memberManage') return true;
+    } catch (error) {}
+    return true;
   }
 
-  function scheduleMemberManageRealtimeReload() {
+  function scheduleMemberManageRealtimeReload(snapshotOrEvent) {
+    // 회원관리 화면이 열려 있을 때 DB 변경 즉시 자동 렌더링.
+    // 리스너 최초 연결 시에도 한 번 들어오므로 디바운스로 중복 렌더를 막는다.
     if (!isMemberManagePanelVisible()) return;
     clearTimeout(memberManageRealtimeTimer);
     memberManageRealtimeTimer = setTimeout(() => {
       forceLoadMemberManageList().catch((error) => {
         console.error('회원관리 실시간 자동갱신 오류:', error);
       });
-    }, 220);
+    }, 120);
   }
 
   function startMemberManageRealtimeWatch() {
-    if (memberManageRealtimeStarted) return;
+    if (memberManageRealtimeStarted) {
+      scheduleMemberManageRealtimeReload();
+      return;
+    }
     memberManageRealtimeStarted = true;
     memberManageRealtimeUnsubs = MEMBER_MANAGE_REALTIME_PATHS.map((path) => {
       try {
@@ -11055,9 +11092,34 @@ function renderAll() {
         return null;
       }
     }).filter(Boolean);
+    scheduleMemberManageRealtimeReload();
+  }
+
+  function stopMemberManageRealtimeWatch() {
+    clearTimeout(memberManageRealtimeTimer);
+    memberManageRealtimeTimer = null;
+    memberManageRealtimeUnsubs.forEach((unsub) => {
+      try { if (typeof unsub === 'function') unsub(); } catch (error) {}
+    });
+    memberManageRealtimeUnsubs = [];
+    memberManageRealtimeStarted = false;
   }
 
   window.__startMemberManageRealtimeWatch = startMemberManageRealtimeWatch;
+  window.__stopMemberManageRealtimeWatch = stopMemberManageRealtimeWatch;
+
+  // 탭 클릭 외에도 관리자 로그인 복구/모바일 뒤로가기/스크립트 전환으로 회원관리 화면이 열릴 수 있어
+  // DOM 상태 변화를 감시해서 리스너가 누락되지 않게 한다.
+  document.addEventListener('DOMContentLoaded', () => {
+    const panel = q('#memberManagePanel');
+    if (panel) {
+      const observer = new MutationObserver(() => {
+        if (isMemberManagePanelVisible()) startMemberManageRealtimeWatch();
+      });
+      observer.observe(panel, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+    if (isMemberManagePanelVisible()) startMemberManageRealtimeWatch();
+  });
 
   document.addEventListener('click', (event) => {
     const manageTab = event.target.closest('#memberManageTab');
