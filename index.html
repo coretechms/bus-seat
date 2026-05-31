@@ -7235,7 +7235,6 @@ function renderAll() {
 
   const MEMBERS_ROOT = "membershipSecure";
   const MEMBER_LIST_JOIN_CODES_PATH = "memberList/joinCodes";
-  const MEMBER_LIST_DELETED_JOIN_CODES_PATH = "memberList/deletedJoinCodes";
   const MEMBER_LIST_MAIN_PATH = "memberList/main";
   const MEMBER_LOGIN_INDEX_PATH = `${MEMBERS_ROOT}/loginIndex`;
   const LOGIN_SESSION_KEY = "bus-seat-approved-member-session-v1";
@@ -9284,7 +9283,6 @@ function renderAll() {
         updatedAt: now
       });
       updates[`${memberPendingPathForUpdate}/${code}`] = null;
-      updates[`${MEMBER_LIST_DELETED_JOIN_CODES_PATH}/${code}`] = null;
     } else if (action === "block") {
       Object.assign(member, {
         approved: false,
@@ -9324,10 +9322,7 @@ function renderAll() {
         updates[`${memberNameIndexPathForUpdate}/${makeNameKey(member.name)}/${code}`] = null;
         updates[`${MEMBER_LOGIN_INDEX_PATH}/${makeNameKey(member.name)}/${code}`] = null;
       }
-      // 회원관리 삭제 시 승인 원본(joinCodes)을 제거하고, 삭제 tombstone을 남겨
-      // 멤버리스트가 새로고침 후 예전 승인자료로 회원을 되살리지 못하게 한다.
       updates[`${MEMBER_LIST_JOIN_CODES_PATH}/${code}`] = null;
-      updates[`${MEMBER_LIST_DELETED_JOIN_CODES_PATH}/${code}`] = makeMemberDeleteTombstone(code, member, "membership-approval-delete");
       await update(ref(membershipDb), updates);
       setAuthMessage(`${member.name || code} / ${code} 삭제 완료`, true);
       await loadApprovalMembers();
@@ -9723,7 +9718,6 @@ function renderAll() {
 
   const MANAGE_MEMBERS_ROOT = "membershipSecure";
   const MANAGE_JOIN_CODES_PATH = "memberList/joinCodes";
-  const MANAGE_DELETED_JOIN_CODES_PATH = "memberList/deletedJoinCodes";
   const MANAGE_MEMBER_LIST_MAIN_PATH = "memberList/main";
 
   /* 로그인 복구형 회원 JSON 백업/복구 대상 경로
@@ -10475,31 +10469,6 @@ function renderAll() {
   }
 
 
-
-  function makeMemberDeleteTombstone(code, member = {}, deletedBy = "bus-seat-member-manage") {
-    const key = String(code || member.code || "").trim();
-    const now = Date.now();
-    return {
-      code: key,
-      name: member.name || member.memberName || member.userName || member.displayName || "",
-      gender: member.gender || "",
-      birthYear: member.birthYear || "",
-      phone: member.phone || "",
-      phoneLast4: member.phoneLast4 || "",
-      dong: member.dong || "",
-      status: "deleted",
-      approvalResult: "삭제",
-      joinStatus: "삭제",
-      approved: false,
-      role: "deleted",
-      adminAccess: false,
-      memberType: member.memberType || "",
-      deletedAt: now,
-      updatedAt: now,
-      deletedBy
-    };
-  }
-
   function makeManageNameKey(value) {
     return String(value || "").replace(/\s+/g, "").trim();
   }
@@ -10830,10 +10799,26 @@ function renderAll() {
         }
       });
     });
-    // 회원관리 삭제 시 joinCodes 자체는 제거하고, deletedJoinCodes에 tombstone을 남긴다.
-    // 이렇게 해야 멤버리스트가 새로고침 후 과거 승인자료로 삭제 회원을 되살리지 않는다.
-    updates[`${MANAGE_JOIN_CODES_PATH}/${key}`] = null;
-    updates[`${MANAGE_DELETED_JOIN_CODES_PATH}/${key}`] = makeMemberDeleteTombstone(key, member, "member-manage-delete");
+    // 멤버리스트 자동등록 파일이 상태 변경을 감지할 수 있도록 joinCodes는 삭제하지 않고 "삭제" 상태로 남긴다.
+    // 실제 로그인/회원관리 DB는 위에서 모두 제거되므로 계정 접근은 차단된다.
+    updates[`${MANAGE_JOIN_CODES_PATH}/${key}`] = {
+      code: key,
+      name: member.name || member.memberName || member.userName || member.displayName || "",
+      gender: member.gender || "",
+      birthYear: member.birthYear || "",
+      phone: member.phone || "",
+      phoneLast4: member.phoneLast4 || "",
+      dong: member.dong || "",
+      status: "deleted",
+      approvalResult: "삭제",
+      joinStatus: "삭제",
+      approved: false,
+      role: "deleted",
+      adminAccess: false,
+      memberType: member.memberType || "",
+      deletedAt: Date.now(),
+      updatedAt: Date.now()
+    };
     return updates;
   }
 
@@ -10953,7 +10938,6 @@ function renderAll() {
         updatedAt: now
       });
       updates[`${MANAGE_MEMBERS_ROOT}/pending/${code}`] = null;
-      updates[`${MANAGE_DELETED_JOIN_CODES_PATH}/${code}`] = null;
       if (legacyPendingPath && legacyPendingPath !== `${MANAGE_MEMBERS_ROOT}/pending`) updates[`${legacyPendingPath}/${code}`] = null;
     } else if (action === 'block') {
       Object.assign(member, {
