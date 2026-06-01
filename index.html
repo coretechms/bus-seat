@@ -11846,5 +11846,30 @@ body.admin-mode:not(.member-manage-mode) .controls {
 })();
 </script>
 
+
+<script id="memberLoginEnterNextFocusFix">
+/* 회원 로그인 아이디 입력 후 Enter/이동: 비밀번호 입력칸으로만 커서 이동 */
+(function(){
+  function bindMemberLoginEnterNextFocus(){
+    var nameInput = document.getElementById("memberLoginNameInput");
+    var passwordInput = document.getElementById("memberLoginPasswordInput");
+    if(!nameInput || !passwordInput || nameInput.dataset.enterNextFocusBound === "1") return;
+    nameInput.dataset.enterNextFocusBound = "1";
+    nameInput.addEventListener("keydown", function(event){
+      var key = event.key || event.code;
+      if(key !== "Enter" && key !== "NumpadEnter") return;
+      if(event.isComposing) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if(event.stopImmediatePropagation) event.stopImmediatePropagation();
+      setTimeout(function(){
+        try{ passwordInput.focus(); passwordInput.select && passwordInput.select(); }catch(e){}
+      }, 0);
+    }, true);
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindMemberLoginEnterNextFocus);
+  else bindMemberLoginEnterNextFocus();
+})();
+</script>
 </body>
 </html>
