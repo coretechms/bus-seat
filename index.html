@@ -1755,6 +1755,12 @@ body.admin-entry-only #adminLoginPanel.hidden{
   color:#9a3412 !important;
   font-weight:900 !important;
 }
+#memberPasswordResetBtn{
+  background:#fff2f2 !important;
+  border-color:#d80000 !important;
+  color:#b30000 !important;
+  font-weight:900 !important;
+}
 @media(max-width:760px){
   .member-manage-header-actions{gap:2px !important;}
   #memberApprovalSearchInput{
@@ -1921,7 +1927,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
   }
   .member-manage-topbar #memberApprovalRefreshBtn{max-width:42px !important;}
   .member-manage-topbar #memberManageAdminToggleBtn{max-width:38px !important;}
-  .member-manage-topbar .member-manage-admin-group-panel{max-width:138px !important; gap:1px !important;}
+  .member-manage-topbar .member-manage-admin-group-panel{max-width:165px !important; gap:1px !important;}
   .member-manage-topbar .member-manage-admin-group-panel .btn{padding:0 1px !important; font-size:8px !important;}
   .member-manage-topbar #memberDbCleanupBtn{font-size:7.5px !important;}
   #memberManagePanel.member-admin-group-open .member-manage-title-search{max-width:42% !important;}
@@ -2625,6 +2631,20 @@ body.member-mode .controls {
 }
 
 </style>
+
+<style id="memberPasswordResetSelectedStyle">
+/* 회원관리: 선택한 가입회원 1명만 비밀번호 초기화 */
+#memberManagePanel .member-approval-card.password-reset-selected{
+  border-color:#1737c9 !important;
+  box-shadow:0 0 0 2px rgba(23,55,201,.22) !important;
+  background:#eef5ff !important;
+}
+#memberManagePanel .member-approval-card.password-reset-selected .member-approval-card-title::before{
+  content:"선택됨 ";
+  color:#1737c9;
+  font-weight:900;
+}
+</style>
 </head>
 <body class="membership-locked">
 
@@ -2913,6 +2933,7 @@ body.member-mode .controls {
                     <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
                     <button class="btn btn-outline" id="memberDbCleanupBtn" type="button" title="회원 DB의 고아코드/고아회원/잘못된 인덱스를 삭제 없이 검사">DB점검</button>
                     <button class="btn btn-outline" id="memberLoginAuditBtn" type="button" title="아이디=이름, 비밀번호=전화번호 끝4자리+0 기준으로 실제 로그인 가능성을 검사">로그인점검</button>
+                    <button class="btn btn-outline" id="memberPasswordResetBtn" type="button" title="회원관리 목록에서 선택한 가입회원 1명의 비밀번호만 전화번호 끝4자리+0 기준으로 초기화">비번초기화</button>
                   </div>
                   <input id="memberJsonRestoreFileInput" type="file" accept="application/json,.json" class="hidden" />
                 </div>
@@ -10846,6 +10867,119 @@ function renderAll() {
     return all.find((m) => String(m.code || "") === key) || { code: key };
   }
 
+
+  async function resetApprovedMemberPasswordsToDefault() {
+    const selectedCard = document.querySelector('#memberManagePanel .member-approval-card.password-reset-selected');
+    const selectedCode = selectedCard ? String(selectedCard.getAttribute('data-member-code') || '').trim() : '';
+    if (!selectedCode) {
+      alert('비밀번호를 초기화할 가입회원을 먼저 선택하세요.\n\n방법: 회원관리 목록에서 해당 회원 카드를 한 번 누른 뒤 [비번초기화]를 실행하세요.');
+      return;
+    }
+
+    const normalizeDigits = (value) => String(value || '').replace(/\D/g, '');
+    const hashText = async (value) => {
+      const text = String(value ?? '');
+      const bytes = new TextEncoder().encode(text);
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    };
+    const getPhoneLast4 = (member) => {
+      const raw = member?.raw && typeof member.raw === 'object' ? member.raw : {};
+      const direct = String(member?.phoneLast4 || raw.phoneLast4 || '').replace(/\D/g, '').slice(-4);
+      if (direct.length === 4) return direct;
+      const digits = normalizeDigits(member?.phone || raw.phone || raw.phoneDigits || raw.tel || raw.contact || raw.phoneNumber);
+      return digits.slice(-4);
+    };
+    const isResetAllowedStatus = (member) => {
+      const status = String(member?.status || member?.raw?.status || '').toLowerCase();
+      if (status === 'pending' || status.includes('대기')) return false;
+      if (['blocked', 'withdrawn', 'deleted', 'rejected'].includes(status)) return false;
+      if (status.includes('차단') || status.includes('탈퇴') || status.includes('삭제') || status.includes('거절')) return false;
+      if (member?.approved === true || member?.raw?.approved === true) return true;
+      return ['active', 'approved', 'member', 'admin'].includes(status);
+    };
+    const memberLabel = (member, extra = '') => {
+      const code = String(member?.code || '').trim() || '-';
+      const name = String(member?.name || member?.raw?.name || '').trim() || '-';
+      const phone = String(member?.phone || member?.raw?.phone || member?.raw?.phoneDigits || '').trim() || '-';
+      return `${code} / ${name} / ${phone}${extra ? ' / ' + extra : ''}`;
+    };
+
+    const members = await readAllMembers();
+    const sourceMember = (members || []).find((m) => String(m?.code || '').trim() === selectedCode);
+    if (!sourceMember) {
+      alert('선택한 회원 정보를 DB에서 찾지 못했습니다.\n회원관리 새로고침 후 다시 선택하세요.');
+      return;
+    }
+    if (!isResetAllowedStatus(sourceMember)) {
+      alert('선택한 회원은 비밀번호 초기화 대상이 아닙니다.\n\n차단/탈퇴/삭제/승인대기 회원은 초기화하지 않습니다.');
+      return;
+    }
+
+    const code = String(sourceMember?.code || '').trim();
+    const name = String(sourceMember?.name || sourceMember?.raw?.name || '').trim();
+    if (!code || !name) {
+      alert('선택한 회원의 회원코드 또는 이름이 없어 비밀번호를 초기화할 수 없습니다.');
+      return;
+    }
+    const last4 = getPhoneLast4(sourceMember);
+    if (last4.length !== 4) {
+      alert(`선택한 회원의 전화번호 끝4자리를 확인할 수 없습니다.\n\n${memberLabel(sourceMember)}`);
+      return;
+    }
+
+    const defaultPassword = `${last4}0`;
+    const ok = confirm(
+      '선택한 회원 1명의 비밀번호만 초기화할까요?\n\n' +
+      `대상: ${memberLabel(sourceMember)}\n` +
+      `초기 비밀번호: ${defaultPassword}\n\n` +
+      '다른 회원의 비밀번호는 변경하지 않습니다.'
+    );
+    if (!ok) return;
+    const ok2 = confirm(
+      '정말 실행할까요?\n\n' +
+      '선택한 회원의 members/loginIndex 로그인 비밀번호만 갱신합니다.\n' +
+      '회원명부, 좌석, 메모, 로그자료는 수정하지 않습니다.'
+    );
+    if (!ok2) return;
+
+    const now = Date.now();
+    const passwordHash = await hashText(defaultPassword);
+    const member = {
+      ...(sourceMember.raw && typeof sourceMember.raw === 'object' ? sourceMember.raw : {}),
+      ...sourceMember,
+      code,
+      name,
+      phoneLast4: last4,
+      passwordHash,
+      approved: true,
+      status: String(sourceMember.status || sourceMember.raw?.status || 'active'),
+      role: String(sourceMember.role || sourceMember.raw?.role || (sourceMember.adminAccess ? 'admin' : 'member')),
+      adminAccess: !!(sourceMember.adminAccess || sourceMember.raw?.adminAccess),
+      passwordResetAt: now,
+      updatedAt: now
+    };
+    const nameKey = makeManageNameKey(name);
+    const updates = {};
+    updates[`${MANAGE_MEMBERS_ROOT}/members/${code}/passwordHash`] = passwordHash;
+    updates[`${MANAGE_MEMBERS_ROOT}/members/${code}/phoneLast4`] = last4;
+    updates[`${MANAGE_MEMBERS_ROOT}/members/${code}/passwordResetAt`] = now;
+    updates[`${MANAGE_MEMBERS_ROOT}/members/${code}/updatedAt`] = now;
+    updates[`${MANAGE_MEMBERS_ROOT}/loginIndex/${nameKey}/${code}`] = makeManageMemberLoginIndexRecord(member);
+    updates[`${MANAGE_MEMBERS_ROOT}/nameIndex/${nameKey}/${code}`] = true;
+
+    await update(ref(manageDb), updates);
+    alert([
+      '회원비밀번호 초기화 완료',
+      '',
+      `대상: ${memberLabel(member)}`,
+      `아이디: ${name}`,
+      `초기 비밀번호: ${defaultPassword}`,
+      '',
+      '다른 회원 정보는 변경하지 않았습니다.'
+    ].join('\n'));
+  }
+
   async function auditMemberDefaultLoginPasswords() {
     const ok = confirm(
       '로그인점검을 실행할까요?\n\n' +
@@ -11475,6 +11609,23 @@ function renderAll() {
     if (memberRestore) {
       event.preventDefault();
       handleMemberJsonRestoreClick();
+      return;
+    }
+    const selectedMemberCardForPasswordReset = event.target.closest('#memberManagePanel .member-approval-card');
+    if (selectedMemberCardForPasswordReset && !event.target.closest('button')) {
+      document.querySelectorAll('#memberManagePanel .member-approval-card.password-reset-selected').forEach((card) => {
+        if (card !== selectedMemberCardForPasswordReset) card.classList.remove('password-reset-selected');
+      });
+      selectedMemberCardForPasswordReset.classList.add('password-reset-selected');
+      return;
+    }
+    const memberPasswordReset = event.target.closest('#memberManagePanel #memberPasswordResetBtn');
+    if (memberPasswordReset) {
+      event.preventDefault();
+      resetApprovedMemberPasswordsToDefault().catch((error) => {
+        console.error('회원비밀번호 초기화 오류:', error);
+        alert(`회원비밀번호 초기화 오류: ${error?.code || error?.message || error}`);
+      });
       return;
     }
     const memberLoginAudit = event.target.closest('#memberManagePanel #memberLoginAuditBtn');
