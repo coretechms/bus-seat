@@ -1755,6 +1755,12 @@ body.admin-entry-only #adminLoginPanel.hidden{
   color:#9a3412 !important;
   font-weight:900 !important;
 }
+#memberOrphanRepairBtn{
+  background:#eef5ff !important;
+  border-color:#2563eb !important;
+  color:#1428c8 !important;
+  font-weight:900 !important;
+}
 #memberPasswordResetBtn{
   background:#fff2f2 !important;
   border-color:#d80000 !important;
@@ -1875,7 +1881,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
   gap:2px !important;
   flex:1 1 0 !important;
   min-width:0 !important;
-  max-width:172px !important;
+  max-width:210px !important;
   overflow:hidden !important;
   padding:0 !important;
   margin:0 !important;
@@ -1927,7 +1933,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
   }
   .member-manage-topbar #memberApprovalRefreshBtn{max-width:42px !important;}
   .member-manage-topbar #memberManageAdminToggleBtn{max-width:38px !important;}
-  .member-manage-topbar .member-manage-admin-group-panel{max-width:165px !important; gap:1px !important;}
+  .member-manage-topbar .member-manage-admin-group-panel{max-width:198px !important; gap:1px !important;}
   .member-manage-topbar .member-manage-admin-group-panel .btn{padding:0 1px !important; font-size:8px !important;}
   .member-manage-topbar #memberDbCleanupBtn{font-size:7.5px !important;}
   #memberManagePanel.member-admin-group-open .member-manage-title-search{max-width:42% !important;}
@@ -2932,6 +2938,7 @@ body.member-mode .controls {
                     <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
                     <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
                     <button class="btn btn-outline" id="memberDbCleanupBtn" type="button" title="회원 DB의 고아코드/고아회원/잘못된 인덱스를 삭제 없이 검사">DB점검</button>
+                    <button class="btn btn-outline" id="memberOrphanRepairBtn" type="button" title="DB점검에서 발견된 고아 joinCodes를 로그인 가능한 회원 DB로 복구">고아복구</button>
                     <button class="btn btn-outline" id="memberLoginAuditBtn" type="button" title="아이디=이름, 비밀번호=전화번호 끝4자리+0 기준으로 실제 로그인 가능성을 검사">로그인점검</button>
                     <button class="btn btn-outline" id="memberPasswordResetBtn" type="button" title="회원관리 목록에서 선택한 가입회원 1명의 비밀번호만 전화번호 끝4자리+0 기준으로 초기화">비번초기화</button>
                   </div>
@@ -11151,6 +11158,214 @@ function renderAll() {
     alert(report);
   }
 
+
+  async function repairOrphanJoinCodesToLoginDb() {
+    const ok = confirm(
+      '고아코드 복구를 실행할까요?\n\n' +
+      '대상: memberList/joinCodes에는 있지만 members/pending에는 없는 고아 joinCodes\n' +
+      '복구내용: membershipSecure/members + loginIndex + nameIndex 재생성\n' +
+      '초기 비밀번호: 전화번호 끝4자리+0\n\n' +
+      '실제 회원이 맞는 코드만 복구해야 합니다.'
+    );
+    if (!ok) return;
+
+    const readObj = async (path) => {
+      try {
+        const snap = await get(ref(manageDb, path));
+        return snap && snap.exists() ? (snap.val() || {}) : {};
+      } catch (error) {
+        return { __readError: error?.code || error?.message || String(error), __path: path };
+      }
+    };
+    const hashText = async (value) => {
+      const text = String(value ?? '');
+      const bytes = new TextEncoder().encode(text);
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    };
+    const compactCode = (value) => String(value || '').trim();
+    const addCodesFromObject = (targetSet, obj) => {
+      if (!obj || typeof obj !== 'object' || obj.__readError) return;
+      Object.keys(obj).forEach((key) => {
+        const code = compactCode(key);
+        if (code) targetSet.add(code);
+      });
+    };
+    const pick = (obj, keys) => {
+      const source = obj && typeof obj === 'object' ? obj : {};
+      for (const key of keys) {
+        const value = source[key];
+        if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim();
+      }
+      return '';
+    };
+    const normalizeDigits = (value) => String(value || '').replace(/\D/g, '');
+    const isDeletedLike = (obj) => {
+      const text = [obj?.status, obj?.approvalResult, obj?.result, obj?.joinStatus, obj?.승인결과]
+        .map((v) => String(v || '').toLowerCase())
+        .join(' ');
+      return text.includes('deleted') || text.includes('delete') || text.includes('withdraw') ||
+        text.includes('blocked') || text.includes('삭제') || text.includes('탈퇴') || text.includes('차단');
+    };
+    const makeMemberText = (code, obj, extra = '') => {
+      const name = pick(obj, ['name','loginName','nameKey','memberName','userName','displayName']);
+      const phone = pick(obj, ['phone','phoneDigits','phoneNumber','tel','contact']);
+      return `${code}${name ? ' / ' + name : ''}${phone ? ' / ' + phone : ''}${extra ? ' / ' + extra : ''}`;
+    };
+
+    const paths = {
+      membersMain: `${MANAGE_MEMBERS_ROOT}/members`,
+      pendingMain: `${MANAGE_MEMBERS_ROOT}/pending`,
+      membersLegacySecure: 'busSeatApp/membership/members',
+      pendingLegacySecure: 'busSeatApp/membership/pending',
+      membersLegacy: 'membership/members',
+      pendingLegacy: 'membership/pending',
+      membersRoot: 'members',
+      pendingRoot: 'pending',
+      membersBusSeat: 'busSeatApp/members',
+      pendingBusSeat: 'busSeatApp/pending',
+      joinCodes: MANAGE_JOIN_CODES_PATH,
+      deletedJoinCodes: MANAGE_DELETED_JOIN_CODES_PATH
+    };
+    const entries = await Promise.all(Object.entries(paths).map(async ([key, path]) => [key, path, await readObj(path)]));
+    const data = Object.fromEntries(entries.map(([key, path, value]) => [key, value]));
+    const readErrors = entries.filter(([key, path, value]) => value && value.__readError).map(([key, path, value]) => `${path}: ${value.__readError}`);
+
+    const validMemberCodes = new Set();
+    ['membersMain','membersLegacySecure','membersLegacy','membersRoot','membersBusSeat'].forEach((key) => addCodesFromObject(validMemberCodes, data[key]));
+    const pendingCodes = new Set();
+    ['pendingMain','pendingLegacySecure','pendingLegacy','pendingRoot','pendingBusSeat'].forEach((key) => addCodesFromObject(pendingCodes, data[key]));
+
+    const joinCodes = data.joinCodes && !data.joinCodes.__readError ? data.joinCodes : {};
+    const deletedJoinCodes = data.deletedJoinCodes && !data.deletedJoinCodes.__readError ? data.deletedJoinCodes : {};
+    const orphanCodes = Object.keys(joinCodes || {})
+      .map(compactCode)
+      .filter((code) => code && !validMemberCodes.has(code) && !pendingCodes.has(code));
+
+    if (!orphanCodes.length) {
+      alert('복구할 고아 joinCodes가 없습니다.');
+      return;
+    }
+
+    const preview = orphanCodes.slice(0, 20).map((code, i) => `${i + 1}. ${makeMemberText(code, joinCodes[code])}`).join('\n');
+    const input = prompt(
+      '복구할 고아코드를 입력하세요.\n\n' +
+      '여러 명은 쉼표 또는 줄바꿈으로 구분합니다.\n' +
+      '전체 복구는 all 을 입력하세요.\n\n' +
+      `검색된 고아코드: ${orphanCodes.length}건\n${preview}${orphanCodes.length > 20 ? '\n...외 ' + (orphanCodes.length - 20) + '건' : ''}`
+    );
+    if (input === null) return;
+    const rawInput = String(input || '').trim();
+    if (!rawInput) {
+      alert('복구할 회원코드를 입력하지 않아 실행하지 않았습니다.');
+      return;
+    }
+    let targetCodes = [];
+    if (/^(all|전체)$/i.test(rawInput)) {
+      const okAll = confirm(`고아코드 ${orphanCodes.length}건 전체를 복구할까요?\n\n삭제/탈퇴/차단 기록으로 보이는 코드는 자동 제외합니다.`);
+      if (!okAll) return;
+      targetCodes = orphanCodes;
+    } else {
+      const orphanSet = new Set(orphanCodes);
+      targetCodes = rawInput.split(/[\s,，、]+/).map(compactCode).filter(Boolean).filter((code, idx, arr) => arr.indexOf(code) === idx);
+      const notFound = targetCodes.filter((code) => !orphanSet.has(code));
+      if (notFound.length) {
+        alert('입력한 코드 중 현재 고아 joinCodes 목록에 없는 코드가 있습니다.\n\n' + notFound.join(', '));
+        return;
+      }
+    }
+
+    const updates = {};
+    const restored = [];
+    const skipped = [];
+    const now = Date.now();
+
+    for (const code of targetCodes) {
+      const source = joinCodes[code] || {};
+      if (!source || typeof source !== 'object') {
+        skipped.push(`${code} / joinCodes 자료 형식 오류`);
+        continue;
+      }
+      if (isDeletedLike(source) || deletedJoinCodes[code]) {
+        skipped.push(makeMemberText(code, source, '삭제/탈퇴/차단 기록으로 판단되어 제외'));
+        continue;
+      }
+      const name = pick(source, ['name','loginName','memberName','userName','displayName','nameKey']);
+      const phoneRaw = pick(source, ['phone','phoneDigits','phoneNumber','tel','contact']);
+      const phoneDigits = normalizeDigits(phoneRaw);
+      const last4 = String(source.phoneLast4 || '').replace(/\D/g, '').slice(-4) || phoneDigits.slice(-4);
+      if (!name) {
+        skipped.push(makeMemberText(code, source, '이름 없음'));
+        continue;
+      }
+      if (last4.length !== 4) {
+        skipped.push(makeMemberText(code, source, '전화번호 끝4자리 확인 불가'));
+        continue;
+      }
+      const defaultPassword = `${last4}0`;
+      const passwordHash = await hashText(defaultPassword);
+      const nameKey = makeManageNameKey(name);
+      const member = {
+        ...source,
+        code,
+        name,
+        nameKey,
+        phone: phoneRaw || source.phone || source.phoneDigits || '',
+        phoneDigits: phoneDigits || source.phoneDigits || '',
+        phoneLast4: last4,
+        passwordHash,
+        approved: true,
+        status: 'active',
+        role: source.adminAccess ? 'admin' : (source.role || 'member'),
+        adminAccess: !!source.adminAccess,
+        apps: source.apps || { busSeat: true, tripSchedule: true, memberList: !!source.adminAccess, busRute: true },
+        orphanRepairedAt: now,
+        updatedAt: now
+      };
+      updates[`${MANAGE_MEMBERS_ROOT}/members/${code}`] = member;
+      updates[`${MANAGE_MEMBERS_ROOT}/loginIndex/${nameKey}/${code}`] = makeManageMemberLoginIndexRecord(member);
+      updates[`${MANAGE_MEMBERS_ROOT}/nameIndex/${nameKey}/${code}`] = true;
+      updates[`${MANAGE_DELETED_JOIN_CODES_PATH}/${code}`] = null;
+      restored.push(makeMemberText(code, member, `초기비번 ${defaultPassword}`));
+    }
+
+    if (!restored.length) {
+      alert([
+        '고아코드 복구를 실행하지 않았습니다.',
+        '',
+        skipped.length ? '제외 대상:' : '',
+        skipped.slice(0, 25).map((v, i) => `${i + 1}. ${v}`).join('\n'),
+        skipped.length > 25 ? `...외 ${skipped.length - 25}건` : '',
+        '',
+        readErrors.length ? '읽기 실패 경로:\n' + readErrors.join('\n') : ''
+      ].filter(Boolean).join('\n'));
+      return;
+    }
+
+    const finalOk = confirm(
+      `고아코드 ${restored.length}건을 로그인 가능 상태로 복구할까요?\n\n` +
+      restored.slice(0, 15).map((v, i) => `${i + 1}. ${v}`).join('\n') +
+      (restored.length > 15 ? `\n...외 ${restored.length - 15}건` : '') +
+      (skipped.length ? `\n\n제외: ${skipped.length}건` : '')
+    );
+    if (!finalOk) return;
+
+    await update(ref(manageDb), updates);
+    await forceLoadMemberManageList().catch(() => {});
+    alert([
+      '고아코드 복구 완료',
+      '',
+      `복구: ${restored.length}건`,
+      `제외: ${skipped.length}건`,
+      '',
+      restored.slice(0, 20).map((v, i) => `${i + 1}. ${v}`).join('\n'),
+      restored.length > 20 ? `...외 ${restored.length - 20}건` : '',
+      skipped.length ? '\n제외 대상:\n' + skipped.slice(0, 12).map((v, i) => `${i + 1}. ${v}`).join('\n') : '',
+      skipped.length > 12 ? `...외 ${skipped.length - 12}건` : '',
+      readErrors.length ? '\n읽기 실패 경로:\n' + readErrors.join('\n') : ''
+    ].filter(Boolean).join('\n'));
+  }
+
   async function cleanupOrphanMemberDb() {
     const ok = confirm(
       'DB점검을 실행할까요?\n\n' +
@@ -11625,6 +11840,15 @@ function renderAll() {
       resetApprovedMemberPasswordsToDefault().catch((error) => {
         console.error('회원비밀번호 초기화 오류:', error);
         alert(`회원비밀번호 초기화 오류: ${error?.code || error?.message || error}`);
+      });
+      return;
+    }
+    const memberOrphanRepair = event.target.closest('#memberManagePanel #memberOrphanRepairBtn');
+    if (memberOrphanRepair) {
+      event.preventDefault();
+      repairOrphanJoinCodesToLoginDb().catch((error) => {
+        console.error('고아코드 복구 오류:', error);
+        alert(`고아코드 복구 오류: ${error?.code || error?.message || error}`);
       });
       return;
     }
