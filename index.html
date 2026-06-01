@@ -2636,6 +2636,95 @@ body.member-mode .controls {
   overflow:hidden !important;
 }
 
+
+
+/* ===== 최종 수정: 회원관리 관리자 그룹 버튼 박스형 확장 =====
+/* 관리자 버튼 클릭 시 버튼들이 한 줄에 눌려 작아지지 않도록 별도 박스로 표시 */
+#memberManagePanel .member-manage-topbar,
+#memberManagePanel .member-manage-header-actions{
+  overflow:visible !important;
+}
+#memberManagePanel .member-manage-header-actions{
+  position:relative !important;
+}
+#memberManagePanel .member-manage-admin-group-panel{
+  position:absolute !important;
+  top:28px !important;
+  right:0 !important;
+  z-index:9998 !important;
+  display:grid !important;
+  grid-template-columns:repeat(2, minmax(112px, 1fr)) !important;
+  gap:6px !important;
+  width:min(320px, calc(100vw - 28px)) !important;
+  max-width:min(320px, calc(100vw - 28px)) !important;
+  min-width:260px !important;
+  padding:8px !important;
+  margin:0 !important;
+  border:1px solid #9db0ff !important;
+  border-radius:14px !important;
+  background:#ffffff !important;
+  box-shadow:0 8px 24px rgba(0,0,0,.18) !important;
+  box-sizing:border-box !important;
+  overflow:visible !important;
+}
+#memberManagePanel .member-manage-admin-group-panel[hidden]{
+  display:none !important;
+}
+#memberManagePanel .member-manage-admin-group-panel .btn{
+  width:100% !important;
+  max-width:none !important;
+  min-width:0 !important;
+  height:34px !important;
+  min-height:34px !important;
+  padding:0 8px !important;
+  border-radius:12px !important;
+  font-size:12px !important;
+  line-height:1.15 !important;
+  letter-spacing:-0.03em !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
+}
+#memberManagePanel #memberDbCleanupBtn,
+#memberManagePanel #memberOrphanRepairBtn,
+#memberManagePanel #memberLoginAuditBtn,
+#memberManagePanel #memberPasswordResetBtn{
+  font-size:12px !important;
+}
+#memberManagePanel #memberOrphanRepairBtn{
+  grid-column:span 2 !important;
+}
+#memberManagePanel.member-admin-group-open .member-manage-title-search,
+#memberManagePanel.member-admin-group-open .member-manage-header-actions{
+  max-width:none !important;
+}
+#memberManagePanel.member-admin-group-open #memberApprovalRefreshBtn{
+  display:inline-block !important;
+}
+@media(max-width:760px){
+  #memberManagePanel .member-manage-admin-group-panel{
+    top:27px !important;
+    right:0 !important;
+    grid-template-columns:repeat(2, minmax(102px, 1fr)) !important;
+    width:min(300px, calc(100vw - 24px)) !important;
+    max-width:min(300px, calc(100vw - 24px)) !important;
+    min-width:244px !important;
+    gap:5px !important;
+    padding:7px !important;
+  }
+  #memberManagePanel .member-manage-admin-group-panel .btn{
+    height:32px !important;
+    min-height:32px !important;
+    font-size:11px !important;
+    padding:0 6px !important;
+  }
+  #memberManagePanel #memberDbCleanupBtn,
+  #memberManagePanel #memberOrphanRepairBtn,
+  #memberManagePanel #memberLoginAuditBtn,
+  #memberManagePanel #memberPasswordResetBtn{
+    font-size:11px !important;
+  }
+}
 </style>
 
 <style id="memberPasswordResetSelectedStyle">
@@ -2665,7 +2754,7 @@ body.member-mode .controls {
       </div>
       <div class="member-auth-row">
         <label for="memberLoginPasswordInput">비밀번호</label>
-        <input id="memberLoginPasswordInput" type="password" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <input id="memberLoginPasswordInput" type="password" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*" autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
 
       <div class="member-auth-actions">
