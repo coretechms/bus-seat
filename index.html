@@ -2911,7 +2911,7 @@ body.member-mode .controls {
                   <div id="memberManageAdminGroupPanel" class="member-manage-admin-group-panel" hidden>
                     <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
                     <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
-                    <button class="btn btn-outline" id="memberDbCleanupBtn" type="button">DB정리</button>
+                    <button class="btn btn-outline" id="memberDbCleanupBtn" type="button" title="회원 DB의 고아코드/고아회원/잘못된 인덱스를 삭제 없이 검사">DB점검</button>
                   </div>
                   <input id="memberJsonRestoreFileInput" type="file" accept="application/json,.json" class="hidden" />
                 </div>
@@ -10846,51 +10846,172 @@ function renderAll() {
 
   async function cleanupOrphanMemberDb() {
     const ok = confirm(
-      '회원 로그인 DB에 없는 고아 회원코드만 정리합니다.\n\n' +
-      '- memberList/joinCodes에는 있지만 members DB에는 없는 코드\n' +
-      '- pending에만 남은 코드\n\n' +
-      '정상 members DB 회원은 삭제하지 않습니다. 계속할까요?'
+      'DB점검을 실행할까요?\n\n' +
+      '이 기능은 memberList/회원관리 DB의 고아 코드와 잘못된 인덱스를 검사만 합니다.\n' +
+      '자료 삭제나 수정은 절대 실행하지 않습니다.'
     );
     if (!ok) return;
 
-    const [mainMembersSnap, legacyMembersSnap, rootMembersSnap, busSeatMembersSnap, joinCodesSnap, pendingSnap, legacyPendingSnap, rootPendingSnap, busSeatPendingSnap] = await Promise.all([
-      get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/members`)).catch(() => null),
-      get(ref(manageDb, "membership/members")).catch(() => null),
-      get(ref(manageDb, "members")).catch(() => null),
-      get(ref(manageDb, "busSeatApp/members")).catch(() => null),
-      get(ref(manageDb, MANAGE_JOIN_CODES_PATH)).catch(() => null),
-      get(ref(manageDb, `${MANAGE_MEMBERS_ROOT}/pending`)).catch(() => null),
-      get(ref(manageDb, "membership/pending")).catch(() => null),
-      get(ref(manageDb, "pending")).catch(() => null),
-      get(ref(manageDb, "busSeatApp/pending")).catch(() => null)
-    ]);
+    const readObj = async (path) => {
+      try {
+        const snap = await get(ref(manageDb, path));
+        return snap && snap.exists() ? (snap.val() || {}) : {};
+      } catch (error) {
+        return { __readError: error?.code || error?.message || String(error) };
+      }
+    };
+    const compactCode = (value) => String(value || '').trim();
+    const addCodesFromObject = (targetSet, obj) => {
+      if (!obj || typeof obj !== 'object' || obj.__readError) return;
+      Object.keys(obj).forEach((key) => {
+        const code = compactCode(key);
+        if (code) targetSet.add(code);
+      });
+    };
+    const collectIndexCodes = (obj) => {
+      const result = new Set();
+      if (!obj || typeof obj !== 'object' || obj.__readError) return result;
+      Object.keys(obj).forEach((nameKey) => {
+        const branch = obj[nameKey];
+        if (!branch || typeof branch !== 'object') return;
+        Object.keys(branch).forEach((code) => {
+          const key = compactCode(code);
+          if (key) result.add(key);
+        });
+      });
+      return result;
+    };
+    const isBadStatus = (member) => {
+      const status = String(member?.status || member?.approvalResult || member?.result || member?.승인결과 || '').toLowerCase();
+      return status.includes('delete') || status.includes('withdraw') || status.includes('blocked') ||
+        status.includes('삭제') || status.includes('탈퇴') || status.includes('차단');
+    };
+    const makeMemberText = (code, obj) => {
+      const name = obj && typeof obj === 'object' ? (obj.name || obj.nameKey || obj.memberName || obj.userName || obj.displayName || '') : '';
+      const phone = obj && typeof obj === 'object' ? (obj.phone || obj.phoneNumber || obj.tel || obj.contact || '') : '';
+      return `${code}${name ? ' / ' + name : ''}${phone ? ' / ' + phone : ''}`;
+    };
 
-    const validCodes = new Set();
-    [mainMembersSnap, legacyMembersSnap, rootMembersSnap, busSeatMembersSnap].forEach((snap) => {
-      if (snap && snap.exists()) Object.keys(snap.val() || {}).forEach((code) => validCodes.add(String(code)));
+    const paths = {
+      membersMain: `${MANAGE_MEMBERS_ROOT}/members`,
+      pendingMain: `${MANAGE_MEMBERS_ROOT}/pending`,
+      loginIndexMain: `${MANAGE_MEMBERS_ROOT}/loginIndex`,
+      nameIndexMain: `${MANAGE_MEMBERS_ROOT}/nameIndex`,
+      membersLegacySecure: 'busSeatApp/membership/members',
+      pendingLegacySecure: 'busSeatApp/membership/pending',
+      loginIndexLegacySecure: 'busSeatApp/membership/loginIndex',
+      nameIndexLegacySecure: 'busSeatApp/membership/nameIndex',
+      membersLegacy: 'membership/members',
+      pendingLegacy: 'membership/pending',
+      loginIndexLegacy: 'membership/loginIndex',
+      nameIndexLegacy: 'membership/nameIndex',
+      membersRoot: 'members',
+      pendingRoot: 'pending',
+      loginIndexRoot: 'loginIndex',
+      nameIndexRoot: 'nameIndex',
+      membersBusSeat: 'busSeatApp/members',
+      pendingBusSeat: 'busSeatApp/pending',
+      nameIndexBusSeat: 'busSeatApp/nameIndex',
+      joinCodes: MANAGE_JOIN_CODES_PATH,
+      deletedJoinCodes: MANAGE_DELETED_JOIN_CODES_PATH,
+      activeSessions: ACTIVE_SESSIONS_PATH
+    };
+
+    const entries = await Promise.all(Object.entries(paths).map(async ([key, path]) => [key, path, await readObj(path)]));
+    const data = Object.fromEntries(entries.map(([key, path, value]) => [key, value]));
+    const readErrors = entries.filter(([key, path, value]) => value && value.__readError).map(([key, path, value]) => `${path}: ${value.__readError}`);
+
+    const validMemberCodes = new Set();
+    ['membersMain','membersLegacySecure','membersLegacy','membersRoot','membersBusSeat'].forEach((key) => addCodesFromObject(validMemberCodes, data[key]));
+
+    const pendingCodes = new Set();
+    ['pendingMain','pendingLegacySecure','pendingLegacy','pendingRoot','pendingBusSeat'].forEach((key) => addCodesFromObject(pendingCodes, data[key]));
+
+    const joinCodes = data.joinCodes && !data.joinCodes.__readError ? data.joinCodes : {};
+    const deletedJoinCodes = data.deletedJoinCodes && !data.deletedJoinCodes.__readError ? data.deletedJoinCodes : {};
+
+    const orphanJoinCodes = [];
+    Object.keys(joinCodes || {}).forEach((code) => {
+      const key = compactCode(code);
+      if (!key) return;
+      if (!validMemberCodes.has(key) && !pendingCodes.has(key)) orphanJoinCodes.push(makeMemberText(key, joinCodes[key]));
     });
 
-    const cleanupCodes = new Set();
-    const joinCodes = joinCodesSnap && joinCodesSnap.exists() ? joinCodesSnap.val() || {} : {};
-    Object.keys(joinCodes).forEach((code) => { if (!validCodes.has(String(code))) cleanupCodes.add(String(code)); });
-    [pendingSnap, legacyPendingSnap, rootPendingSnap, busSeatPendingSnap].forEach((snap) => {
-      const pending = snap && snap.exists() ? snap.val() || {} : {};
-      Object.keys(pending).forEach((code) => { if (!validCodes.has(String(code))) cleanupCodes.add(String(code)); });
+    const deletedStillActiveJoinCodes = [];
+    Object.keys(deletedJoinCodes || {}).forEach((code) => {
+      const key = compactCode(code);
+      if (!key) return;
+      if (validMemberCodes.has(key)) deletedStillActiveJoinCodes.push(makeMemberText(key, deletedJoinCodes[key]));
     });
 
-    if (!cleanupCodes.size) {
-      alert('정리할 고아 회원코드가 없습니다.');
-      return;
-    }
-
-    const updates = {};
-    cleanupCodes.forEach((code) => {
-      const raw = joinCodes[code] || { code };
-      Object.assign(updates, makeDeleteUpdatesForMemberEverywhere(code, raw));
+    const badStatusMembers = [];
+    ['membersMain','membersLegacySecure','membersLegacy','membersRoot','membersBusSeat'].forEach((sourceKey) => {
+      const obj = data[sourceKey];
+      if (!obj || typeof obj !== 'object' || obj.__readError) return;
+      Object.keys(obj).forEach((code) => {
+        if (isBadStatus(obj[code])) badStatusMembers.push(`${sourceKey}: ${makeMemberText(code, obj[code])}`);
+      });
     });
-    await update(ref(manageDb), updates);
-    await forceLoadMemberManageList();
-    alert(`DB 정리 완료: ${cleanupCodes.size}개 고아 회원코드를 삭제했습니다.`);
+
+    const orphanLoginIndex = [];
+    ['loginIndexMain','loginIndexLegacySecure','loginIndexLegacy','loginIndexRoot'].forEach((sourceKey) => {
+      collectIndexCodes(data[sourceKey]).forEach((code) => {
+        if (!validMemberCodes.has(code)) orphanLoginIndex.push(`${sourceKey}: ${code}`);
+      });
+    });
+
+    const orphanNameIndex = [];
+    ['nameIndexMain','nameIndexLegacySecure','nameIndexLegacy','nameIndexRoot','nameIndexBusSeat'].forEach((sourceKey) => {
+      collectIndexCodes(data[sourceKey]).forEach((code) => {
+        if (!validMemberCodes.has(code) && !pendingCodes.has(code)) orphanNameIndex.push(`${sourceKey}: ${code}`);
+      });
+    });
+
+    const pendingOnly = [];
+    pendingCodes.forEach((code) => {
+      if (!validMemberCodes.has(code)) pendingOnly.push(code);
+    });
+
+    const activeSessionCodes = new Set();
+    const activeSessions = data.activeSessions && !data.activeSessions.__readError ? data.activeSessions : {};
+    Object.keys(activeSessions || {}).forEach((code) => activeSessionCodes.add(compactCode(code)));
+    const orphanActiveSessions = [];
+    activeSessionCodes.forEach((code) => {
+      if (code && !validMemberCodes.has(code)) orphanActiveSessions.push(code);
+    });
+
+    const showList = (title, list, limit = 20) => {
+      if (!list.length) return `${title}: 0건`;
+      const body = list.slice(0, limit).map((v, i) => `  ${i + 1}. ${v}`).join('\n');
+      const more = list.length > limit ? `\n  ...외 ${list.length - limit}건` : '';
+      return `${title}: ${list.length}건\n${body}${more}`;
+    };
+
+    const totalIssues = orphanJoinCodes.length + deletedStillActiveJoinCodes.length + badStatusMembers.length + orphanLoginIndex.length + orphanNameIndex.length + orphanActiveSessions.length;
+    const report = [
+      `DB점검 완료: ${totalIssues}건의 점검 대상 발견`,
+      `정상 회원코드: ${validMemberCodes.size}건`,
+      `가입대기 코드: ${pendingOnly.length}건`,
+      '',
+      showList('고아 joinCodes(member/pending에 없음)', orphanJoinCodes),
+      '',
+      showList('삭제기록과 충돌하는 활성 회원코드', deletedStillActiveJoinCodes),
+      '',
+      showList('members 내부 삭제/탈퇴/차단 상태 잔류', badStatusMembers),
+      '',
+      showList('고아 loginIndex', orphanLoginIndex),
+      '',
+      showList('고아 nameIndex', orphanNameIndex),
+      '',
+      showList('고아 activeSessions', orphanActiveSessions),
+      '',
+      readErrors.length ? showList('읽기 실패 경로', readErrors, 10) : '읽기 실패 경로: 0건',
+      '',
+      '※ 이 점검은 삭제/수정 없이 읽기만 실행합니다.'
+    ].join('\n');
+
+    console.log('[회원 DB점검 결과]', report);
+    alert(report);
   }
 
 
@@ -11186,10 +11307,9 @@ function renderAll() {
     const memberDbCleanup = event.target.closest('#memberManagePanel #memberDbCleanupBtn');
     if (memberDbCleanup) {
       event.preventDefault();
-      if (!confirm('DB정리를 실행할까요?\n정리 작업을 진행하려면 [예]를 선택하세요.')) return;
       cleanupOrphanMemberDb().catch((error) => {
-        console.error('회원 DB 정리 오류:', error);
-        alert(`회원 DB 정리 오류: ${error?.code || error?.message || error}`);
+        console.error('회원 DB 점검 오류:', error);
+        alert(`회원 DB 점검 오류: ${error?.code || error?.message || error}`);
       });
       return;
     }
