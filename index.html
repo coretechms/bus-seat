@@ -7462,6 +7462,13 @@ function renderAll() {
     return String(inputName || "").trim().replace(/\s+/g, "");
   }
 
+  // 모바일 키보드/자동완성에서 들어오는 앞뒤 공백, 전각문자 차이 때문에
+  // PC와 모바일의 비밀번호 해시가 달라지는 문제를 방지한다.
+  // 회원가입 때 공백 비밀번호는 이미 차단하므로 trim/NFKC 정규화만 적용한다.
+  function normalizePasswordInput(value) {
+    return String(value || "").normalize("NFKC").trim();
+  }
+
   function makeNameKey(inputName) {
     return normalizeName(inputName).toLowerCase();
   }
@@ -7975,6 +7982,7 @@ function renderAll() {
 
   function memberPasswordMatches(member, inputPassword, inputHash) {
     if (!member) return false;
+    const normalizedInput = normalizePasswordInput(inputPassword);
     const savedHashes = [member.passwordHash, member.passHash, member.pwHash, member.memberPasswordHash]
       .map((v) => String(v || "").trim())
       .filter(Boolean);
@@ -7982,9 +7990,18 @@ function renderAll() {
 
     // 과거 파일/JSON 복구에서 평문 필드로 남아 있는 경우도 로그인 가능하게 호환 처리
     const savedPlain = [member.password, member.pass, member.pw, member.memberPassword, member.loginPassword]
-      .map((v) => String(v || ""))
+      .map((v) => normalizePasswordInput(v))
       .filter(Boolean);
-    return savedPlain.includes(String(inputPassword || ""));
+    if (savedPlain.includes(normalizedInput)) return true;
+
+    // 승인완료인데 passwordHash가 누락된 joinCodes-only 자료는 운영 기준 초기비번(끝4자리+0)으로 통과시킨다.
+    // 로그인 후 관리자가 비번초기화/고아복구를 실행하면 표준 DB로 완전 복구된다.
+    const status = String(member.status || "").toLowerCase();
+    if ((member.__joinCodesOnly || member.__loginIndexOnly) && (member.approved || status === "active")) {
+      const last4 = getMemberPhoneLast4(member);
+      if (last4.length === 4 && normalizedInput === `${last4}0`) return true;
+    }
+    return false;
   }
 
   function isMemberAllowedToLogin(member) {
@@ -8008,6 +8025,51 @@ function renderAll() {
       apps: m.apps || {},
       updatedAt: Date.now()
     };
+  }
+
+  function getMemberPhoneLast4(member) {
+    const direct = String(member?.phoneLast4 || "").replace(/\D/g, "").slice(-4);
+    if (direct.length === 4) return direct;
+    return String(member?.phoneDigits || member?.phone || member?.tel || "").replace(/\D/g, "").slice(-4);
+  }
+
+  async function ensureMemberPasswordHashForLogin(member) {
+    if (!member) return "";
+    const current = String(member.passwordHash || member.passHash || member.pwHash || member.memberPasswordHash || "").trim();
+    if (current) {
+      member.passwordHash = current;
+      return current;
+    }
+    const plain = normalizePasswordInput(member.password || member.pass || member.pw || member.memberPassword || member.loginPassword || "");
+    if (plain) {
+      const hash = await sha256Hex(plain);
+      member.passwordHash = hash;
+      return hash;
+    }
+    // 신규 승인 과정에서 비밀번호 해시가 누락된 회원은 로그인 불능이 되므로
+    // 운영 기준인 전화번호 끝 4자리 + 0으로 복구한다.
+    const last4 = getMemberPhoneLast4(member);
+    if (last4.length === 4) {
+      const hash = await sha256Hex(`${last4}0`);
+      member.passwordHash = hash;
+      member.passwordResetAt = member.passwordResetAt || Date.now();
+      return hash;
+    }
+    return "";
+  }
+
+  function addCanonicalLoginPathUpdates(updates, member, code) {
+    const keyCode = String(code || member?.code || "").trim();
+    const nameKey = makeNameKey(member?.name || "");
+    const plainNameKey = normalizeName(member?.name || "");
+    if (!keyCode || !nameKey) return;
+    const allowed = String(member?.status || "").toLowerCase() === "active" && !!member?.approved && !!member?.passwordHash;
+    const loginRecord = makeMemberLoginIndexRecord(member);
+    Array.from(new Set([nameKey, plainNameKey].filter(Boolean))).forEach((key) => {
+      updates[`${MEMBERS_ROOT}/nameIndex/${key}/${keyCode}`] = allowed ? true : null;
+      updates[`${MEMBER_LOGIN_INDEX_PATH}/${key}/${keyCode}`] = allowed ? loginRecord : null;
+    });
+    updates[`${MEMBERS_ROOT}/members/${keyCode}`] = allowed ? { ...member, code: keyCode } : updates[`${MEMBERS_ROOT}/members/${keyCode}`];
   }
 
   async function getLoginIndexMembersByName(name) {
@@ -8600,7 +8662,7 @@ function renderAll() {
 
   async function loginMember() {
     const name = normalizeName(byId("memberLoginNameInput")?.value);
-    const password = String(byId("memberLoginPasswordInput")?.value || "");
+    const password = normalizePasswordInput(byId("memberLoginPasswordInput")?.value);
 
     // 관리자 로그인: 아이디를 비워두고 비밀번호 칸에 관리자 비밀번호만 입력한 뒤 [로그인]을 누르면 진입 가능
     // 일반 회원은 기존처럼 이름 + 개인 비밀번호가 모두 필요함.
@@ -8717,7 +8779,7 @@ function renderAll() {
 
   async function joinMember() {
     const rawName = String(byId("memberJoinNameInput")?.value || "");
-    const rawPassword = String(byId("memberJoinPasswordInput")?.value || "");
+    const rawPassword = normalizePasswordInput(byId("memberJoinPasswordInput")?.value);
     const rawPhone = String(byId("memberJoinPhoneInput")?.value || "");
     const rawDong = String(byId("memberJoinDongInput")?.value || "");
 
@@ -8825,9 +8887,9 @@ function renderAll() {
 
   async function changeMemberPassword() {
     const rawName = String(byId("memberChangeNameInput")?.value || "");
-    const oldPassword = String(byId("memberChangeOldPasswordInput")?.value || "");
-    const newPassword = String(byId("memberChangeNewPasswordInput")?.value || "");
-    const confirmPassword = String(byId("memberChangeConfirmPasswordInput")?.value || "");
+    const oldPassword = normalizePasswordInput(byId("memberChangeOldPasswordInput")?.value);
+    const newPassword = normalizePasswordInput(byId("memberChangeNewPasswordInput")?.value);
+    const confirmPassword = normalizePasswordInput(byId("memberChangeConfirmPasswordInput")?.value);
 
     const spaceError = validateNoWhitespaceFields([
       { label: "아이디", value: rawName },
@@ -9313,11 +9375,14 @@ function renderAll() {
         status: "active",
         role: member.role === "admin" ? "admin" : "member",
         apps: { busSeat: true, tripSchedule: true, memberList: false, busRute: true },
+        phoneLast4: getMemberPhoneLast4(member),
         approvedAt: member.approvedAt || now,
         approvedBy: "membership-admin",
         updatedAt: now
       });
+      await ensureMemberPasswordHashForLogin(member);
       updates[`${memberPendingPathForUpdate}/${code}`] = null;
+      updates[`${MEMBERS_ROOT}/pending/${code}`] = null;
       updates[`${MEMBER_LIST_DELETED_JOIN_CODES_PATH}/${code}`] = null;
     } else if (action === "block") {
       Object.assign(member, {
@@ -9412,6 +9477,9 @@ function renderAll() {
       }
       updates[`${memberNameIndexPathForUpdate}/${key}/${code}`] = (member.status === "active" && member.approved) ? true : null;
     });
+    // 모바일/새 기기는 members 전체조회가 막혀도 loginIndex만으로 로그인해야 하므로
+    // 승인완료 회원은 항상 표준 경로(membershipSecure)에 로그인 본체와 인덱스를 함께 보강한다.
+    addCanonicalLoginPathUpdates(updates, member, code);
     await update(ref(membershipDb), updates);
     await mergeMemberIntoMemberListMain(member);
     setAuthMessage(`${member.name} / ${code} 처리 완료`, true);
