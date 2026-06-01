@@ -2665,7 +2665,7 @@ body.member-mode .controls {
       </div>
       <div class="member-auth-row">
         <label for="memberLoginPasswordInput">비밀번호</label>
-        <input id="memberLoginPasswordInput" type="password" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*">
+        <input id="memberLoginPasswordInput" type="password" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
 
       <div class="member-auth-actions">
@@ -2681,15 +2681,15 @@ body.member-mode .controls {
         </div>
         <div class="member-auth-row">
           <label for="memberChangeOldPasswordInput">기존비밀번호</label>
-          <input id="memberChangeOldPasswordInput" type="password" autocomplete="off" placeholder="기존 비밀번호" value="" inputmode="numeric" pattern="[0-9]*">
+          <input id="memberChangeOldPasswordInput" type="password" autocomplete="off" placeholder="기존 비밀번호" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-auth-row">
           <label for="memberChangeNewPasswordInput">비밀번호변경</label>
-          <input id="memberChangeNewPasswordInput" type="password" autocomplete="off" placeholder="변경 비밀번호" value="" inputmode="numeric" pattern="[0-9]*">
+          <input id="memberChangeNewPasswordInput" type="password" autocomplete="off" placeholder="변경 비밀번호" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-auth-row">
           <label for="memberChangeConfirmPasswordInput">비밀번호확인</label>
-          <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 확인" value="" inputmode="numeric" pattern="[0-9]*">
+          <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 확인" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-password-change-actions">
           <button id="memberChangePasswordSubmitBtn" type="button">변경</button>
@@ -2704,7 +2704,7 @@ body.member-mode .controls {
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPasswordInput">비밀번호</label>
-          <input id="memberJoinPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*">
+          <input id="memberJoinPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 입력" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-auth-row">
           <label for="memberJoinGenderInput">성 별</label>
@@ -2938,7 +2938,7 @@ body.member-mode .controls {
                     <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
                     <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
                     <button class="btn btn-outline" id="memberDbCleanupBtn" type="button" title="회원 DB의 고아코드/고아회원/잘못된 인덱스를 삭제 없이 검사">DB점검</button>
-                    <button class="btn btn-outline" id="memberOrphanRepairBtn" type="button" title="DB점검에서 발견된 고아 joinCodes를 로그인 가능한 회원 DB로 복구">고아복구</button>
+                    <button class="btn btn-outline" id="memberOrphanRepairBtn" type="button" title="DB점검에서 발견된 고아 joinCodes를 로그인 가능한 회원 DB로 복구">고아코드복구</button>
                     <button class="btn btn-outline" id="memberLoginAuditBtn" type="button" title="아이디=이름, 비밀번호=전화번호 끝4자리+0 기준으로 실제 로그인 가능성을 검사">로그인점검</button>
                     <button class="btn btn-outline" id="memberPasswordResetBtn" type="button" title="회원관리 목록에서 선택한 가입회원 1명의 비밀번호만 전화번호 끝4자리+0 기준으로 초기화">비번초기화</button>
                   </div>
@@ -8117,13 +8117,18 @@ function renderAll() {
   }
 
   async function getFreshActiveSessionsByCode(code) {
-    const snap = await get(ref(membershipDb, `${ACTIVE_SESSIONS_PATH}/${code}`));
-    if (!snap.exists()) return [];
-    const now = Date.now();
-    const value = snap.val() || {};
-    return Object.keys(value)
-      .map((deviceId) => ({ ...(value[deviceId] || {}), deviceId }))
-      .filter((item) => isFreshActiveSession(item, now));
+    try {
+      const snap = await get(ref(membershipDb, `${ACTIVE_SESSIONS_PATH}/${code}`));
+      if (!snap.exists()) return [];
+      const now = Date.now();
+      const value = snap.val() || {};
+      return Object.keys(value)
+        .map((deviceId) => ({ ...(value[deviceId] || {}), deviceId }))
+        .filter((item) => isFreshActiveSession(item, now));
+    } catch (error) {
+      console.warn("현재 로그인 세션 조회 실패 - 로그인은 계속 진행합니다:", error);
+      return [];
+    }
   }
 
   async function removeCurrentActiveSession() {
@@ -9394,12 +9399,19 @@ function renderAll() {
       createdAt: member.createdAt || now,
       updatedAt: now
     };
-    const loginIndexPath = `${MEMBER_LOGIN_INDEX_PATH}/${makeNameKey(member.name)}/${code}`;
-    if (member.status === "active" && member.approved && member.passwordHash) {
-      updates[loginIndexPath] = makeMemberLoginIndexRecord(member);
-    } else {
-      updates[loginIndexPath] = null;
-    }
+    const nameKey = makeNameKey(member.name);
+    const plainNameKey = normalizeName(member.name);
+    const loginIndexRecord = makeMemberLoginIndexRecord(member);
+    const loginIndexKeys = Array.from(new Set([nameKey, plainNameKey].filter(Boolean)));
+    loginIndexKeys.forEach((key) => {
+      const loginIndexPath = `${MEMBER_LOGIN_INDEX_PATH}/${key}/${code}`;
+      if (member.status === "active" && member.approved && member.passwordHash) {
+        updates[loginIndexPath] = loginIndexRecord;
+      } else {
+        updates[loginIndexPath] = null;
+      }
+      updates[`${memberNameIndexPathForUpdate}/${key}/${code}`] = (member.status === "active" && member.approved) ? true : null;
+    });
     await update(ref(membershipDb), updates);
     await mergeMemberIntoMemberListMain(member);
     setAuthMessage(`${member.name} / ${code} 처리 완료`, true);
@@ -9573,6 +9585,18 @@ function renderAll() {
     bindKoreanFirstNameInput("memberJoinNameInput");
     bindKoreanFirstNameInput("memberChangeNameInput");
     bindPhone344Input("memberJoinPhoneInput");
+
+    // 모바일 로그인 보강: 신규가입자가 PC에서 영문/문자 비밀번호를 만든 경우에도
+    // 휴대폰에서 숫자 키패드에 갇히지 않도록 회원 비밀번호 입력칸은 일반 텍스트 키보드로 연다.
+    ["memberLoginPasswordInput", "memberJoinPasswordInput", "memberChangeOldPasswordInput", "memberChangeNewPasswordInput", "memberChangeConfirmPasswordInput"].forEach((id) => {
+      const el = byId(id);
+      if (!el) return;
+      el.setAttribute("inputmode", "text");
+      el.removeAttribute("pattern");
+      el.setAttribute("autocapitalize", "off");
+      el.setAttribute("autocorrect", "off");
+      el.setAttribute("spellcheck", "false");
+    });
 
     byId("memberLoginBtn")?.addEventListener("click", () => {
       loginMember().catch((error) => {
@@ -11220,6 +11244,7 @@ function renderAll() {
   }
 
 
+  /* GPT PATCH: orphan repair button action */
   async function repairOrphanJoinCodesToLoginDb() {
     const ok = confirm(
       '고아코드 복구를 실행할까요?\n\n' +
@@ -11714,8 +11739,12 @@ function renderAll() {
     }
 
     const nameKey = makeManageNameKey(member.name || member.nameKey || '');
+    const lowerNameKey = String(nameKey || '').toLowerCase();
+    const loginNameKeys = Array.from(new Set([nameKey, lowerNameKey].filter(Boolean)));
     updates[`${MANAGE_MEMBERS_ROOT}/members/${code}`] = member;
-    updates[`${MANAGE_MEMBERS_ROOT}/nameIndex/${nameKey}/${code}`] = true;
+    loginNameKeys.forEach((key) => {
+      updates[`${MANAGE_MEMBERS_ROOT}/nameIndex/${key}/${code}`] = (member.status === 'active' && member.approved) ? true : null;
+    });
 
     // 기존 잘못 저장된 members/nameIndex/loginIndex는 보안 경로로 승격한 뒤 삭제한다.
     if (legacyMembersPath && legacyMembersPath !== `${MANAGE_MEMBERS_ROOT}/members`) updates[`${legacyMembersPath}/${code}`] = null;
@@ -11728,12 +11757,15 @@ function renderAll() {
       if (nameKey) updates[`${legacyLoginIndexPath}/${nameKey}/${code}`] = null;
     }
 
-    const loginIndexPath = `${MANAGE_MEMBERS_ROOT}/loginIndex/${nameKey}/${code}`;
-    if (member.status === 'active' && member.approved && member.passwordHash) {
-      updates[loginIndexPath] = makeManageMemberLoginIndexRecord(member);
-    } else {
-      updates[loginIndexPath] = null;
-    }
+    const loginIndexRecord = makeManageMemberLoginIndexRecord(member);
+    loginNameKeys.forEach((key) => {
+      const loginIndexPath = `${MANAGE_MEMBERS_ROOT}/loginIndex/${key}/${code}`;
+      if (member.status === 'active' && member.approved && member.passwordHash) {
+        updates[loginIndexPath] = loginIndexRecord;
+      } else {
+        updates[loginIndexPath] = null;
+      }
+    });
 
     await update(ref(manageDb), updates);
     await mirrorJoinCode(member);
