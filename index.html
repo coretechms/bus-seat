@@ -2725,6 +2725,40 @@ body.member-mode .controls {
     font-size:11px !important;
   }
 }
+
+/* 메인 로그인 화면 상단 새로고침 버튼 */
+.member-login-refresh-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 6px;
+}
+#memberLoginRefreshBtn {
+  width: auto !important;
+  min-width: 72px !important;
+  height: 26px !important;
+  padding: 0 10px !important;
+  border: 1px solid #1428c8 !important;
+  border-radius: 12px !important;
+  background: #eef5ff !important;
+  color: #1428c8 !important;
+  font: inherit !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  cursor: pointer !important;
+}
+#memberLoginRefreshBtn:active {
+  background: #dbeafe !important;
+}
+@media (max-width: 430px) {
+  .member-login-refresh-row { margin: -2px 0 5px; }
+  #memberLoginRefreshBtn {
+    min-width: 66px !important;
+    height: 24px !important;
+    font-size: 10px !important;
+    padding: 0 8px !important;
+  }
+}
+
 </style>
 
 <style id="memberPasswordResetSelectedStyle">
@@ -2745,6 +2779,10 @@ body.member-mode .controls {
 
   <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
+
+      <div class="member-login-refresh-row">
+        <button id="memberLoginRefreshBtn" type="button" aria-label="새로고침">새로고침</button>
+      </div>
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
       <h2 id="memberAuthTitle" class="member-auth-title">GUM_AM Mountain Members'</h2>
@@ -9753,6 +9791,15 @@ function renderAll() {
       el.setAttribute("autocapitalize", "off");
       el.setAttribute("autocorrect", "off");
       el.setAttribute("spellcheck", "false");
+    });
+
+
+    byId("memberLoginRefreshBtn")?.addEventListener("click", () => {
+      try {
+        window.location.reload();
+      } catch (error) {
+        location.href = location.href;
+      }
     });
 
     byId("memberLoginBtn")?.addEventListener("click", () => {
