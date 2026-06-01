@@ -1869,7 +1869,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
   gap:2px !important;
   flex:1 1 0 !important;
   min-width:0 !important;
-  max-width:126px !important;
+  max-width:172px !important;
   overflow:hidden !important;
   padding:0 !important;
   margin:0 !important;
@@ -1921,7 +1921,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
   }
   .member-manage-topbar #memberApprovalRefreshBtn{max-width:42px !important;}
   .member-manage-topbar #memberManageAdminToggleBtn{max-width:38px !important;}
-  .member-manage-topbar .member-manage-admin-group-panel{max-width:102px !important; gap:1px !important;}
+  .member-manage-topbar .member-manage-admin-group-panel{max-width:138px !important; gap:1px !important;}
   .member-manage-topbar .member-manage-admin-group-panel .btn{padding:0 1px !important; font-size:8px !important;}
   .member-manage-topbar #memberDbCleanupBtn{font-size:7.5px !important;}
   #memberManagePanel.member-admin-group-open .member-manage-title-search{max-width:42% !important;}
@@ -2912,6 +2912,7 @@ body.member-mode .controls {
                     <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
                     <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
                     <button class="btn btn-outline" id="memberDbCleanupBtn" type="button" title="회원 DB의 고아코드/고아회원/잘못된 인덱스를 삭제 없이 검사">DB점검</button>
+                    <button class="btn btn-outline" id="memberLoginAuditBtn" type="button" title="아이디=이름, 비밀번호=전화번호 끝4자리+0 기준으로 실제 로그인 가능성을 검사">로그인점검</button>
                   </div>
                   <input id="memberJsonRestoreFileInput" type="file" accept="application/json,.json" class="hidden" />
                 </div>
@@ -10845,6 +10846,177 @@ function renderAll() {
     return all.find((m) => String(m.code || "") === key) || { code: key };
   }
 
+  async function auditMemberDefaultLoginPasswords() {
+    const ok = confirm(
+      '로그인점검을 실행할까요?\n\n' +
+      '검사 기준: 아이디=이름, 비밀번호=전화번호 끝4자리+0\n' +
+      '실제 로그인/로그아웃은 하지 않고 DB 읽기 검사만 합니다.\n' +
+      '자료 삭제나 수정은 절대 실행하지 않습니다.'
+    );
+    if (!ok) return;
+
+    const normalizeDigits = (value) => String(value || '').replace(/\D/g, '');
+    const normalizeNameForAudit = (value) => String(value || '').replace(/\s+/g, '').trim();
+    const makeAuditNameKey = (value) => {
+      try {
+        if (typeof makeManageNameKey === 'function') return makeManageNameKey(value);
+      } catch (e) {}
+      return normalizeNameForAudit(value);
+    };
+    const hashText = async (value) => {
+      const text = String(value ?? '');
+      const bytes = new TextEncoder().encode(text);
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    };
+    const readObj = async (path) => {
+      try {
+        const snap = await get(ref(manageDb, path));
+        return snap && snap.exists() ? (snap.val() || {}) : {};
+      } catch (error) {
+        return { __readError: error?.code || error?.message || String(error), __path: path };
+      }
+    };
+    const getPhoneLast4 = (member) => {
+      const raw = member?.raw && typeof member.raw === 'object' ? member.raw : {};
+      const direct = String(member?.phoneLast4 || raw.phoneLast4 || '').replace(/\D/g, '').slice(-4);
+      if (direct.length === 4) return direct;
+      const digits = normalizeDigits(member?.phone || raw.phone || raw.phoneDigits || raw.tel || raw.contact || raw.phoneNumber);
+      return digits.slice(-4);
+    };
+    const isAuditLoginAllowedStatus = (member) => {
+      const status = String(member?.status || member?.raw?.status || '').toLowerCase();
+      if (['blocked', 'withdrawn', 'deleted', 'rejected'].includes(status)) return false;
+      if (status.includes('차단') || status.includes('탈퇴') || status.includes('삭제') || status.includes('거절')) return false;
+      if (member?.approved === true || member?.raw?.approved === true) return true;
+      return ['active', 'approved', 'member', 'admin'].includes(status);
+    };
+    const recordPasswordMatches = (record, expectedPassword, expectedHash) => {
+      const r = record && typeof record === 'object' ? record : {};
+      const savedHashes = [r.passwordHash, r.passHash, r.pwHash, r.memberPasswordHash]
+        .map((v) => String(v || '').trim())
+        .filter(Boolean);
+      if (savedHashes.includes(expectedHash)) return true;
+      const savedPlain = [r.password, r.pass, r.pw, r.memberPassword, r.loginPassword]
+        .map((v) => String(v || ''))
+        .filter(Boolean);
+      return savedPlain.includes(String(expectedPassword || ''));
+    };
+    const hasAnyPasswordData = (records) => records.some((record) => {
+      const r = record && typeof record === 'object' ? record : {};
+      return !!(r.passwordHash || r.passHash || r.pwHash || r.memberPasswordHash || r.password || r.pass || r.pw || r.memberPassword || r.loginPassword);
+    });
+    const memberText = (member, extra = '') => {
+      const code = String(member?.code || '').trim() || '-';
+      const name = String(member?.name || member?.raw?.name || '').trim() || '-';
+      const phone = String(member?.phone || member?.raw?.phone || member?.raw?.phoneDigits || '').trim() || '-';
+      return `${code} / ${name} / ${phone}${extra ? ' / ' + extra : ''}`;
+    };
+    const showList = (title, list, limit = 28) => {
+      if (!list.length) return `${title}: 0건`;
+      const body = list.slice(0, limit).map((v, i) => `  ${i + 1}. ${v}`).join('\n');
+      const more = list.length > limit ? `\n  ...외 ${list.length - limit}건` : '';
+      return `${title}: ${list.length}건\n${body}${more}`;
+    };
+
+    const members = await readAllMembers();
+    const activeMembers = (members || []).filter((m) => {
+      const status = String(m?.status || m?.raw?.status || '').toLowerCase();
+      if (status === 'pending' || status.includes('대기')) return false;
+      return isAuditLoginAllowedStatus(m);
+    });
+
+    const loginIndexPaths = [
+      `${MANAGE_MEMBERS_ROOT}/loginIndex`,
+      'busSeatApp/membership/loginIndex',
+      'membership/loginIndex',
+      'loginIndex'
+    ];
+    const loginIndexRoots = await Promise.all(loginIndexPaths.map(async (path) => ({ path, value: await readObj(path) })));
+    const readErrors = loginIndexRoots
+      .filter((item) => item.value && item.value.__readError)
+      .map((item) => `${item.path}: ${item.value.__readError}`);
+
+    const loginFail = [];
+    const loginOk = [];
+    const warnings = [];
+    const skipped = [];
+
+    for (const member of activeMembers) {
+      const name = String(member?.name || member?.raw?.name || '').trim();
+      const code = String(member?.code || '').trim();
+      if (!name) {
+        loginFail.push(memberText(member, '이름 없음'));
+        continue;
+      }
+      const last4 = getPhoneLast4(member);
+      if (last4.length !== 4) {
+        loginFail.push(memberText(member, '전화번호 끝4자리 확인 불가'));
+        continue;
+      }
+      const expectedPassword = `${last4}0`;
+      const expectedHash = await hashText(expectedPassword);
+      const nameKey = makeAuditNameKey(name);
+      const records = [member, member.raw || {}];
+      let hasLoginIndexForCode = false;
+      loginIndexRoots.forEach(({ value }) => {
+        if (!value || typeof value !== 'object' || value.__readError) return;
+        const branch = value[nameKey] || value[nameKey.toLowerCase && nameKey.toLowerCase()] || value[name] || null;
+        if (!branch || typeof branch !== 'object') return;
+        Object.keys(branch).forEach((idxCode) => {
+          const rec = branch[idxCode] || {};
+          const recCode = String(rec.code || idxCode || '').trim();
+          if (!code || recCode === code) {
+            hasLoginIndexForCode = true;
+            records.push({ ...rec, code: recCode });
+          }
+        });
+      });
+
+      if (!isAuditLoginAllowedStatus(member)) {
+        skipped.push(memberText(member, `로그인 허용 상태 아님: ${member.status || member.raw?.status || '-'}`));
+        continue;
+      }
+
+      const passwordOk = records.some((record) => recordPasswordMatches(record, expectedPassword, expectedHash));
+      if (passwordOk) {
+        loginOk.push(memberText(member));
+        if (!hasLoginIndexForCode) {
+          warnings.push(memberText(member, 'loginIndex 누락 가능성: members 직접조회가 막히면 로그인 실패 가능'));
+        }
+      } else {
+        const reason = hasAnyPasswordData(records)
+          ? `기준 비밀번호(${expectedPassword})와 저장 비밀번호 불일치`
+          : '저장된 passwordHash/비밀번호 없음';
+        loginFail.push(memberText(member, reason));
+      }
+    }
+
+    const report = [
+      '로그인점검 완료',
+      '검사 기준: 아이디=이름 / 비밀번호=전화번호 끝4자리+0',
+      '실제 로그인/로그아웃 기록은 만들지 않았습니다.',
+      '',
+      `검사대상 승인회원: ${activeMembers.length}명`,
+      `로그인 가능 예상: ${loginOk.length}명`,
+      `로그인 불가 예상: ${loginFail.length}명`,
+      `주의 필요: ${warnings.length}명`,
+      '',
+      showList('로그인 불가 예상 회원', loginFail),
+      '',
+      showList('주의 필요 회원', warnings),
+      '',
+      showList('검사 제외/상태 확인 회원', skipped, 12),
+      '',
+      readErrors.length ? showList('읽기 실패 경로', readErrors, 10) : '읽기 실패 경로: 0건',
+      '',
+      '※ 이 점검은 DB를 삭제/수정하지 않는 읽기 전용 검사입니다.'
+    ].join('\n');
+
+    console.log('[회원 로그인점검 결과]', report, { loginFail, warnings, loginOk });
+    alert(report);
+  }
+
   async function cleanupOrphanMemberDb() {
     const ok = confirm(
       'DB점검을 실행할까요?\n\n' +
@@ -11303,6 +11475,15 @@ function renderAll() {
     if (memberRestore) {
       event.preventDefault();
       handleMemberJsonRestoreClick();
+      return;
+    }
+    const memberLoginAudit = event.target.closest('#memberManagePanel #memberLoginAuditBtn');
+    if (memberLoginAudit) {
+      event.preventDefault();
+      auditMemberDefaultLoginPasswords().catch((error) => {
+        console.error('회원 로그인점검 오류:', error);
+        alert(`회원 로그인점검 오류: ${error?.code || error?.message || error}`);
+      });
       return;
     }
     const memberDbCleanup = event.target.closest('#memberManagePanel #memberDbCleanupBtn');
