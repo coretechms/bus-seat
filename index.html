@@ -12850,6 +12850,99 @@ body.admin-mode:not(.member-manage-mode) .controls {
   else bindMemberLoginEnterNextFocus();
 })();
 </script>
+
+<!-- 요청 수정: 모바일 회원관리 승인대기 목록 표시 보정 - DB/승인 로직 변경 없음 -->
+<style id="mobile-member-approval-visible-only-patch">
+@media (max-width: 760px) {
+  body.member-manage-mode #memberManagePanel {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    z-index: 2147482500 !important;
+  }
+  body.member-manage-mode #memberManagePanel > div {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+  body.member-manage-mode #memberApprovalPanel {
+    display: block !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  body.member-manage-mode #memberApprovalList {
+    display: grid !important;
+    min-height: 1px !important;
+  }
+}
+</style>
+<script id="mobile-member-approval-visible-only-script">
+(function(){
+  function isMobileMemberManageTarget() {
+    return !!(window.matchMedia && window.matchMedia("(max-width: 760px)").matches);
+  }
+  function isMemberManagePanelOpen(panel) {
+    return !!(panel && !panel.classList.contains("hidden"));
+  }
+  function fixMobileMemberApprovalVisible() {
+    if (!isMobileMemberManageTarget()) return;
+    var panel = document.getElementById("memberManagePanel");
+    if (!isMemberManagePanelOpen(panel)) return;
+
+    document.body.classList.add("member-manage-mode");
+    document.body.classList.remove("member-mode");
+
+    var approvalPanel = document.getElementById("memberApprovalPanel");
+    if (approvalPanel) {
+      approvalPanel.classList.add("is-open", "is-auth");
+      approvalPanel.style.display = "block";
+      approvalPanel.style.maxHeight = "none";
+      approvalPanel.style.overflowY = "auto";
+    }
+
+    var list = document.getElementById("memberApprovalList");
+    var text = list ? String(list.textContent || "") : "";
+    if (/회원관리 탭을 열면|불러오는 중/.test(text)) {
+      var loader = window.__forceLoadMemberManageList || window.__loadMembershipApprovalMembers;
+      if (typeof loader === "function") {
+        Promise.resolve(loader()).catch(function(error){
+          console.error("모바일 회원관리 승인대기 목록 표시 보정 오류:", error);
+        });
+      }
+    }
+  }
+
+  document.addEventListener("click", function(event){
+    var target = event.target && event.target.closest ? event.target.closest("#memberManageTab,#memberApprovalRefreshBtn") : null;
+    if (!target) return;
+    setTimeout(fixMobileMemberApprovalVisible, 80);
+    setTimeout(fixMobileMemberApprovalVisible, 350);
+  }, true);
+
+  document.addEventListener("DOMContentLoaded", function(){
+    var panel = document.getElementById("memberManagePanel");
+    if (panel && window.MutationObserver) {
+      new MutationObserver(fixMobileMemberApprovalVisible).observe(panel, { attributes: true, attributeFilter: ["class", "style"] });
+    }
+    setTimeout(fixMobileMemberApprovalVisible, 300);
+  });
+
+  window.addEventListener("pageshow", function(){
+    setTimeout(fixMobileMemberApprovalVisible, 120);
+  });
+})();
+</script>
+
 </body>
 </html>
 <script id="member-manage-back-to-member-mode-final-patch">
