@@ -826,6 +826,50 @@
       white-space: pre-wrap;
     }
 
+
+    /* 요청 수정: 관리자 안내문구 선택 서식 버튼 */
+    .info-seat-guide-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .info-seat-guide-label-row label {
+      margin-bottom: 0 !important;
+      white-space: nowrap;
+    }
+    .info-seat-guide-format-buttons {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: nowrap;
+    }
+    .info-seat-guide-format-buttons .btn {
+      width: auto !important;
+      min-width: 38px !important;
+      height: 24px !important;
+      padding: 0 7px !important;
+      border-radius: 10px !important;
+      font-size: 11px !important;
+      line-height: 1 !important;
+      white-space: nowrap !important;
+    }
+    .guide-bold { font-weight: 900 !important; }
+    .guide-blue { color: #1428c8 !important; font-weight: 800 !important; }
+    .guide-red { color: #d80000 !important; font-weight: 800 !important; }
+    .guide-blink { animation: guideTextBlink .75s steps(2, start) infinite; font-weight: 900 !important; }
+    @keyframes guideTextBlink { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+    @media (max-width: 760px) {
+      .info-seat-guide-format-buttons { gap: 3px; }
+      .info-seat-guide-format-buttons .btn {
+        min-width: 32px !important;
+        height: 22px !important;
+        padding: 0 5px !important;
+        font-size: 10px !important;
+      }
+    }
+
     .mode-divider {
       border-top: 0 !important;
       padding-top: 14px;
@@ -3158,7 +3202,15 @@ body.member-mode .controls {
                 <input id="infoAccountOwner" type="text" />
               </div>
               <div style="margin-top:8px;">
-                <label for="infoSeatGuideText">안내문구</label>
+                <div class="info-seat-guide-label-row">
+                  <label for="infoSeatGuideText">안내문구</label>
+                  <div class="info-seat-guide-format-buttons" aria-label="안내문구 선택 서식">
+                    <button class="btn btn-outline" id="infoGuideBoldBtn" type="button">굵게</button>
+                    <button class="btn btn-outline" id="infoGuideBlueBtn" type="button">파랑</button>
+                    <button class="btn btn-outline" id="infoGuideRedBtn" type="button">빨강</button>
+                    <button class="btn btn-outline" id="infoGuideBlinkBtn" type="button">깜빡임</button>
+                  </div>
+                </div>
                 <textarea id="infoSeatGuideText" style="height:80px; resize:vertical;"></textarea>
               </div>
             </div>
@@ -3543,6 +3595,56 @@ const firebaseConfig = {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#39;");
+    }
+
+
+    function renderGuideTextHtml(text) {
+      let safe = escapeHtml(text || "");
+      const allowedTags = {
+        "&lt;b&gt;": "<b>",
+        "&lt;/b&gt;": "</b>",
+        "&lt;span class=&quot;guide-bold&quot;&gt;": '<span class="guide-bold">',
+        "&lt;span class=&quot;guide-blue&quot;&gt;": '<span class="guide-blue">',
+        "&lt;span class=&quot;guide-red&quot;&gt;": '<span class="guide-red">',
+        "&lt;span class=&quot;guide-blink&quot;&gt;": '<span class="guide-blink">',
+        "&lt;/span&gt;": "</span>"
+      };
+      Object.keys(allowedTags).forEach((tag) => {
+        safe = safe.replaceAll(tag, allowedTags[tag]);
+      });
+      return safe;
+    }
+
+    async function applyInfoGuideFormat(formatType) {
+      const textarea = byId("infoSeatGuideText");
+      if (!textarea) return;
+      const start = Number(textarea.selectionStart || 0);
+      const end = Number(textarea.selectionEnd || 0);
+      if (end <= start) {
+        alert("효과를 적용할 글자 또는 문장을 먼저 선택하세요.");
+        textarea.focus();
+        return;
+      }
+      const value = textarea.value || "";
+      const selected = value.slice(start, end);
+      const wrappers = {
+        bold: ["<b>", "</b>"],
+        blue: ['<span class="guide-blue">', "</span>"],
+        red: ['<span class="guide-red">', "</span>"],
+        blink: ['<span class="guide-blink">', "</span>"]
+      };
+      const wrapper = wrappers[formatType];
+      if (!wrapper) return;
+      const nextValue = value.slice(0, start) + wrapper[0] + selected + wrapper[1] + value.slice(end);
+      textarea.value = nextValue;
+      const nextStart = start + wrapper[0].length;
+      const nextEnd = nextStart + selected.length;
+      state.busInfo.seatGuideText = nextValue;
+      autoResizeTextarea(textarea, 80, 420);
+      renderPanels();
+      textarea.focus();
+      textarea.setSelectionRange(nextStart, nextEnd);
+      if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote();
     }
 
     function normalizeName(inputName) {
@@ -4081,9 +4183,10 @@ const firebaseConfig = {
       const infoBox = byId("busInfoLocked");
       if (infoBox) {
         infoBox.style.display = (state.mode === "admin" || state.mode === "memberManage") ? "none" : "block";
-        infoBox.textContent = state.nameEntryLocked
+        const seatGuideText = state.nameEntryLocked
           ? "현재 전체 이름 입력이 제한되어 있습니다."
           : (state.busInfo.seatGuideText || "1. 원하는 좌석을 선택 후 이름을 입력 하세요  2. 잘못 입력했을 경우 총무에게 문의 하세요  3. 자리변경을 하려면 빈좌석에 이름을 입력 하세요");
+        infoBox.innerHTML = renderGuideTextHtml(seatGuideText);
       }
 
       const helpText = document.querySelector(".help-text");
@@ -6691,6 +6794,10 @@ function renderAll() {
       bindIfPresent("infoBankName", "input", async (e) => { state.busInfo.bankName = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoAccountOwner", "input", async (e) => { state.busInfo.accountOwner = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoSeatGuideText", "input", async (e) => { autoResizeTextarea(e.target, 80, 420); state.busInfo.seatGuideText = e.target.value; renderPanels(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("infoGuideBoldBtn", "click", () => applyInfoGuideFormat("bold"));
+      bindIfPresent("infoGuideBlueBtn", "click", () => applyInfoGuideFormat("blue"));
+      bindIfPresent("infoGuideRedBtn", "click", () => applyInfoGuideFormat("red"));
+      bindIfPresent("infoGuideBlinkBtn", "click", () => applyInfoGuideFormat("blink"));
       bindIfPresent("resetInlineCancelBtn", "click", () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); });
       bindIfPresent("resetInlineConfirmBtn", "click", async () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); await executeReset(); });
       bindIfPresent("captureBoardBtn", "click", async () => {
