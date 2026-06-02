@@ -12943,6 +12943,133 @@ body.admin-mode:not(.member-manage-mode) .controls {
 })();
 </script>
 
+
+
+<script type="module" id="member-manage-pending-blink-realtime-restore-script">
+/* 요청 수정: 신규 가입 승인대기 인원이 있으면 회원관리 버튼 깜빡임을 항상 복구
+   - 기존 CSS/member-manage-pending-blink는 그대로 사용
+   - 회원관리 화면을 열기 전에도 pending DB를 직접 감시해서 탭 상태만 갱신
+   - 다른 화면/버튼/회원처리 로직은 변경하지 않음 */
+(function(){
+  if (window.__memberManagePendingBlinkRealtimeRestoreApplied) return;
+  window.__memberManagePendingBlinkRealtimeRestoreApplied = true;
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgwQ",
+    authDomain: "bus-seat-eb86c.firebaseapp.com",
+    databaseURL: "https://bus-seat-eb86c-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "bus-seat-eb86c",
+    storageBucket: "bus-seat-eb86c.firebasestorage.app",
+    messagingSenderId: "132111967366",
+    appId: "1:132111967366:web:e034a00f8c8cc4aa441d07"
+  };
+
+  const WATCH_PATHS = [
+    "membershipSecure/pending",
+    "membershipSecure/members",
+    "busSeatApp/membership/pending",
+    "busSeatApp/membership/members",
+    "membership/pending",
+    "membership/members",
+    "pending",
+    "members",
+    "busSeatApp/pending",
+    "busSeatApp/members"
+  ];
+
+  function setBlink(count){
+    const tab = document.getElementById("memberManageTab");
+    if (!tab) return;
+    const pendingCount = Number(count || 0);
+    tab.classList.toggle("member-manage-pending-blink", pendingCount > 0);
+    tab.setAttribute("data-pending-count", String(pendingCount));
+  }
+
+  function isPendingRecord(record){
+    if (!record || typeof record !== "object") return false;
+    const status = String(record.status || "").trim();
+    if (status === "pending") return true;
+    if (status === "blocked" || status === "withdrawn" || status === "rejected" || status === "deleted" || status === "active") return false;
+    return record.approved === false && !record.passwordHash;
+  }
+
+  function collectPendingCodesFromObject(data, path, out){
+    if (!data || typeof data !== "object") return;
+    const isPendingPath = /\/pending$/.test(path);
+    Object.keys(data).forEach((code) => {
+      const record = data[code];
+      if (isPendingPath) {
+        if (record && typeof record === "object") {
+          const status = String(record.status || "pending").trim();
+          if (status !== "blocked" && status !== "withdrawn" && status !== "rejected" && status !== "deleted" && status !== "active") {
+            out.add(String(code));
+          }
+        } else {
+          out.add(String(code));
+        }
+        return;
+      }
+      if (isPendingRecord(record)) out.add(String(code));
+    });
+  }
+
+  async function refreshPendingBlink(){
+    try {
+      const firebaseApp = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+      const firebaseDb = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js");
+      const app = firebaseApp.getApps().length ? firebaseApp.getApp() : firebaseApp.initializeApp(FIREBASE_CONFIG);
+      const db = firebaseDb.getDatabase(app);
+      const pendingCodes = new Set();
+      await Promise.all(WATCH_PATHS.map(async (path) => {
+        try {
+          const snap = await firebaseDb.get(firebaseDb.ref(db, path));
+          if (snap && snap.exists()) collectPendingCodesFromObject(snap.val() || {}, path, pendingCodes);
+        } catch (error) {}
+      }));
+      setBlink(pendingCodes.size);
+    } catch (error) {}
+  }
+
+  function startRealtimeWatch(){
+    if (window.__memberManagePendingBlinkRealtimeStarted) return;
+    window.__memberManagePendingBlinkRealtimeStarted = true;
+    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js").then((firebaseApp) => {
+      return import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js").then((firebaseDb) => ({ firebaseApp, firebaseDb }));
+    }).then(({ firebaseApp, firebaseDb }) => {
+      const app = firebaseApp.getApps().length ? firebaseApp.getApp() : firebaseApp.initializeApp(FIREBASE_CONFIG);
+      const db = firebaseDb.getDatabase(app);
+      let timer = null;
+      const schedule = () => {
+        clearTimeout(timer);
+        timer = setTimeout(refreshPendingBlink, 150);
+      };
+      WATCH_PATHS.forEach((path) => {
+        try {
+          firebaseDb.onValue(firebaseDb.ref(db, path), schedule, () => {});
+        } catch (error) {}
+      });
+      schedule();
+    }).catch(() => {
+      refreshPendingBlink();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    refreshPendingBlink();
+    startRealtimeWatch();
+    setTimeout(refreshPendingBlink, 600);
+    setTimeout(refreshPendingBlink, 1600);
+  });
+  window.addEventListener("pageshow", function(){
+    refreshPendingBlink();
+    startRealtimeWatch();
+  });
+  document.addEventListener("click", function(event){
+    const target = event.target && event.target.closest ? event.target.closest("#memberManageTab,#memberApprovalRefreshBtn,#memberJoinSubmitBtn") : null;
+    if (target) setTimeout(refreshPendingBlink, 250);
+  }, true);
+})();
+</script>
 </body>
 </html>
 <script id="member-manage-back-to-member-mode-final-patch">
