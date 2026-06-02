@@ -9006,7 +9006,7 @@ function renderAll() {
       [`${MEMBERS_ROOT}/pending/${code}`]: payload
     });
 
-    setAuthMessage(`가입 신청 완료. 관리자 승인 대기중입니다. 회원코드: ${code}`, true);
+    setAuthMessage("신청이 완료 되었습니다", true);
     clearMemberJoinInputs();
     byId("memberSignupPanel")?.classList.remove("is-open");
     setMemberAuthViewMode("main");
