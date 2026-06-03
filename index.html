@@ -1178,6 +1178,34 @@
 }
 
 
+
+
+/* 요청 수정: 관리자 공지확인 실행 시 회원 입력 모드 공지확인 버튼 분홍색 천천히 깜빡임 */
+#hikingNoticeBtn.notice-check-slow-blink {
+  background: #ffd6e7 !important;
+  border-color: #f472b6 !important;
+  color: #9d174d !important;
+  font-weight: 900 !important;
+  animation: noticeCheckSlowPinkBlink 2.4s ease-in-out infinite;
+}
+#adminNoticeCheckBlinkBtn.notice-check-active {
+  background: #ffd6e7 !important;
+  border-color: #f472b6 !important;
+  color: #9d174d !important;
+  font-weight: 900 !important;
+}
+@keyframes noticeCheckSlowPinkBlink {
+  0%, 100% {
+    background: #ffd6e7;
+    box-shadow: 0 0 0 rgba(244, 114, 182, 0);
+  }
+  50% {
+    background: #fff4fa;
+    box-shadow: 0 0 10px rgba(244, 114, 182, 0.38);
+  }
+}
+
+
     /* 회원 입력 모드 하단 버튼 재배치 */
     .member-quick-row .btn {
       min-width: 0;
@@ -2903,7 +2931,7 @@ body.member-mode .controls {
       </div>
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
-      <h2 id="memberAuthTitle" class="member-auth-title">Geom_Am Mountain Members'</h2>
+      <h2 id="memberAuthTitle" class="member-auth-title"Geom_Am Mountain Members'</h2>
       <div class="member-auth-row">
         <label for="memberLoginNameInput">아이디</label>
         <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" />
@@ -2960,8 +2988,8 @@ body.member-mode .controls {
           </select>
         </div>
         <div class="member-auth-row">
-          <label for="memberJoinBirthInput">출생년도</label>
-          <input id="memberJoinBirthInput" type="text" inputmode="numeric" placeholder="출생년도 ( 1970 )" value="" />
+          <label for="memberJoinBirthInput">생년월일</label>
+          <input id="memberJoinBirthInput" type="text" inputmode="numeric" placeholder="출생년도 ( 700808 )" value="" />
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPhoneInput">전화번호</label>
@@ -3279,6 +3307,7 @@ body.member-mode .controls {
               <div style="margin-top:8px;">
                 <div class="info-seat-guide-label-row">
                   <label for="infoSeatGuideText">안내문구</label>
+                  <button class="btn btn-outline" id="adminNoticeCheckBlinkBtn" type="button" style="width:auto; min-width:62px; height:24px; padding:0 8px; border-radius:10px; font-size:11px; white-space:nowrap;">공지확인</button>
                   <div class="info-seat-guide-format-buttons" aria-label="안내문구 선택 서식">
                     <button class="btn btn-outline" id="infoGuideBoldBtn" type="button">굵게</button>
                     <button class="btn btn-outline" id="infoGuideBlueBtn" type="button">파랑</button>
@@ -3462,6 +3491,7 @@ const firebaseConfig = {
       waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
       nameEntryLocked: false,
       boardImageMode: false,
+      noticeCheckBlink: false,
       hikingNotice: { text: "", locked: false, editing: true },
       securityMemos: {}
     };
@@ -3654,6 +3684,7 @@ const firebaseConfig = {
         systemAdminPassword: DEFAULT_SYSTEM_ADMIN_PASSWORD,
         waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
         nameEntryLocked: false,
+        noticeCheckBlink: false,
         hikingNotice: { text: "", locked: false },
         meta: { createdAt: Date.now(), updatedAt: Date.now() }
       };
@@ -5165,6 +5196,7 @@ function renderAll() {
         const showCapture = (state.mode === "admin");
         captureBtn.classList.toggle("hidden", !showCapture);
       }
+      updateNoticeCheckBlinkButtons();
       SeatNameBridge.sync();
     }
 
@@ -5277,6 +5309,7 @@ function renderAll() {
       if (state.recoveryCodeHash) saveLocalRecoveryCodeHash(state.recoveryCodeHash);
       state.waitingExpireHours = expireHours;
       state.nameEntryLocked = Boolean(payload?.nameEntryLocked);
+      state.noticeCheckBlink = Boolean(payload?.noticeCheckBlink);
       state.hikingNotice = { text: String(payload?.hikingNotice?.text || ""), locked: Boolean(payload?.hikingNotice?.locked), editing: !Boolean(payload?.hikingNotice?.locked) };
 
       if (state.editingSeat && !state.seats.find((s) => s.number === state.editingSeat)) {
@@ -5450,6 +5483,41 @@ function renderAll() {
       const overlay = byId("hikingNoticeOverlay");
       if (overlay) overlay.classList.add("hidden");
       hikingNoticeHistoryPushed = false;
+    }
+
+    function updateNoticeCheckBlinkButtons() {
+      const shouldBlink = Boolean(state.noticeCheckBlink);
+      const memberNoticeBtn = byId("hikingNoticeBtn");
+      const adminNoticeBtn = byId("adminNoticeCheckBlinkBtn");
+      if (memberNoticeBtn) memberNoticeBtn.classList.toggle("notice-check-slow-blink", shouldBlink);
+      if (adminNoticeBtn) {
+        adminNoticeBtn.classList.toggle("notice-check-active", shouldBlink);
+        adminNoticeBtn.textContent = shouldBlink ? "공지해제" : "공지확인";
+      }
+    }
+
+    async function saveNoticeCheckBlinkRemote() {
+      if (!state.db) return false;
+      return safeUpdate(ref(state.db, ROOT_PATH), {
+        noticeCheckBlink: Boolean(state.noticeCheckBlink),
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveNoticeCheckBlinkRemote",
+        permissionMessage: "공지확인 깜빡임 저장 권한이 없습니다.",
+        genericMessage: "공지확인 깜빡임 저장 실패"
+      });
+    }
+
+    async function toggleNoticeCheckBlink() {
+      state.noticeCheckBlink = !Boolean(state.noticeCheckBlink);
+      updateNoticeCheckBlinkButtons();
+      if (state.isFirebaseReady && state.isAdminAuthenticated) {
+        const ok = await saveNoticeCheckBlinkRemote();
+        if (!ok) {
+          state.noticeCheckBlink = !Boolean(state.noticeCheckBlink);
+          updateNoticeCheckBlinkButtons();
+        }
+      }
     }
 
     async function saveHikingNoticeRemote() {
@@ -7049,6 +7117,7 @@ function renderAll() {
       bindIfPresent("infoGuideBlueBtn", "click", () => applyInfoGuideFormat("blue"));
       bindIfPresent("infoGuideRedBtn", "click", () => applyInfoGuideFormat("red"));
       bindIfPresent("infoGuideBlinkBtn", "click", () => applyInfoGuideFormat("blink"));
+      bindIfPresent("adminNoticeCheckBlinkBtn", "click", toggleNoticeCheckBlink);
       bindIfPresent("resetInlineCancelBtn", "click", () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); });
       bindIfPresent("resetInlineConfirmBtn", "click", async () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); await executeReset(); });
       bindIfPresent("captureBoardBtn", "click", async () => {
@@ -7988,7 +8057,9 @@ function renderAll() {
   }
 
   function normalizeBirthYear(value) {
-    const digits = String(value || "").replace(/\D/g, "").slice(0, 4);
+    // 회원가입 화면의 "생년월일" 입력값은 멤버리스트 "주민번호" 칸으로 넘긴다.
+    // 기존 변수명(birthYear)은 호환을 위해 유지하되, 값은 YYMMDD 6자리까지 보존한다.
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 6);
     return digits;
   }
 
@@ -8042,7 +8113,7 @@ function renderAll() {
     const parts = [
       `회원번호 ${member.code || "-"}`,
       `이름 ${member.name || "-"}`,
-      `출생년도 ${member.birthYear || "-"}`,
+      `생년월일 ${member.birthYear || member.birthDate || member.rrn || "-"}`,
       `거주지 ${member.dong || "-"}`
     ];
     return parts.join(" / ");
@@ -8148,7 +8219,7 @@ function renderAll() {
 
     if (sameNameDifferentMembers.length > 0) {
       const detail = sameNameDifferentMembers.map(summarizeMemberForJoinDuplicateMessage).join("\n");
-      const ok = confirm(`같은 이름의 기존 회원이 있습니다.\n전화번호/출생년도/거주지가 다르면 신규회원으로 가입신청할 수 있습니다.\n\n${detail}\n\n신규회원으로 가입신청을 계속할까요?`);
+      const ok = confirm(`같은 이름의 기존 회원이 있습니다.\n전화번호/생년월일/거주지가 다르면 신규회원으로 가입신청할 수 있습니다.\n\n${detail}\n\n신규회원으로 가입신청을 계속할까요?`);
       if (!ok) {
         return {
           block: true,
@@ -8252,6 +8323,8 @@ function renderAll() {
       name: member.name || "",
       gender: member.gender || "",
       birthYear: member.birthYear || "",
+      birthDate: member.birthDate || member.birthYear || "",
+      rrn: member.rrn || member.birthDate || member.birthYear || "",
       phone: member.phone || "",
       phoneDigits: member.phoneDigits || "",
       phoneLast4: member.phoneLast4 || "",
@@ -8402,6 +8475,7 @@ function renderAll() {
       name: getMemberListHeaderIndex(data, "이 름", 1),
       gender: getMemberListHeaderIndex(data, "성별", 2),
       birth: getMemberListHeaderIndex(data, "출생년도", 3),
+      rrn: getMemberListHeaderIndex(data, "주민번호", 4),
       phone: getMemberListHeaderIndex(data, "연락처", 5),
       dong: getMemberListHeaderIndex(data, "거주지", 8),
       approval: getMemberListHeaderIndex(data, "가입:승인", 19),
@@ -8431,7 +8505,8 @@ function renderAll() {
     if (!metadataOnly) {
       setMemberListCellText(row, idx.name, incomingName);
       setMemberListCellText(row, idx.gender, member.gender || "");
-      setMemberListCellText(row, idx.birth, member.birthYear || "");
+      setMemberListCellText(row, idx.birth, "");
+      setMemberListCellText(row, idx.rrn, member.rrn || member.birthDate || member.birthYear || "");
       setMemberListCellText(row, idx.phone, incomingPhone);
       setMemberListCellText(row, idx.dong, member.dong || "");
     }
@@ -9369,7 +9444,7 @@ function renderAll() {
     }
 
     if (!name || !password || !gender || !birthYear || !phoneDigits || !dong) {
-      setAuthMessage("본명, 비밀번호, 성별, 출생년도, 전화번호, 거주지를 모두 입력하세요.");
+      setAuthMessage("본명, 비밀번호, 성별, 생년월일, 전화번호, 거주지를 모두 입력하세요.");
       return;
     }
     if (hasInvalidPhoneChars(rawPhone)) {
@@ -10185,6 +10260,8 @@ function renderAll() {
       name: member.name,
       gender: member.gender || "",
       birthYear: member.birthYear || "",
+      birthDate: member.birthDate || member.birthYear || "",
+      rrn: member.rrn || member.birthDate || member.birthYear || "",
       phone: member.phone || "",
       phoneLast4: member.phoneLast4 || "",
       dong: member.dong || "",
@@ -11362,6 +11439,8 @@ function renderAll() {
       name: member.name || member.memberName || member.userName || member.displayName || "",
       gender: member.gender || "",
       birthYear: member.birthYear || "",
+      birthDate: member.birthDate || member.birthYear || "",
+      rrn: member.rrn || member.birthDate || member.birthYear || "",
       phone: member.phone || "",
       phoneLast4: member.phoneLast4 || "",
       dong: member.dong || "",
@@ -11577,7 +11656,7 @@ function renderAll() {
     const code = String(member.code || "").trim();
     const incomingName = String(member.name || member.loginName || "").trim();
     const incomingPhone = String(member.phone || member.phoneDigits || "").trim();
-    const incomingBirth = String(member.birthYear || "").trim();
+    const incomingBirth = String(member.rrn || member.birthDate || member.birthYear || "").trim();
     const incomingDong = String(member.dong || member.residence || "").trim();
     // 멤버리스트의 실제 상태 표시 칸은 "승인결과"입니다.
     // 승인/차단/탈퇴/삭제 값을 모두 같은 함수로 계산해 승인결과 칸에 반영합니다.
@@ -11613,7 +11692,7 @@ function renderAll() {
         const rowNameKey = cleanName(cellTextSafe(r, idx.name));
         if (!rowNameKey || rowNameKey !== incomingNameKey) return false;
         const rowPhoneKey = cleanPhone(cellTextSafe(r, idx.phone));
-        const rowBirthKey = cleanText(cellTextSafe(r, idx.birth));
+        const rowBirthKey = cleanText(cellTextSafe(r, idx.rrn >= 0 ? idx.rrn : idx.birth));
         const rowDongKey = cleanText(cellTextSafe(r, idx.dong));
         return rowPhoneKey !== incomingPhoneKey || rowBirthKey !== incomingBirthKey || rowDongKey !== incomingDongKey;
       });
@@ -11633,7 +11712,8 @@ function renderAll() {
     if (!metadataOnly) {
       setManageMemberListCellText(row, idx.name, incomingName);
       setManageMemberListCellText(row, idx.gender, member.gender || "");
-      setManageMemberListCellText(row, idx.birth, incomingBirth);
+      setManageMemberListCellText(row, idx.birth, "");
+      if (idx.rrn >= 0) setManageMemberListCellText(row, idx.rrn, incomingBirth);
       setManageMemberListCellText(row, idx.phone, incomingPhone);
       setManageMemberListCellText(row, idx.dong, incomingDong);
     }
