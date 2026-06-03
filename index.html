@@ -9103,7 +9103,7 @@ function renderAll() {
       list.innerHTML = '<div class="login-log-empty">로그인 기록이 없습니다.</div>';
       return;
     }
-    list.innerHTML = rows.slice(0, 300).map((item) => {
+    list.innerHTML = rows.slice(0, 5000).map((item) => {
       const label = getLoginActionLabel(item.action || item.actionLabel);
       const msg = item.message ? ` · ${escapeHtml(item.message)}` : "";
       return `<div class="login-log-item">
