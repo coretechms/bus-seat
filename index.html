@@ -6681,9 +6681,6 @@ function renderAll() {
       state.editingSeat = null;
       state.editName = "";
       renderAll();
-      if (nextMode === "member") {
-        scheduleMemberGuideBoxFirstScroll();
-      }
       if (nextMode === "memberManage") {
         if (typeof window.__startMemberManageRealtimeWatch === "function") {
           window.__startMemberManageRealtimeWatch();
@@ -9253,7 +9250,6 @@ function renderAll() {
     enforceMemberInputModeHiddenUi();
     setTimeout(enforceMemberInputModeHiddenUi, 0);
     setTimeout(enforceMemberInputModeHiddenUi, 250);
-    scheduleMemberGuideBoxFirstScroll();
   }
 
   async function joinMember() {
@@ -9511,26 +9507,6 @@ function renderAll() {
       badge.textContent = "";
       badge.style.display = "none";
     }
-  }
-
-
-  function scrollMemberGuideBoxFirst() {
-    // 회원 로그인/회원 입력 모드 진입 직후에는 메뉴 버튼보다 아래 안내문구 박스가 먼저 보이도록 내부 스크롤을 맞춘다.
-    try {
-      if (document.body.classList.contains("membership-locked")) return;
-      if (state.mode !== "member") return;
-      const controls = document.querySelector(".controls");
-      const guideBox = byId("busInfoLocked");
-      if (!controls || !guideBox || guideBox.offsetParent === null) return;
-      const targetTop = Math.max(0, guideBox.offsetTop - controls.offsetTop - 4);
-      controls.scrollTop = targetTop;
-    } catch (error) {}
-  }
-
-  function scheduleMemberGuideBoxFirstScroll() {
-    setTimeout(scrollMemberGuideBoxFirst, 0);
-    setTimeout(scrollMemberGuideBoxFirst, 120);
-    setTimeout(scrollMemberGuideBoxFirst, 350);
   }
 
   async function restoreSessionIfValid() {
