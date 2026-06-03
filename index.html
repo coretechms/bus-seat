@@ -871,8 +871,49 @@
     .guide-bold { font-weight: 900 !important; }
     .guide-blue { color: #1428c8 !important; font-weight: 800 !important; }
     .guide-red { color: #d80000 !important; font-weight: 800 !important; }
-    .guide-blink { animation: guideTextBlink .75s steps(2, start) infinite; font-weight: 900 !important; }
+    .guide-blink { animation: guideTextBlink 1.3s steps(2, start) infinite; font-weight: 900 !important; }
     @keyframes guideTextBlink { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+
+    /* 요청 수정: 산행공지 선택 서식 버튼 */
+    .hiking-notice-title-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex-wrap: nowrap;
+    }
+    .hiking-notice-format-buttons {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: nowrap;
+    }
+    .hiking-notice-format-buttons[hidden] {
+      display: none !important;
+    }
+    .hiking-notice-format-buttons .btn {
+      width: auto !important;
+      min-width: 38px !important;
+      height: 24px !important;
+      padding: 0 7px !important;
+      border-radius: 10px !important;
+      font-size: 11px !important;
+      line-height: 1 !important;
+      white-space: nowrap !important;
+    }
+    #hikingNoticeText[contenteditable="false"] {
+      background: #fff6bf;
+      border-style: dashed;
+    }
+    @media (max-width: 760px) {
+      .hiking-notice-format-buttons { gap: 3px; }
+      .hiking-notice-format-buttons .btn {
+        min-width: 32px !important;
+        height: 22px !important;
+        padding: 0 5px !important;
+        font-size: 10px !important;
+      }
+    }
     @media (max-width: 760px) {
       .info-seat-guide-format-buttons { gap: 3px; }
       .info-seat-guide-format-buttons .btn {
@@ -1052,6 +1093,11 @@
       line-height: 1.6;
       padding: 12px;
       outline: none;
+    }
+    #hikingNoticeText:empty::before {
+      content: attr(data-placeholder);
+      color: #777;
+      pointer-events: none;
     }
     #hikingNoticeText[readonly] {
       background: #fff6bf;
@@ -3250,10 +3296,18 @@ body.member-mode .controls {
   <div class="hiking-notice-overlay hidden" id="hikingNoticeOverlay">
     <div class="hiking-notice-box" role="dialog" aria-modal="true" aria-labelledby="hikingNoticeTitle">
       <div class="hiking-notice-head">
-        <span id="hikingNoticeTitle">산행공지</span>
+        <span class="hiking-notice-title-row">
+          <span id="hikingNoticeTitle">산행공지</span>
+          <span class="hiking-notice-format-buttons" id="hikingNoticeFormatButtons" aria-label="산행공지 선택 서식" hidden>
+            <button class="btn btn-outline" id="hikingNoticeBoldBtn" type="button">굵게</button>
+            <button class="btn btn-outline" id="hikingNoticeBlueBtn" type="button">파랑</button>
+            <button class="btn btn-outline" id="hikingNoticeRedBtn" type="button">빨강</button>
+            <button class="btn btn-outline" id="hikingNoticeBlinkBtn" type="button">깜빡임</button>
+          </span>
+        </span>
         <span class="hiking-notice-state" id="hikingNoticeState">편집 가능</span>
       </div>
-      <textarea id="hikingNoticeText" placeholder="산행 공지 내용을 입력하세요."></textarea>
+      <div id="hikingNoticeText" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="산행 공지 내용을 입력하세요."></div>
       <div class="hiking-notice-actions">
         <button class="btn btn-outline" id="hikingNoticeLockBtn" type="button">잠금</button>
         <button class="btn btn-danger" id="hikingNoticeDeleteBtn" type="button">삭제</button>
@@ -3621,6 +3675,7 @@ const firebaseConfig = {
         const tag = node.tagName.toLowerCase();
         const children = Array.from(node.childNodes).map(cleanNode).join("");
         if (tag === "br") return "<br>";
+        if (!children && tag !== "br") return "";
         if (tag === "b" || tag === "strong") return `<b>${children}</b>`;
         if (tag === "span") {
           const cls = Array.from(node.classList || []).find((name) => allowedClasses.has(name));
@@ -3629,7 +3684,7 @@ const firebaseConfig = {
         if (tag === "div" || tag === "p") return children ? `${children}<br>` : "<br>";
         return children;
       }
-      return Array.from(temp.childNodes).map(cleanNode).join("").replace(/(<br>){3,}/g, "<br><br>").replace(/(<br>)+$/g, "");
+      return Array.from(temp.childNodes).map(cleanNode).join("").replace(/<span class="guide-[^"]+"><\/span>/g, "").replace(/(<br>){3,}/g, "<br><br>").replace(/(<br>)+$/g, "");
     }
 
     function renderGuideTextHtml(text) {
@@ -3645,31 +3700,38 @@ const firebaseConfig = {
       return editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer;
     }
 
-    async function saveInfoGuideEditorValue(editor) {
-      if (!editor) return;
-      state.busInfo.seatGuideText = sanitizeGuideEditorHtml(editor.innerHTML);
-      renderPanels();
-      if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote();
+    function findClosestGuideFormatNode(node, className, editor) {
+      let current = node && node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+      while (current && current !== editor) {
+        if (current.nodeType === Node.ELEMENT_NODE && current.classList && current.classList.contains(className)) return current;
+        current = current.parentNode;
+      }
+      return null;
     }
 
-    async function applyInfoGuideFormat(formatType) {
-      const editor = byId("infoSeatGuideText");
-      if (!editor) return;
+    function applyGuideFormatToSelection(editor, className) {
+      if (!editor || !className || !window.getSelection || !document.createRange) return false;
       editor.focus();
-      const selection = window.getSelection ? window.getSelection() : null;
-      if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !isSelectionInsideInfoGuideEditor(editor)) {
-        alert("효과를 적용할 글자 또는 문장을 먼저 선택하세요.");
-        return;
-      }
-      const classMap = {
-        bold: "guide-bold",
-        blue: "guide-blue",
-        red: "guide-red",
-        blink: "guide-blink"
-      };
-      const className = classMap[formatType];
-      if (!className) return;
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
       const range = selection.getRangeAt(0);
+      if (!(editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer)) return false;
+      const sameFormatNode = findClosestGuideFormatNode(range.commonAncestorContainer, className, editor) ||
+        findClosestGuideFormatNode(range.startContainer, className, editor) ||
+        findClosestGuideFormatNode(range.endContainer, className, editor);
+      if (sameFormatNode) {
+        const selectedText = range.toString();
+        const plainNode = document.createTextNode(selectedText);
+        range.deleteContents();
+        range.insertNode(plainNode);
+        sameFormatNode.normalize();
+        selection.removeAllRanges();
+        const nextRange = document.createRange();
+        nextRange.setStart(plainNode, 0);
+        nextRange.setEnd(plainNode, plainNode.nodeValue.length);
+        selection.addRange(nextRange);
+        return true;
+      }
       const span = document.createElement("span");
       span.className = className;
       span.appendChild(range.extractContents());
@@ -3678,6 +3740,67 @@ const firebaseConfig = {
       const nextRange = document.createRange();
       nextRange.selectNodeContents(span);
       selection.addRange(nextRange);
+      return true;
+    }
+
+    function keepEditorSelectionOnButton(buttonId) {
+      const button = byId(buttonId);
+      if (!button) return;
+      button.addEventListener("mousedown", (event) => event.preventDefault());
+      button.addEventListener("touchstart", (event) => event.preventDefault(), { passive: false });
+    }
+
+    function insertGuideEditorLineBreak(editor) {
+      if (!editor || !window.getSelection || !document.createRange) return false;
+      editor.focus();
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return false;
+      const range = selection.getRangeAt(0);
+      if (!(editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer)) return false;
+      range.deleteContents();
+      const br = document.createElement("br");
+      range.insertNode(br);
+      const spacer = document.createTextNode("");
+      br.parentNode.insertBefore(spacer, br.nextSibling);
+      const nextRange = document.createRange();
+      nextRange.setStart(spacer, 0);
+      nextRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+      return true;
+    }
+
+    function handleGuideEditorKeydown(event, saveFn) {
+      if (!event || event.key !== "Enter" || event.isComposing) return;
+      const editor = event.currentTarget || event.target;
+      event.preventDefault();
+      event.stopPropagation();
+      if (insertGuideEditorLineBreak(editor) && typeof saveFn === "function") {
+        setTimeout(() => saveFn(editor), 0);
+      }
+    }
+
+    async function saveInfoGuideEditorValue(editor) {
+      if (!editor) return;
+      state.busInfo.seatGuideText = sanitizeGuideEditorHtml(editor.innerHTML);
+      if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote();
+    }
+
+    async function applyInfoGuideFormat(formatType) {
+      const editor = byId("infoSeatGuideText");
+      if (!editor) return;
+      const classMap = {
+        bold: "guide-bold",
+        blue: "guide-blue",
+        red: "guide-red",
+        blink: "guide-blink"
+      };
+      const className = classMap[formatType];
+      if (!className) return;
+      if (!applyGuideFormatToSelection(editor, className)) {
+        alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
+        return;
+      }
       await saveInfoGuideEditorValue(editor);
     }
 
@@ -4269,7 +4392,7 @@ const firebaseConfig = {
       if (infoAccountOwner) infoAccountOwner.value = state.busInfo.accountOwner;
       if (infoSeatGuideText) {
         const nextGuideHtml = renderGuideTextHtml(state.busInfo.seatGuideText || "");
-        if (infoSeatGuideText.innerHTML !== nextGuideHtml) infoSeatGuideText.innerHTML = nextGuideHtml;
+        if (document.activeElement !== infoSeatGuideText && infoSeatGuideText.innerHTML !== nextGuideHtml) infoSeatGuideText.innerHTML = nextGuideHtml;
       }
       if (busTypeSelect) busTypeSelect.value = state.busType;
 
@@ -4775,6 +4898,13 @@ const firebaseConfig = {
       return await sha256Hex(state.adminPassword || DEFAULT_ADMIN_PASSWORD);
     }
 
+    async function getEffectiveTripPlanPasswordHash() {
+      if (state.tripPlanPasswordHash) return state.tripPlanPasswordHash;
+      const localHash = getLocalTripPlanPasswordHash();
+      if (localHash) return localHash;
+      return await sha256Hex(state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD);
+    }
+
 async function sha256Hex(value) {
       const data = new TextEncoder().encode(String(value || ""));
       const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -5220,20 +5350,66 @@ function renderAll() {
       try { window.scrollTo(0, 0); } catch (error) {}
     }
 
+    function isSelectionInsideHikingNoticeEditor(editor) {
+      const selection = window.getSelection ? window.getSelection() : null;
+      if (!selection || selection.rangeCount === 0) return false;
+      const range = selection.getRangeAt(0);
+      return editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer;
+    }
+
+    function placeEditableCursorAtEnd(editor) {
+      if (!editor || !window.getSelection || !document.createRange) return;
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    function saveHikingNoticeEditorValue(editor) {
+      if (!editor) return;
+      state.hikingNotice.text = sanitizeGuideEditorHtml(editor.innerHTML);
+      scheduleHikingNoticeSave();
+    }
+
+    function applyHikingNoticeFormat(formatType) {
+      if (state.hikingNotice.locked) return;
+      const editor = byId("hikingNoticeText");
+      if (!editor) return;
+      const classMap = {
+        bold: "guide-bold",
+        blue: "guide-blue",
+        red: "guide-red",
+        blink: "guide-blink"
+      };
+      const className = classMap[formatType];
+      if (!className) return;
+      if (!applyGuideFormatToSelection(editor, className)) {
+        alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
+        return;
+      }
+      saveHikingNoticeEditorValue(editor);
+    }
+
     function renderHikingNoticeDialog() {
       const overlay = byId("hikingNoticeOverlay");
       const textEl = byId("hikingNoticeText");
       const stateEl = byId("hikingNoticeState");
       const lockBtn = byId("hikingNoticeLockBtn");
       const deleteBtn = byId("hikingNoticeDeleteBtn");
+      const formatButtons = byId("hikingNoticeFormatButtons");
       if (!overlay || !textEl) return;
       const locked = Boolean(state.hikingNotice?.locked);
       const editing = Boolean(state.hikingNotice?.editing) && !locked;
-      if (textEl.value !== String(state.hikingNotice?.text || "")) textEl.value = String(state.hikingNotice?.text || "");
-      textEl.readOnly = !editing;
+      const nextNoticeHtml = renderGuideTextHtml(state.hikingNotice?.text || "");
+      if (document.activeElement !== textEl && textEl.innerHTML !== nextNoticeHtml) textEl.innerHTML = nextNoticeHtml;
+      textEl.contentEditable = editing ? "true" : "false";
+      textEl.setAttribute("aria-readonly", editing ? "false" : "true");
       if (stateEl) stateEl.textContent = locked ? "잠금 상태" : (editing ? "편집 가능" : "읽기 상태");
       if (lockBtn) lockBtn.textContent = locked ? "잠금해제" : "잠금";
       if (deleteBtn) deleteBtn.disabled = locked;
+      if (formatButtons) formatButtons.hidden = !editing;
     }
 
     function openHikingNoticeDialog() {
@@ -5248,9 +5424,9 @@ function renderAll() {
       }
       renderHikingNoticeDialog();
       const textEl = byId("hikingNoticeText");
-      if (textEl && !textEl.readOnly) {
+      if (textEl && textEl.contentEditable === "true") {
         textEl.focus();
-        textEl.setSelectionRange(textEl.value.length, textEl.value.length);
+        placeEditableCursorAtEnd(textEl);
       }
     }
 
@@ -5283,6 +5459,14 @@ function renderAll() {
     }
 
     async function toggleHikingNoticeLock() {
+      const password = prompt("산행계획 비밀번호를 입력하세요.");
+      if (password === null) return;
+      const inputHash = await sha256Hex(String(password).trim());
+      const expectedHash = await getEffectiveTripPlanPasswordHash();
+      if (inputHash !== expectedHash) {
+        alert("산행계획 비밀번호가 맞지 않습니다.");
+        return;
+      }
       state.hikingNotice.locked = !Boolean(state.hikingNotice.locked);
       state.hikingNotice.editing = !state.hikingNotice.locked;
       renderHikingNoticeDialog();
@@ -6812,10 +6996,18 @@ function renderAll() {
       bindIfPresent("hikingNoticeBtn", "click", openHikingNoticeDialog);
       bindIfPresent("hikingNoticeLockBtn", "click", toggleHikingNoticeLock);
       bindIfPresent("hikingNoticeDeleteBtn", "click", deleteHikingNotice);
+      ["infoGuideBoldBtn", "infoGuideBlueBtn", "infoGuideRedBtn", "infoGuideBlinkBtn", "hikingNoticeBoldBtn", "hikingNoticeBlueBtn", "hikingNoticeRedBtn", "hikingNoticeBlinkBtn"].forEach(keepEditorSelectionOnButton);
+      bindIfPresent("hikingNoticeBoldBtn", "click", () => applyHikingNoticeFormat("bold"));
+      bindIfPresent("hikingNoticeBlueBtn", "click", () => applyHikingNoticeFormat("blue"));
+      bindIfPresent("hikingNoticeRedBtn", "click", () => applyHikingNoticeFormat("red"));
+      bindIfPresent("hikingNoticeBlinkBtn", "click", () => applyHikingNoticeFormat("blink"));
+      bindIfPresent("hikingNoticeText", "keydown", (e) => {
+        if (state.hikingNotice.locked) return;
+        handleGuideEditorKeydown(e, saveHikingNoticeEditorValue);
+      });
       bindIfPresent("hikingNoticeText", "input", (e) => {
         if (state.hikingNotice.locked) return;
-        state.hikingNotice.text = e.target.value;
-        scheduleHikingNoticeSave();
+        saveHikingNoticeEditorValue(e.target);
       });
       const hikingNoticeOverlay = byId("hikingNoticeOverlay");
       if (hikingNoticeOverlay) hikingNoticeOverlay.addEventListener("click", (e) => { if (e.target === hikingNoticeOverlay) closeHikingNoticeDialog(); });
@@ -6830,6 +7022,9 @@ function renderAll() {
       bindIfPresent("infoAccountNumber", "input", async (e) => { state.busInfo.accountNumber = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoBankName", "input", async (e) => { state.busInfo.bankName = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoAccountOwner", "input", async (e) => { state.busInfo.accountOwner = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("infoSeatGuideText", "keydown", (e) => {
+        handleGuideEditorKeydown(e, (editor) => { saveInfoGuideEditorValue(editor); });
+      });
       bindIfPresent("infoSeatGuideText", "input", async (e) => { await saveInfoGuideEditorValue(e.target); });
       bindIfPresent("infoGuideBoldBtn", "click", () => applyInfoGuideFormat("bold"));
       bindIfPresent("infoGuideBlueBtn", "click", () => applyInfoGuideFormat("blue"));
@@ -9150,10 +9345,11 @@ function renderAll() {
       [`${MEMBERS_ROOT}/pending/${code}`]: payload
     });
 
-    setAuthMessage("가입이 완료 되었습니다", true);
     clearMemberJoinInputs();
     byId("memberSignupPanel")?.classList.remove("is-open");
     setMemberAuthViewMode("main");
+    setAuthMessage("가입이 완료 되었습니다", true);
+    alert("가입이 완료 되었습니다");
   }
 
   async function changeMemberPassword() {
