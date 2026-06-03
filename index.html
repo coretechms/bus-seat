@@ -9121,7 +9121,7 @@ function renderAll() {
       try { memberManageLoginLogUnsubscribe(); } catch (error) {}
       memberManageLoginLogUnsubscribe = null;
     }
-    const logQuery = query(ref(membershipDb, LOGIN_LOGS_PATH), orderByChild("createdAt"), limitToLast(300));
+    const logQuery = query(ref(membershipDb, LOGIN_LOGS_PATH), orderByChild("createdAt"), limitToLast(5000));
     memberManageLoginLogUnsubscribe = onValue(logQuery, (snap) => {
       const logs = [];
       const value = snap.exists() ? (snap.val() || {}) : {};
