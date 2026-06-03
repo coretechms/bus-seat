@@ -820,10 +820,23 @@
 
     #infoSeatGuideText {
       min-height: 80px;
-      overflow: hidden;
-      resize: none !important;
+      max-height: 420px;
+      overflow-y: auto;
+      resize: vertical !important;
       line-height: 1.6;
       white-space: pre-wrap;
+      width: 100%;
+      border: 1px solid #d4d4d4;
+      border-radius: 14px;
+      padding: 8px 10px;
+      font-size: 13px;
+      background: #fff;
+      font-family: inherit;
+      outline: none;
+    }
+    #infoSeatGuideText:focus {
+      border-color: #1428c8;
+      box-shadow: 0 0 0 2px rgba(20,40,200,.12);
     }
 
 
@@ -3211,7 +3224,7 @@ body.member-mode .controls {
                     <button class="btn btn-outline" id="infoGuideBlinkBtn" type="button">깜빡임</button>
                   </div>
                 </div>
-                <textarea id="infoSeatGuideText" style="height:80px; resize:vertical;"></textarea>
+                <div id="infoSeatGuideText" class="info-seat-guide-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
               </div>
             </div>
 
@@ -3598,53 +3611,74 @@ const firebaseConfig = {
     }
 
 
+    function sanitizeGuideEditorHtml(html) {
+      const temp = document.createElement("div");
+      temp.innerHTML = String(html || "");
+      const allowedClasses = new Set(["guide-bold", "guide-blue", "guide-red", "guide-blink"]);
+      function cleanNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.nodeValue || "");
+        if (node.nodeType !== Node.ELEMENT_NODE) return "";
+        const tag = node.tagName.toLowerCase();
+        const children = Array.from(node.childNodes).map(cleanNode).join("");
+        if (tag === "br") return "<br>";
+        if (tag === "b" || tag === "strong") return `<b>${children}</b>`;
+        if (tag === "span") {
+          const cls = Array.from(node.classList || []).find((name) => allowedClasses.has(name));
+          return cls ? `<span class="${cls}">${children}</span>` : children;
+        }
+        if (tag === "div" || tag === "p") return children ? `${children}<br>` : "<br>";
+        return children;
+      }
+      return Array.from(temp.childNodes).map(cleanNode).join("").replace(/(<br>){3,}/g, "<br><br>").replace(/(<br>)+$/g, "");
+    }
+
     function renderGuideTextHtml(text) {
-      let safe = escapeHtml(text || "");
-      const allowedTags = {
-        "&lt;b&gt;": "<b>",
-        "&lt;/b&gt;": "</b>",
-        "&lt;span class=&quot;guide-bold&quot;&gt;": '<span class="guide-bold">',
-        "&lt;span class=&quot;guide-blue&quot;&gt;": '<span class="guide-blue">',
-        "&lt;span class=&quot;guide-red&quot;&gt;": '<span class="guide-red">',
-        "&lt;span class=&quot;guide-blink&quot;&gt;": '<span class="guide-blink">',
-        "&lt;/span&gt;": "</span>"
-      };
-      Object.keys(allowedTags).forEach((tag) => {
-        safe = safe.replaceAll(tag, allowedTags[tag]);
-      });
-      return safe;
+      const value = String(text || "");
+      if (value.includes("<") || value.includes(">")) return sanitizeGuideEditorHtml(value);
+      return escapeHtml(value).replace(/\n/g, "<br>");
+    }
+
+    function isSelectionInsideInfoGuideEditor(editor) {
+      const selection = window.getSelection ? window.getSelection() : null;
+      if (!selection || selection.rangeCount === 0) return false;
+      const range = selection.getRangeAt(0);
+      return editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer;
+    }
+
+    async function saveInfoGuideEditorValue(editor) {
+      if (!editor) return;
+      state.busInfo.seatGuideText = sanitizeGuideEditorHtml(editor.innerHTML);
+      renderPanels();
+      if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote();
     }
 
     async function applyInfoGuideFormat(formatType) {
-      const textarea = byId("infoSeatGuideText");
-      if (!textarea) return;
-      const start = Number(textarea.selectionStart || 0);
-      const end = Number(textarea.selectionEnd || 0);
-      if (end <= start) {
+      const editor = byId("infoSeatGuideText");
+      if (!editor) return;
+      editor.focus();
+      const selection = window.getSelection ? window.getSelection() : null;
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !isSelectionInsideInfoGuideEditor(editor)) {
         alert("효과를 적용할 글자 또는 문장을 먼저 선택하세요.");
-        textarea.focus();
         return;
       }
-      const value = textarea.value || "";
-      const selected = value.slice(start, end);
-      const wrappers = {
-        bold: ["<b>", "</b>"],
-        blue: ['<span class="guide-blue">', "</span>"],
-        red: ['<span class="guide-red">', "</span>"],
-        blink: ['<span class="guide-blink">', "</span>"]
+      const classMap = {
+        bold: "guide-bold",
+        blue: "guide-blue",
+        red: "guide-red",
+        blink: "guide-blink"
       };
-      const wrapper = wrappers[formatType];
-      if (!wrapper) return;
-      const nextValue = value.slice(0, start) + wrapper[0] + selected + wrapper[1] + value.slice(end);
-      textarea.value = nextValue;
-      const nextStart = start + wrapper[0].length;
-      const nextEnd = nextStart + selected.length;
-      state.busInfo.seatGuideText = nextValue;
-      autoResizeTextarea(textarea, 80, 420);
-      renderPanels();
-      textarea.focus();
-      textarea.setSelectionRange(nextStart, nextEnd);
-      if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote();
+      const className = classMap[formatType];
+      if (!className) return;
+      const range = selection.getRangeAt(0);
+      const span = document.createElement("span");
+      span.className = className;
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+      selection.removeAllRanges();
+      const nextRange = document.createRange();
+      nextRange.selectNodeContents(span);
+      selection.addRange(nextRange);
+      await saveInfoGuideEditorValue(editor);
     }
 
     function normalizeName(inputName) {
@@ -4233,7 +4267,10 @@ const firebaseConfig = {
       if (infoAccountNumber) infoAccountNumber.value = state.busInfo.accountNumber;
       if (infoBankName) infoBankName.value = state.busInfo.bankName;
       if (infoAccountOwner) infoAccountOwner.value = state.busInfo.accountOwner;
-      if (infoSeatGuideText) { infoSeatGuideText.value = state.busInfo.seatGuideText || ""; autoResizeTextarea(infoSeatGuideText, 80, 420); }
+      if (infoSeatGuideText) {
+        const nextGuideHtml = renderGuideTextHtml(state.busInfo.seatGuideText || "");
+        if (infoSeatGuideText.innerHTML !== nextGuideHtml) infoSeatGuideText.innerHTML = nextGuideHtml;
+      }
       if (busTypeSelect) busTypeSelect.value = state.busType;
 
       renderHikingNoticeDialog();
@@ -6793,7 +6830,7 @@ function renderAll() {
       bindIfPresent("infoAccountNumber", "input", async (e) => { state.busInfo.accountNumber = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoBankName", "input", async (e) => { state.busInfo.bankName = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoAccountOwner", "input", async (e) => { state.busInfo.accountOwner = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
-      bindIfPresent("infoSeatGuideText", "input", async (e) => { autoResizeTextarea(e.target, 80, 420); state.busInfo.seatGuideText = e.target.value; renderPanels(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("infoSeatGuideText", "input", async (e) => { await saveInfoGuideEditorValue(e.target); });
       bindIfPresent("infoGuideBoldBtn", "click", () => applyInfoGuideFormat("bold"));
       bindIfPresent("infoGuideBlueBtn", "click", () => applyInfoGuideFormat("blue"));
       bindIfPresent("infoGuideRedBtn", "click", () => applyInfoGuideFormat("red"));
@@ -6828,7 +6865,7 @@ function renderAll() {
         alert("자동 복사가 지원되지 않아 아래 텍스트를 직접 복사하면 됩니다.");
       });
       document.querySelectorAll("button.btn[id]").forEach((btn) => btn.addEventListener("click", () => flashButton(btn.id)));
-      window.addEventListener("resize", () => { autoResizeNameExportText(); autoResizeTextarea(byId("infoSeatGuideText"), 80, 420); });
+      window.addEventListener("resize", () => { autoResizeNameExportText(); });
     }
 
     async function initFirebase() {
@@ -9113,7 +9150,7 @@ function renderAll() {
       [`${MEMBERS_ROOT}/pending/${code}`]: payload
     });
 
-    setAuthMessage("신청이 완료 되었습니다", true);
+    setAuthMessage("가입이 완료 되었습니다", true);
     clearMemberJoinInputs();
     byId("memberSignupPanel")?.classList.remove("is-open");
     setMemberAuthViewMode("main");
