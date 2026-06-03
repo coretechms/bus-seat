@@ -2899,7 +2899,7 @@ body.member-mode .controls {
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
 
       <div class="member-login-refresh-row">
-        <button id="memberLoginRefreshBtn" type="button" aria-label="새로고침">Refresh</button>
+        <button id="memberLoginRefreshBtn" type="button" aria-label="새로고침">refesh</button>
       </div>
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
@@ -12265,12 +12265,9 @@ function renderAll() {
   async function cleanupContaminatedMemberIndexes() {
     const ok = confirm(
       '인덱스 정리를 실행할까요?\n\n' +
-      '대상: membershipSecure/loginIndex,\n +
-      '     membershipSecure/nameIndex\n' +
-      '기준: memberList/joinCodes와 \n +
-      '     membershipSecure/members의 실제 회원 이름\n\n' +
-      '이름키가 실제 회원 이름과 맞지 않는 오염 인덱스는 \n +
-      '삭제하고 올바른 이름키로 다시 생성합니다.\n' +
+      '대상: membershipSecure/loginIndex, membershipSecure/nameIndex\n' +
+      '기준: memberList/joinCodes와 membershipSecure/members의 실제 회원 이름\n\n' +
+      '이름키가 실제 회원 이름과 맞지 않는 오염 인덱스는 삭제하고 올바른 이름키로 다시 생성합니다.\n' +
       '좌석/회원명부/비밀번호 값은 변경하지 않습니다.'
     );
     if (!ok) return;
