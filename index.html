@@ -9432,11 +9432,26 @@ function renderAll() {
     }
 
     const newHash = await sha256Hex(newPassword);
-    await update(ref(membershipDb), {
-      [`${MEMBERS_ROOT}/members/${member.code}/passwordHash`]: newHash,
-      [`${MEMBERS_ROOT}/members/${member.code}/updatedAt`]: Date.now(),
-      [`${MEMBERS_ROOT}/members/${member.code}/passwordChangedAt`]: Date.now()
-    });
+    const changedAt = Date.now();
+    const memberCode = String(member.code || "").trim();
+    const memberPath = String(member.__membersPath || `${MEMBERS_ROOT}/members`).trim();
+    const updatedMember = {
+      ...member,
+      code: memberCode,
+      passwordHash: newHash,
+      updatedAt: changedAt,
+      passwordChangedAt: changedAt
+    };
+    const passwordUpdates = {
+      [`${memberPath}/${memberCode}/passwordHash`]: newHash,
+      [`${memberPath}/${memberCode}/updatedAt`]: changedAt,
+      [`${memberPath}/${memberCode}/passwordChangedAt`]: changedAt,
+      [`${MEMBERS_ROOT}/members/${memberCode}/passwordHash`]: newHash,
+      [`${MEMBERS_ROOT}/members/${memberCode}/updatedAt`]: changedAt,
+      [`${MEMBERS_ROOT}/members/${memberCode}/passwordChangedAt`]: changedAt
+    };
+    addCanonicalLoginPathUpdates(passwordUpdates, updatedMember, memberCode);
+    await update(ref(membershipDb), passwordUpdates);
 
     byId("memberChangeOldPasswordInput").value = "";
     byId("memberChangeNewPasswordInput").value = "";
