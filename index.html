@@ -13530,3 +13530,85 @@ body.admin-mode:not(.member-manage-mode) .controls {
   });
 })();
 </script>
+
+
+<script id="mobile-login-back-exit-once-patch">
+/* 요청 수정: 모바일 로그인 화면에서는 휴대폰 뒤로가기 1회로 앱을 종료한다.
+   원인: 기존 내부 화면전환(member/memberManage/loginManage)용 history 상태가 로그인 화면까지 남아
+   뒤로가기 이력이 여러 단계 쌓였기 때문에 여러 번 눌러야 종료되었다.
+   처리: 로그인 게이트가 보이는 동안에는 내부 화면 복구 popstate 처리를 막고,
+   첫 뒤로가기에서 남은 내부 history를 한 번에 빠져나가도록 한다. */
+(function(){
+  if (window.__mobileLoginBackExitOncePatchApplied) return;
+  window.__mobileLoginBackExitOncePatchApplied = true;
+
+  var LOGIN_STATE = { busSeatScreen: "memberLogin", busSeatLoginExitBase: true };
+  var exitingLoginHistory = false;
+
+  function isLoginGateVisible(){
+    try {
+      var gate = document.getElementById("memberAuthGate");
+      if (!document.body || !document.body.classList.contains("membership-locked")) return false;
+      if (!gate || gate.classList.contains("is-hidden")) return false;
+      var style = window.getComputedStyle ? window.getComputedStyle(gate) : null;
+      return !(style && (style.display === "none" || style.visibility === "hidden"));
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function setLoginBaseState(){
+    if (!isLoginGateVisible()) return;
+    try {
+      var s = history.state || {};
+      if (s.busSeatLoginExitBase) return;
+      history.replaceState(LOGIN_STATE, "", location.href);
+    } catch (error) {}
+  }
+
+  function exitAppFromLoginOnce(){
+    if (exitingLoginHistory) return;
+    exitingLoginHistory = true;
+    try {
+      var steps = Math.max(1, Math.min(Number(history.length || 1) - 1, 20));
+      if (steps > 0) {
+        history.go(-steps);
+      } else {
+        history.back();
+      }
+    } catch (error) {
+      try { history.back(); } catch (e) {}
+    }
+    setTimeout(function(){ exitingLoginHistory = false; }, 1200);
+  }
+
+  // 다른 popstate 보정 스크립트보다 먼저 로그인 화면의 뒤로가기를 종료 동작으로 고정한다.
+  window.addEventListener("popstate", function(event){
+    if (!isLoginGateVisible()) return;
+    if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
+    else if (event && event.stopPropagation) event.stopPropagation();
+    exitAppFromLoginOnce();
+  }, true);
+
+  document.addEventListener("DOMContentLoaded", function(){
+    setTimeout(setLoginBaseState, 0);
+    setTimeout(setLoginBaseState, 300);
+  });
+  window.addEventListener("pageshow", function(){
+    setTimeout(setLoginBaseState, 0);
+    setTimeout(setLoginBaseState, 300);
+  });
+
+  // 로그인 화면이 다시 표시되는 순간에도 내부 화면 이력을 로그인 기준 상태로 덮어쓴다.
+  if (window.MutationObserver) {
+    document.addEventListener("DOMContentLoaded", function(){
+      try {
+        var gate = document.getElementById("memberAuthGate");
+        if (!gate || !document.body) return;
+        new MutationObserver(function(){ setTimeout(setLoginBaseState, 0); }).observe(document.body, { attributes:true, attributeFilter:["class"] });
+        new MutationObserver(function(){ setTimeout(setLoginBaseState, 0); }).observe(gate, { attributes:true, attributeFilter:["class", "style"] });
+      } catch (error) {}
+    });
+  }
+})();
+</script>
