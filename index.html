@@ -9761,11 +9761,17 @@ function renderAll() {
       }
 
       setStep("5/5 새 비밀번호로 로그인 검증중입니다...");
-      const verifiedMembers = await findMembersByName(name);
-      const verified = verifiedMembers.some((m) => String(m.code || "") === code && memberPasswordMatches(m, newPassword, newHash));
-      if (!verified) {
-        failChange("저장은 되었지만 로그인 검증에 실패했습니다. 새로고침 후 다시 로그인해 보세요.");
-        return;
+      /* 수정: 멤버리스트 joinCodes/nameIndex에 오래된 중복 인덱스가 남아 있으면
+         findMembersByName() 재검색 결과가 stale loginIndex를 섞어 읽어 직접 저장은 성공했는데도
+         검증 실패로 표시될 수 있다. 위 4단계에서 실제 로그인 기준 경로
+         membershipSecure/members/{code} + loginIndex/{nameKey}/{code}를 직접 확인했으므로
+         최종 검증은 해당 직전 직접 확인값을 신뢰하고, 재검색 검증은 보조 로그로만 남긴다. */
+      try {
+        const verifiedMembers = await findMembersByName(name);
+        const verified = verifiedMembers.some((m) => String(m.code || "") === code && memberPasswordMatches(m, newPassword, newHash));
+        if (!verified) console.warn("회원 비밀번호 변경 보조 재검색 검증 불일치: 직접 저장 확인은 성공", { name, code });
+      } catch (verifyError) {
+        console.warn("회원 비밀번호 변경 보조 재검색 검증 생략", verifyError);
       }
 
       byId("memberChangeOldPasswordInput").value = "";
@@ -12402,8 +12408,11 @@ function renderAll() {
     const readErrors = [joinCodes, membersMain, loginIndex, nameIndex]
       .filter((item) => item && item.__readError)
       .map((item) => `${item.__path || '-'}: ${item.__readError}`);
-    if (readErrors.length) {
-      alert('인덱스 정리 실패: 기준자료를 읽지 못했습니다.\n\n' + readErrors.join('\n'));
+    /* 수정: 일부 인덱스 경로 권한이 막혀도 전체 기능을 에러로 중단하지 않는다.
+       기준자료(memberList/joinCodes 또는 membershipSecure/members) 중 하나라도 읽히면
+       읽힌 범위 안에서 정리하고, 실패 경로는 결과 보고에만 표시한다. */
+    if (joinCodes.__readError && membersMain.__readError) {
+      alert('인덱스 정리 실패: 회원 기준자료를 읽지 못했습니다.\n\n' + readErrors.join('\n'));
       return;
     }
 
@@ -12426,7 +12435,9 @@ function renderAll() {
 
     alert('인덱스 정리 진행중...\n2/4 loginIndex 검사중');
 
-    if (isObject(loginIndex)) {
+    if (loginIndex && loginIndex.__readError) {
+      skippedNoName.push(`loginIndex 읽기 실패: ${loginIndex.__path || ''} ${loginIndex.__readError}`);
+    } else if (isObject(loginIndex)) {
       Object.keys(loginIndex).forEach((nameKey) => {
         const branch = loginIndex[nameKey];
         if (!isObject(branch)) return;
@@ -12466,7 +12477,9 @@ function renderAll() {
 
     alert('인덱스 정리 진행중...\n3/4 nameIndex 검사중');
 
-    if (isObject(nameIndex)) {
+    if (nameIndex && nameIndex.__readError) {
+      skippedNoName.push(`nameIndex 읽기 실패: ${nameIndex.__path || ''} ${nameIndex.__readError}`);
+    } else if (isObject(nameIndex)) {
       Object.keys(nameIndex).forEach((nameKey) => {
         const branch = nameIndex[nameKey];
         if (!isObject(branch)) return;
