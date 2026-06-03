@@ -10714,7 +10714,13 @@ function renderAll() {
     "nameIndex",
     "busSeatApp/nameIndex"
   ];
-  const manageApp = getApps().length ? getApp() : initializeApp(MANAGE_FIREBASE_CONFIG);
+  /* 모바일 보강: 여러 Firebase 모듈이 동시에 로딩될 때 getApp()이 먼저 만들어진 다른 DB 앱을 잡으면
+     PC에서는 정상이어도 모바일에서 회원관리 관리자 기능(DB점검/고아코드복구/인덱스정리)이 permission_denied 또는 잘못된 경로 오류로 실패할 수 있다.
+     회원관리 관리자 기능은 항상 bus-seat-eb86c 설정의 전용 앱 인스턴스를 사용하도록 고정한다. */
+  const MANAGE_APP_NAME = "busSeatMemberManageAdminFixed";
+  const manageApp = getApps().some((item) => item && item.name === MANAGE_APP_NAME)
+    ? getApp(MANAGE_APP_NAME)
+    : initializeApp(MANAGE_FIREBASE_CONFIG, MANAGE_APP_NAME);
   const manageDb = getDatabase(manageApp);
 
   function q(sel) { return document.querySelector(sel); }
@@ -12402,10 +12408,13 @@ function renderAll() {
     const readErrors = [joinCodes, membersMain, loginIndex, nameIndex]
       .filter((item) => item && item.__readError)
       .map((item) => `${item.__path || '-'}: ${item.__readError}`);
-    if (readErrors.length) {
-      alert('인덱스 정리 실패: 기준자료를 읽지 못했습니다.\n\n' + readErrors.join('\n'));
-      return;
-    }
+
+    /* 모바일 보강: 일부 경로 읽기 실패만으로 전체 기능을 중단하지 않는다.
+       접근 가능한 기준자료만으로 정리/보고하고, 실패 경로는 결과창에 표시한다. */
+    const safeJoinCodes = joinCodes && !joinCodes.__readError ? joinCodes : {};
+    const safeMembersMain = membersMain && !membersMain.__readError ? membersMain : {};
+    const safeLoginIndex = loginIndex && !loginIndex.__readError ? loginIndex : {};
+    const safeNameIndex = nameIndex && !nameIndex.__readError ? nameIndex : {};
 
     const actualByCode = {};
     const mergeActual = (code, record) => {
@@ -12414,8 +12423,8 @@ function renderAll() {
       const previous = actualByCode[key] || {};
       actualByCode[key] = { ...previous, ...record, code: key };
     };
-    Object.keys(joinCodes || {}).forEach((code) => mergeActual(code, joinCodes[code]));
-    Object.keys(membersMain || {}).forEach((code) => mergeActual(code, membersMain[code]));
+    Object.keys(safeJoinCodes || {}).forEach((code) => mergeActual(code, safeJoinCodes[code]));
+    Object.keys(safeMembersMain || {}).forEach((code) => mergeActual(code, safeMembersMain[code]));
 
     const updates = {};
     const movedLoginIndex = [];
@@ -12426,9 +12435,9 @@ function renderAll() {
 
     alert('인덱스 정리 진행중...\n2/4 loginIndex 검사중');
 
-    if (isObject(loginIndex)) {
-      Object.keys(loginIndex).forEach((nameKey) => {
-        const branch = loginIndex[nameKey];
+    if (isObject(safeLoginIndex)) {
+      Object.keys(safeLoginIndex).forEach((nameKey) => {
+        const branch = safeLoginIndex[nameKey];
         if (!isObject(branch)) return;
         Object.keys(branch).forEach((code) => {
           const key = compactCode(code);
@@ -12466,9 +12475,9 @@ function renderAll() {
 
     alert('인덱스 정리 진행중...\n3/4 nameIndex 검사중');
 
-    if (isObject(nameIndex)) {
-      Object.keys(nameIndex).forEach((nameKey) => {
-        const branch = nameIndex[nameKey];
+    if (isObject(safeNameIndex)) {
+      Object.keys(safeNameIndex).forEach((nameKey) => {
+        const branch = safeNameIndex[nameKey];
         if (!isObject(branch)) return;
         Object.keys(branch).forEach((code) => {
           const key = compactCode(code);
@@ -12539,7 +12548,8 @@ function renderAll() {
         '',
         [...movedLoginIndex, ...movedNameIndex].slice(0, 20).join('\n'),
         movedLoginIndex.length + movedNameIndex.length > 20 ? `...외 ${movedLoginIndex.length + movedNameIndex.length - 20}건` : '',
-        skippedNoName.length ? '\n이름 확인 불가:\n' + skippedNoName.slice(0, 10).join('\n') : ''
+        skippedNoName.length ? '\n이름 확인 불가:\n' + skippedNoName.slice(0, 10).join('\n') : '',
+        readErrors.length ? '\n읽기 실패 경로(가능한 범위에서 정리함):\n' + readErrors.slice(0, 10).join('\n') : ''
       ].filter(Boolean).join('\n'));
       try { await forceLoadMemberManageList(); } catch (e) {}
     } catch (error) {
