@@ -9432,25 +9432,19 @@ function renderAll() {
     }
 
     const newHash = await sha256Hex(newPassword);
-    const changedAt = Date.now();
+    const now = Date.now();
     const memberCode = String(member.code || "").trim();
-    const memberPath = String(member.__membersPath || `${MEMBERS_ROOT}/members`).trim();
-    const updatedMember = {
-      ...member,
-      code: memberCode,
-      passwordHash: newHash,
-      updatedAt: changedAt,
-      passwordChangedAt: changedAt
-    };
+    const nameKeys = Array.from(new Set([makeNameKey(member.name || name), normalizeName(member.name || name)].filter(Boolean)));
     const passwordUpdates = {
-      [`${memberPath}/${memberCode}/passwordHash`]: newHash,
-      [`${memberPath}/${memberCode}/updatedAt`]: changedAt,
-      [`${memberPath}/${memberCode}/passwordChangedAt`]: changedAt,
       [`${MEMBERS_ROOT}/members/${memberCode}/passwordHash`]: newHash,
-      [`${MEMBERS_ROOT}/members/${memberCode}/updatedAt`]: changedAt,
-      [`${MEMBERS_ROOT}/members/${memberCode}/passwordChangedAt`]: changedAt
+      [`${MEMBERS_ROOT}/members/${memberCode}/updatedAt`]: now,
+      [`${MEMBERS_ROOT}/members/${memberCode}/passwordChangedAt`]: now
     };
-    addCanonicalLoginPathUpdates(passwordUpdates, updatedMember, memberCode);
+    nameKeys.forEach((nameKey) => {
+      passwordUpdates[`${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${memberCode}/passwordHash`] = newHash;
+      passwordUpdates[`${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${memberCode}/updatedAt`] = now;
+      passwordUpdates[`${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${memberCode}/passwordChangedAt`] = now;
+    });
     await update(ref(membershipDb), passwordUpdates);
 
     byId("memberChangeOldPasswordInput").value = "";
@@ -10123,6 +10117,42 @@ function renderAll() {
     if (mode === "change") box.classList.add("change-open");
   }
 
+  function runMemberPasswordChangeSubmit(event) {
+    if (event) {
+      if (event.__memberPasswordChangeHandled) return;
+      event.__memberPasswordChangeHandled = true;
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const btn = byId("memberChangePasswordSubmitBtn");
+    if (btn && btn.dataset.runningPasswordChange === "1") return;
+    const oldText = btn ? btn.textContent : "";
+    if (btn) {
+      btn.dataset.runningPasswordChange = "1";
+      btn.textContent = "변경중";
+      btn.disabled = true;
+    }
+    changeMemberPassword().catch((error) => {
+      console.error("회원 비밀번호 변경 오류:", error);
+      setAuthMessage("비밀번호 변경 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
+    }).finally(() => {
+      if (btn) {
+        btn.dataset.runningPasswordChange = "0";
+        btn.textContent = oldText || "변경";
+        btn.disabled = false;
+      }
+    });
+  }
+
+  if (!window.__memberPasswordChangeSubmitDelegated) {
+    window.__memberPasswordChangeSubmitDelegated = true;
+    document.addEventListener("click", (event) => {
+      const btn = event.target && event.target.closest ? event.target.closest("#memberChangePasswordSubmitBtn") : null;
+      if (!btn) return;
+      runMemberPasswordChangeSubmit(event);
+    }, true);
+  }
+
 
   function clearMemberJoinInputs() {
     [
@@ -10203,12 +10233,11 @@ function renderAll() {
       setAuthMessage("아이디와 비밀번호를 입력하세요.");
     });
 
-    byId("memberChangePasswordSubmitBtn")?.addEventListener("click", () => {
-      changeMemberPassword().catch((error) => {
-        console.error("회원 비밀번호 변경 오류:", error);
-        setAuthMessage("비밀번호 변경 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
-      });
-    });
+    const changePasswordSubmitBtn = byId("memberChangePasswordSubmitBtn");
+    if (changePasswordSubmitBtn && changePasswordSubmitBtn.dataset.boundPasswordChange !== "1") {
+      changePasswordSubmitBtn.dataset.boundPasswordChange = "1";
+      changePasswordSubmitBtn.addEventListener("click", runMemberPasswordChangeSubmit);
+    }
 
     byId("memberTopLogoutBtn")?.addEventListener("click", (event) => {
       event.preventDefault();
