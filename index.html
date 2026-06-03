@@ -2989,7 +2989,7 @@ body.member-mode .controls {
         </div>
         <div class="member-auth-row">
           <label for="memberJoinBirthInput">생년월일</label>
-          <input id="memberJoinBirthInput" type="text" inputmode="numeric" placeholder="예: 710808" value="" />
+          <input id="memberJoinBirthInput" type="text" inputmode="numeric" placeholder="예: 710808 " value="" />
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPhoneInput">전화번호</label>
@@ -8113,7 +8113,7 @@ function renderAll() {
     const parts = [
       `회원번호 ${member.code || "-"}`,
       `이름 ${member.name || "-"}`,
-      `생년월일 ${member.birthYear || member.birthDate || member.rrn || "-"}`,
+      `생년월일 ${member.birthDate || member.rrn || member.birthYear || "-"}`,
       `거주지 ${member.dong || "-"}`
     ];
     return parts.join(" / ");
@@ -8159,8 +8159,8 @@ function renderAll() {
 
     const memberPhone = normalizePhone(member.phoneDigits || member.phone);
     const joinPhone = normalizePhone(joinInfo.phoneDigits);
-    const memberBirth = normalizeDuplicateJoinCompareText(member.birthYear);
-    const joinBirth = normalizeDuplicateJoinCompareText(joinInfo.birthYear);
+    const memberBirth = normalizeDuplicateJoinCompareText(member.birthDate || member.rrn || member.birthYear);
+    const joinBirth = normalizeDuplicateJoinCompareText(joinInfo.birthDate || joinInfo.rrn || joinInfo.birthYear);
     const memberDong = normalizeDuplicateJoinCompareText(member.dong);
     const joinDong = normalizeDuplicateJoinCompareText(joinInfo.dong);
 
@@ -8322,9 +8322,11 @@ function renderAll() {
       code: member.code,
       name: member.name || "",
       gender: member.gender || "",
-      birthYear: member.birthYear || "",
-      birthDate: member.birthDate || member.birthYear || "",
+      // 생년월일은 멤버리스트의 주민번호 칸으로만 넘기고, 출생년도 칸은 비운다.
+      birthYear: "",
+      birthDate: member.birthDate || member.rrn || member.birthYear || "",
       rrn: member.rrn || member.birthDate || member.birthYear || "",
+      passwordHash: member.passwordHash || "",
       phone: member.phone || "",
       phoneDigits: member.phoneDigits || "",
       phoneLast4: member.phoneLast4 || "",
@@ -8611,6 +8613,11 @@ function renderAll() {
       status: String(m.status || (m.approved ? "active" : "pending")),
       role: String(m.role || (m.adminAccess ? "admin" : "member")),
       adminAccess: !!m.adminAccess,
+      phone: m.phone || "",
+      phoneDigits: m.phoneDigits || "",
+      phoneLast4: m.phoneLast4 || getMemberPhoneLast4(m),
+      birthDate: m.birthDate || m.rrn || m.birthYear || "",
+      rrn: m.rrn || m.birthDate || m.birthYear || "",
       apps: m.apps || {},
       updatedAt: Date.now()
     };
@@ -9428,7 +9435,8 @@ function renderAll() {
     const name = normalizeName(rawName);
     const password = rawPassword;
     const gender = String(byId("memberJoinGenderInput")?.value || "").trim();
-    const birthYear = normalizeBirthYear(byId("memberJoinBirthInput")?.value);
+    const birthDate = normalizeBirthYear(byId("memberJoinBirthInput")?.value);
+    const birthYear = ""; // 멤버리스트 출생년도 칸에는 더 이상 저장하지 않는다.
     const phoneDigits = normalizePhone(rawPhone);
     const phone = formatPhone344(phoneDigits);
     const dong = normalizeTextNoSpace(rawDong);
@@ -9443,7 +9451,7 @@ function renderAll() {
       return;
     }
 
-    if (!name || !password || !gender || !birthYear || !phoneDigits || !dong) {
+    if (!name || !password || !gender || !birthDate || !phoneDigits || !dong) {
       setAuthMessage("본명, 비밀번호, 성별, 생년월일, 전화번호, 거주지를 모두 입력하세요.");
       return;
     }
@@ -9465,7 +9473,7 @@ function renderAll() {
     }
 
     setAuthMessage("기존 회원 중복 확인중입니다...");
-    const duplicateResult = await checkJoinDuplicateBeforeSave({ name, birthYear, phoneDigits, dong });
+    const duplicateResult = await checkJoinDuplicateBeforeSave({ name, birthYear: birthDate, birthDate, rrn: birthDate, phoneDigits, dong });
     const samePhoneMembers = duplicateResult.samePhoneMembers || [];
     const samePersonMembers = duplicateResult.samePersonMembers || [];
     if (duplicateResult.block) {
@@ -9485,6 +9493,8 @@ function renderAll() {
       nameKey: name,
       gender,
       birthYear,
+      birthDate,
+      rrn: birthDate,
       phone,
       phoneDigits,
       phoneLast4: phoneDigits.slice(-4),
@@ -10259,10 +10269,13 @@ function renderAll() {
       code: member.code,
       name: member.name,
       gender: member.gender || "",
-      birthYear: member.birthYear || "",
-      birthDate: member.birthDate || member.birthYear || "",
+      // 생년월일은 멤버리스트 주민번호 칸으로만 사용한다.
+      birthYear: "",
+      birthDate: member.birthDate || member.rrn || member.birthYear || "",
       rrn: member.rrn || member.birthDate || member.birthYear || "",
+      passwordHash: member.passwordHash || "",
       phone: member.phone || "",
+      phoneDigits: member.phoneDigits || "",
       phoneLast4: member.phoneLast4 || "",
       dong: member.dong || "",
       status: member.status || "pending",
@@ -11412,8 +11425,13 @@ function renderAll() {
         code: member.code,
         name: member.name || '',
         gender: member.gender || '',
-        birthYear: member.birthYear || '',
+        // 생년월일은 멤버리스트 주민번호 칸으로만 사용한다.
+        birthYear: '',
+        birthDate: member.birthDate || member.rrn || member.birthYear || '',
+        rrn: member.rrn || member.birthDate || member.birthYear || '',
+        passwordHash: member.passwordHash || '',
         phone: member.phone || '',
+        phoneDigits: member.phoneDigits || '',
         phoneLast4: member.phoneLast4 || '',
         dong: member.dong || '',
         status: member.status || 'pending',
@@ -11472,6 +11490,11 @@ function renderAll() {
       status: String(m.status || (m.approved ? "active" : "pending")),
       role: String(m.role || (m.adminAccess ? "admin" : "member")),
       adminAccess: !!m.adminAccess,
+      phone: m.phone || "",
+      phoneDigits: m.phoneDigits || "",
+      phoneLast4: m.phoneLast4 || String(m.phoneDigits || m.phone || "").replace(/\D/g, "").slice(-4),
+      birthDate: m.birthDate || m.rrn || m.birthYear || "",
+      rrn: m.rrn || m.birthDate || m.birthYear || "",
       apps: m.apps || {},
       updatedAt: Date.now()
     };
