@@ -7902,6 +7902,35 @@ function renderAll() {
     } catch (error) {
       console.warn("가입대기 DB 코드 조회 실패:", key, error);
     }
+
+    // 회원 비밀번호 변경 대상 확인 보강:
+    // Rules상 일반 사용자는 membershipSecure/members를 읽지 못할 수 있으므로,
+    // 공개 읽기 경로인 memberList/joinCodes에서 회원코드의 실제 이름을 최종 검증한다.
+    // 이 검증이 없으면 오래된 loginIndex/nameIndex에 남은 다른 회원 코드가
+    // 같은 비밀번호라는 이유로 비밀번호 변경 후보에 섞일 수 있다.
+    try {
+      const joinSnap = await get(ref(membershipDb, `${MEMBER_LIST_JOIN_CODES_PATH}/${key}`));
+      if (joinSnap.exists()) {
+        const joinMember = joinSnap.val() || {};
+        if (!isDeletedJoinRecord(joinMember)) {
+          return {
+            rootPath: "memberList",
+            membersPath: MEMBER_LIST_JOIN_CODES_PATH,
+            nameIndexPath: "",
+            pendingPath: "",
+            member: {
+              ...joinMember,
+              code: joinMember.code || key,
+              __joinCodesOnly: true,
+              __memberRoot: "memberList",
+              __membersPath: MEMBER_LIST_JOIN_CODES_PATH
+            }
+          };
+        }
+      }
+    } catch (error) {
+      console.warn("회원관리 코드 조회 실패:", MEMBER_LIST_JOIN_CODES_PATH, key, error);
+    }
     return null;
   }
 
@@ -8565,57 +8594,73 @@ function renderAll() {
     }
   }
 
+  function mergeMemberCandidateForLogin(existing, incoming) {
+    const prev = existing && typeof existing === "object" ? existing : {};
+    const next = incoming && typeof incoming === "object" ? incoming : {};
+    const merged = { ...prev, ...next };
+
+    // 로그인 비밀번호 변경/검증에서 가장 중요한 값은 passwordHash다.
+    // loginIndex에서 먼저 읽은 최신 passwordHash가 뒤쪽 members/nameIndex/전체검색 자료의
+    // 오래된 passwordHash 또는 빈 값으로 덮이지 않도록 보존한다.
+    const prevHash = String(prev.passwordHash || prev.passHash || prev.pwHash || prev.memberPasswordHash || "").trim();
+    const nextHash = String(next.passwordHash || next.passHash || next.pwHash || next.memberPasswordHash || "").trim();
+    if (prevHash) merged.passwordHash = prevHash;
+    else if (nextHash) merged.passwordHash = nextHash;
+
+    // 평문 호환 필드는 빈 값이 아닌 경우만 보강한다.
+    ["password", "pass", "pw", "memberPassword", "loginPassword"].forEach((key) => {
+      if (!merged[key] && next[key]) merged[key] = next[key];
+      if (!merged[key] && prev[key]) merged[key] = prev[key];
+    });
+
+    merged.__sources = [
+      ...(Array.isArray(prev.__sources) ? prev.__sources : (prev.__loginIndexOnly ? ["loginIndex"] : [])),
+      ...(Array.isArray(next.__sources) ? next.__sources : (next.__loginIndexOnly ? ["loginIndex"] : []))
+    ].filter(Boolean);
+    return merged;
+  }
+
+  function setMemberCandidate(map, code, member) {
+    const key = String(code || member?.code || "").trim();
+    if (!key) return;
+    const normalized = { ...(member || {}), code: key };
+    map.set(key, map.has(key) ? mergeMemberCandidateForLogin(map.get(key), normalized) : normalized);
+  }
+
   async function findMembersByName(name) {
     const key = makeNameKey(name);
     const membersByCode = new Map();
 
-    const hasPasswordData = (member) => !!(member && (
-      member.passwordHash || member.passHash || member.pwHash || member.memberPasswordHash ||
-      member.password || member.pass || member.pw || member.memberPassword || member.loginPassword
-    ));
-    const mergeMemberCandidate = (code, member, preferPassword = false) => {
-      if (!member) return;
-      const cleanCode = String((member && member.code) || code || "").trim();
-      if (!cleanCode) return;
-      const previous = membersByCode.get(cleanCode);
-      if (!previous) {
-        membersByCode.set(cleanCode, { ...member, code: cleanCode });
-        return;
-      }
-
-      // 로그인 비밀번호 기준은 loginIndex 값을 최우선으로 보존한다.
-      // members/nameIndex 호환 조회 자료가 뒤늦게 들어오면서 예전 passwordHash로 덮어쓰는 문제를 막는다.
-      const previousHasPassword = hasPasswordData(previous);
-      const nextHasPassword = hasPasswordData(member);
-      const keepPreviousPassword = previous.__loginIndexOnly || (previousHasPassword && !preferPassword);
-      const merged = { ...previous, ...member, code: cleanCode };
-      if (keepPreviousPassword && previousHasPassword) {
-        ["passwordHash", "passHash", "pwHash", "memberPasswordHash", "password", "pass", "pw", "memberPassword", "loginPassword"].forEach((field) => {
-          if (previous[field] !== undefined && previous[field] !== null && String(previous[field]).trim() !== "") {
-            merged[field] = previous[field];
-          }
-        });
-      } else if (!nextHasPassword && previousHasPassword) {
-        ["passwordHash", "passHash", "pwHash", "memberPasswordHash", "password", "pass", "pw", "memberPassword", "loginPassword"].forEach((field) => {
-          if (previous[field] !== undefined && previous[field] !== null && String(previous[field]).trim() !== "") {
-            merged[field] = previous[field];
-          }
-        });
-      }
-      merged.__loginIndexOnly = !!(previous.__loginIndexOnly || member.__loginIndexOnly);
-      membersByCode.set(cleanCode, merged);
-    };
-
     // 보안 구조: 일반 로그인은 공개 가능한 최소 정보(loginIndex)를 먼저 사용한다.
     // 회원 전체 DB는 Rules에서 관리자 전용으로 잠겨도 이 경로로 로그인이 가능하다.
     const loginIndexMembers = await getLoginIndexMembersByName(name);
-    loginIndexMembers.forEach((m) => mergeMemberCandidate(m.code, m, true));
+    for (const m of loginIndexMembers) {
+      const code = String(m?.code || "").trim();
+      if (!code) continue;
+      const canonical = await getMemberRecordByCodeAnyRoot(code);
+      if (canonical && canonical.member) {
+        // loginIndex는 공개 로그인용이라 오래된 잘못된 코드가 남을 수 있다.
+        // 회원관리 표시DB/joinCodes 또는 실제 members에서 확인한 이름이 입력 이름과 다르면
+        // 같은 비밀번호라도 다른 회원이므로 비밀번호 변경 후보에서 제외한다.
+        if (!memberNameMatches(canonical.member, name)) {
+          console.warn("비밀번호 변경 후보 제외: loginIndex 이름/코드 불일치", code, m.name, canonical.member.name);
+          continue;
+        }
+        setMemberCandidate(membersByCode, code, mergeMemberCandidateForLogin(m, { ...canonical.member, __sources: [canonical.membersPath || "canonical"] }));
+      } else {
+        setMemberCandidate(membersByCode, code, { ...m, __sources: ["loginIndex"] });
+      }
+    }
 
     // 1) 이름 인덱스가 있는 경우: 모든 호환 경로의 nameIndex를 확인
     const codes = await getNameIndexCodesAnyRoot(key);
     for (const code of codes) {
       const record = await getMemberRecordByCodeAnyRoot(code);
-      if (record && record.member) mergeMemberCandidate(code, record.member, false);
+      // nameIndex에 오래된 코드가 남아 있으면 다른 이름 회원이 섞일 수 있다.
+      // 비밀번호가 같은 다른 회원을 동명이인으로 오판하지 않도록 실제 회원 이름을 다시 완전일치 확인한다.
+      if (record && record.member && memberNameMatches(record.member, name)) {
+        setMemberCandidate(membersByCode, record.member.code || code, { ...record.member, __sources: [record.membersPath || "members"] });
+      }
     }
 
     // 2) 인덱스가 없거나 잘못된 경우: 모든 회원 DB를 전체 검색
@@ -8623,7 +8668,7 @@ function renderAll() {
     Object.keys(all).forEach((code) => {
       const m = all[code];
       if (memberNameMatches(m, name)) {
-        mergeMemberCandidate(code, { ...m, code: (m && m.code) || code }, false);
+        setMemberCandidate(membersByCode, (m && m.code) || code, { ...m, code: (m && m.code) || code, __sources: ["allMembers"] });
       }
     });
 
@@ -9399,140 +9444,232 @@ function renderAll() {
   }
 
   async function changeMemberPassword() {
-    const rawName = String(byId("memberChangeNameInput")?.value || "");
-    const oldPassword = normalizePasswordInput(byId("memberChangeOldPasswordInput")?.value);
-    const newPassword = normalizePasswordInput(byId("memberChangeNewPasswordInput")?.value);
-    const confirmPassword = normalizePasswordInput(byId("memberChangeConfirmPasswordInput")?.value);
-    const changeBtn = byId("memberPasswordChangeSubmitBtn");
+    const submitBtn = byId("memberChangePasswordSubmitBtn");
+    const resultPrefix = "회원 비밀번호 변경";
+    const setStep = (message, ok = false) => {
+      setAuthMessage(message, ok);
+      if (submitBtn) submitBtn.textContent = ok ? "완료" : "변경중";
+    };
+    const finishButton = () => {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "변경";
+      }
+    };
+    const failChange = (message) => {
+      const finalMessage = `${resultPrefix} 실패: ${message}`;
+      setAuthMessage(finalMessage);
+      try { alert(finalMessage); } catch (e) {}
+    };
+    const successChange = (message) => {
+      const finalMessage = `${resultPrefix} 성공: ${message}`;
+      setAuthMessage(finalMessage, true);
+      try { alert(finalMessage); } catch (e) {}
+    };
 
-    const spaceError = validateNoWhitespaceFields([
-      { label: "아이디", value: rawName },
-      { label: "기존비번", value: oldPassword },
-      { label: "변경비번", value: newPassword },
-      { label: "비번확인", value: confirmPassword }
-    ]);
-    if (spaceError) {
-      setAuthMessage(spaceError);
+    if (submitBtn?.disabled) {
+      setAuthMessage(`${resultPrefix} 진행중입니다. 잠시만 기다려주세요.`);
       return;
     }
-
-    const name = normalizeName(rawName);
-    if (!name || !oldPassword || !newPassword || !confirmPassword) {
-      setAuthMessage("아이디, 기존비번, 변경비번, 비번확인을 모두 입력하세요.");
-      return;
-    }
-    if (!/^[가-힣]{2,}$/.test(name)) {
-      setAuthMessage("아이디는 띄어쓰기 없이 한글 이름으로 입력하세요.");
-      return;
-    }
-    if (newPassword.length < 4) {
-      setAuthMessage("변경 비밀번호는 4자리 이상 입력하세요.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setAuthMessage("변경 비밀번호와 비번확인이 서로 다릅니다.");
-      return;
-    }
-    if (oldPassword === newPassword) {
-      setAuthMessage("기존 비밀번호와 다른 비밀번호를 입력하세요.");
-      return;
-    }
-
-    const setProgress = (message, ok = false) => setAuthMessage(message, ok);
-    const previousButtonText = changeBtn ? changeBtn.textContent : "";
-    if (changeBtn) {
-      changeBtn.disabled = true;
-      changeBtn.textContent = "변경중";
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "변경중";
     }
 
     try {
-      setProgress("1/5 회원 확인중입니다...");
-      const members = await findMembersByName(name);
-      if (!members.length) {
-        setProgress("등록된 회원이 없습니다. 회원가입을 먼저 진행하세요.");
+      const rawName = String(byId("memberChangeNameInput")?.value || "");
+      const oldPassword = normalizePasswordInput(byId("memberChangeOldPasswordInput")?.value);
+      const newPassword = normalizePasswordInput(byId("memberChangeNewPasswordInput")?.value);
+      const confirmPassword = normalizePasswordInput(byId("memberChangeConfirmPasswordInput")?.value);
+
+      const spaceError = validateNoWhitespaceFields([
+        { label: "아이디", value: rawName },
+        { label: "기존비번", value: oldPassword },
+        { label: "변경비번", value: newPassword },
+        { label: "비번확인", value: confirmPassword }
+      ]);
+      if (spaceError) {
+        failChange(spaceError);
         return;
       }
 
-      setProgress("2/5 기존 비밀번호 확인중입니다...");
+      const name = normalizeName(rawName);
+      if (!name || !oldPassword || !newPassword || !confirmPassword) {
+        failChange("아이디, 기존비번, 변경비번, 비번확인을 모두 입력하세요.");
+        return;
+      }
+      if (!/^[가-힣]{2,}$/.test(name)) {
+        failChange("아이디는 띄어쓰기 없이 한글 이름으로 입력하세요.");
+        return;
+      }
+      if (newPassword.length < 4) {
+        failChange("변경 비밀번호는 4자리 이상 입력하세요.");
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        failChange("변경 비밀번호와 비번확인이 서로 다릅니다.");
+        return;
+      }
+      if (oldPassword === newPassword) {
+        failChange("기존 비밀번호와 다른 비밀번호를 입력하세요.");
+        return;
+      }
+
+      setStep("1/5 회원 정보를 확인중입니다...");
+      const members = (await findMembersByName(name)).filter((m) => memberNameMatches(m, name));
+      if (!members.length) {
+        failChange("등록된 회원이 없습니다. 회원가입을 먼저 진행하세요.");
+        return;
+      }
+
+      setStep("2/5 기존 비밀번호를 확인중입니다...");
       const oldHash = await sha256Hex(oldPassword);
       const matches = members.filter((m) => memberPasswordMatches(m, oldPassword, oldHash));
       if (!matches.length) {
         const hasNoPasswordData = members.every((m) => !memberHasLoginPasswordData(m));
-        setProgress(hasNoPasswordData
-          ? "회원 이름은 찾았지만 기존 비밀번호 정보가 없어 비밀번호 변경을 할 수 없습니다. 회원 JSON 복구 또는 관리자 비번초기화가 필요합니다."
+        failChange(hasNoPasswordData
+          ? "회원 이름은 찾았지만 기존 비밀번호 정보가 없어 비밀번호 변경을 할 수 없습니다. 회원관리 비번초기화 후 다시 시도하세요."
           : "기존 비밀번호가 맞지 않습니다.");
         return;
       }
-      if (matches.length > 1) {
-        setProgress("같은 이름과 비밀번호의 회원이 여러 명입니다. 관리자에게 문의하세요.");
+
+      // loginIndex / members / nameIndex / 전체검색에서 같은 회원이 여러 코드로 중복 검색될 수 있다.
+      // 1차: code 기준 병합, 2차: uid/전화번호/생년/이름 같은 실제 신원 기준 병합.
+      const mergePasswordMatchRecord = (previous, member, code) => {
+        const prev = previous && typeof previous === "object" ? previous : {};
+        const next = member && typeof member === "object" ? member : {};
+        const merged = mergeMemberCandidateForLogin(prev, { ...next, code: code || next.code || prev.code });
+        merged.__matchedCodes = Array.from(new Set([
+          ...(Array.isArray(prev.__matchedCodes) ? prev.__matchedCodes : (prev.code ? [prev.code] : [])),
+          ...(Array.isArray(next.__matchedCodes) ? next.__matchedCodes : []),
+          code,
+          next.code
+        ].map((v) => String(v || "").trim()).filter(Boolean)));
+        return merged;
+      };
+
+      const getPasswordMatchIdentityKey = (member) => {
+        const uid = String(member?.uid || member?.userUid || member?.authUid || "").trim();
+        if (uid) return `uid:${uid}`;
+        const phoneDigits = String(member?.phoneDigits || member?.phone || member?.tel || "").replace(/\D/g, "");
+        if (phoneDigits.length >= 7) return `phone:${phoneDigits}`;
+        const phoneLast4 = getMemberPhoneLast4(member);
+        const birth = String(member?.birth || member?.birthYear || member?.year || member?.birthInput || "").replace(/\D/g, "");
+        const dong = normalizeName(member?.dong || member?.addressDong || member?.area || member?.address || "");
+        const memberName = normalizeName(member?.name || name);
+        if (phoneLast4 && birth) return `last4birth:${memberName}:${phoneLast4}:${birth}`;
+        if (phoneLast4 && dong) return `last4dong:${memberName}:${phoneLast4}:${dong}`;
+        if (phoneLast4) return `last4:${memberName}:${phoneLast4}`;
+        return "";
+      };
+
+      const uniqueMatchesByCode = new Map();
+      matches.forEach((member) => {
+        const matchCode = String(member?.code || member?.memberCode || member?.joinCode || member?.id || "").trim();
+        if (!matchCode) return;
+        uniqueMatchesByCode.set(matchCode, mergePasswordMatchRecord(uniqueMatchesByCode.get(matchCode), member, matchCode));
+      });
+
+      let uniqueMatches = Array.from(uniqueMatchesByCode.values());
+      if (!uniqueMatches.length) {
+        failChange("회원코드를 확인하지 못해 비밀번호를 변경할 수 없습니다. 관리자에게 문의하세요.");
         return;
       }
 
-      const sourceMember = matches[0];
-      const status = String(sourceMember.status || "").toLowerCase();
+      if (uniqueMatches.length > 1) {
+        const byIdentity = new Map();
+        uniqueMatches.forEach((member) => {
+          const identityKey = getPasswordMatchIdentityKey(member);
+          const fallbackKey = identityKey || `code:${String(member.code || "").trim()}`;
+          byIdentity.set(fallbackKey, mergePasswordMatchRecord(byIdentity.get(fallbackKey), member, String(member.code || "").trim()));
+        });
+        const identityMatches = Array.from(byIdentity.values());
+        if (identityMatches.length === 1) {
+          uniqueMatches = identityMatches;
+        } else {
+          const approvedActive = identityMatches.filter((member) => {
+            const itemStatus = String(member.status || "").toLowerCase();
+            return member.approved === true && ["active", "approved", "member", "admin", ""].includes(itemStatus);
+          });
+          if (approvedActive.length === 1) {
+            uniqueMatches = approvedActive;
+          } else {
+            const codesText = identityMatches.map((member) => String(member.code || "").trim()).filter(Boolean).join(", ");
+            failChange(`같은 이름과 기존 비밀번호로 확인되는 회원이 여러 명입니다.${codesText ? " 코드: " + codesText : ""} 관리자 비번초기화 후 다시 시도하세요.`);
+            return;
+          }
+        }
+      }
+
+      const foundMember = uniqueMatches[0];
+      const status = String(foundMember.status || "").toLowerCase();
       if (status === "withdrawn") {
-        setProgress("탈퇴 처리된 회원은 비밀번호를 변경할 수 없습니다.");
+        failChange("탈퇴 처리된 회원은 비밀번호를 변경할 수 없습니다.");
         return;
       }
       if (status === "blocked") {
-        setProgress("차단된 회원은 비밀번호를 변경할 수 없습니다. 관리자에게 문의하세요.");
+        failChange("차단된 회원은 비밀번호를 변경할 수 없습니다. 관리자에게 문의하세요.");
         return;
       }
 
-      const code = String(sourceMember.code || "").trim();
-      const memberName = normalizeName(sourceMember.name || name);
-      if (!code || !memberName) {
-        setProgress("회원코드 또는 아이디를 확인할 수 없어 비밀번호를 변경할 수 없습니다.");
+      const code = String(foundMember.code || "").trim();
+      if (!code) {
+        failChange("회원코드를 찾지 못해 비밀번호를 변경할 수 없습니다. 관리자에게 문의하세요.");
         return;
       }
 
-      setProgress("3/5 새 비밀번호 저장중입니다...");
+      setStep("3/5 새 비밀번호를 저장중입니다...");
       const now = Date.now();
       const newHash = await sha256Hex(newPassword);
-      const nameKey = makeNameKey(memberName);
-      const memberForIndex = {
-        ...sourceMember,
+      const nameKey = makeNameKey(name);
+      const memberForLoginIndex = {
+        ...foundMember,
         code,
-        name: memberName,
+        name,
+        nameKey,
         passwordHash: newHash,
-        approved: sourceMember.approved === true || isMemberAllowedToLogin(sourceMember),
-        status: String(sourceMember.status || (sourceMember.approved ? "active" : "active")),
-        role: String(sourceMember.role || (sourceMember.adminAccess ? "admin" : "member")),
-        adminAccess: !!sourceMember.adminAccess,
-        passwordChangedAt: now,
-        updatedAt: now
+        approved: foundMember.approved !== false,
+        status: String(foundMember.status || "active"),
+        role: String(foundMember.role || (foundMember.adminAccess ? "admin" : "member")),
+        adminAccess: !!foundMember.adminAccess,
+        updatedAt: now,
+        passwordChangedAt: now
       };
 
-      // 회원관리 [비번초기화]와 같은 저장 기준: members + loginIndex + nameIndex를 한 번에 갱신한다.
+      // 정상 작동하는 회원관리 비번초기화와 같은 핵심 경로만 갱신한다.
+      // loginIndex는 로그인 검증 기준이고, members는 회원 원본 DB, nameIndex는 이름 검색 보조 인덱스다.
       const updates = {};
       updates[`${MEMBERS_ROOT}/members/${code}/passwordHash`] = newHash;
-      updates[`${MEMBERS_ROOT}/members/${code}/passwordChangedAt`] = now;
       updates[`${MEMBERS_ROOT}/members/${code}/updatedAt`] = now;
-      updates[`${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${code}`] = makeMemberLoginIndexRecord(memberForIndex);
+      updates[`${MEMBERS_ROOT}/members/${code}/passwordChangedAt`] = now;
+      updates[`${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${code}`] = makeMemberLoginIndexRecord(memberForLoginIndex);
       updates[`${MEMBERS_ROOT}/nameIndex/${nameKey}/${code}`] = true;
-
-      await update(ref(membershipDb), updates);
-
-      setProgress("4/5 저장 확인중입니다...");
-      const [memberSnap, loginIndexSnap] = await Promise.all([
-        get(ref(membershipDb, `${MEMBERS_ROOT}/members/${code}/passwordHash`)).catch((error) => ({ __error: error })),
-        get(ref(membershipDb, `${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${code}/passwordHash`)).catch((error) => ({ __error: error }))
-      ]);
-      const memberSavedHash = memberSnap && !memberSnap.__error && memberSnap.exists && memberSnap.exists() ? String(memberSnap.val() || "") : "";
-      const loginIndexSavedHash = loginIndexSnap && !loginIndexSnap.__error && loginIndexSnap.exists && loginIndexSnap.exists() ? String(loginIndexSnap.val() || "") : "";
-      if (memberSavedHash !== newHash || loginIndexSavedHash !== newHash) {
-        const details = [];
-        if (memberSavedHash !== newHash) details.push("members 저장 확인 실패");
-        if (loginIndexSavedHash !== newHash) details.push("loginIndex 저장 확인 실패");
-        setProgress(`비밀번호 저장 확인 실패: ${details.join(", ")}. Firebase Rules 쓰기 권한을 확인하세요.`);
+      try {
+        await update(ref(membershipDb), updates);
+      } catch (saveError) {
+        console.error("회원 비밀번호 저장 실패:", saveError);
+        failChange(`저장 중 오류가 발생했습니다. ${saveError?.code || saveError?.message || saveError}`);
         return;
       }
 
-      setProgress("5/5 새 비밀번호 로그인 검증중입니다...");
-      const refreshedMembers = await findMembersByName(memberName);
-      const verified = refreshedMembers.some((m) => String(m.code || "") === code && memberPasswordMatches(m, newPassword, newHash));
+      setStep("4/5 저장 결과를 확인중입니다...");
+      const loginSnap = await get(ref(membershipDb, `${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${code}/passwordHash`));
+      const memberSnap = await get(ref(membershipDb, `${MEMBERS_ROOT}/members/${code}/passwordHash`));
+      const savedLoginHash = loginSnap.exists() ? String(loginSnap.val() || "") : "";
+      const savedMemberHash = memberSnap.exists() ? String(memberSnap.val() || "") : "";
+      if (savedLoginHash !== newHash || savedMemberHash !== newHash) {
+        const failed = [];
+        if (savedLoginHash !== newHash) failed.push("loginIndex");
+        if (savedMemberHash !== newHash) failed.push("members");
+        failChange(`저장 확인 실패: ${failed.join(", ")} 경로가 새 비밀번호로 저장되지 않았습니다.`);
+        return;
+      }
+
+      setStep("5/5 새 비밀번호로 로그인 검증중입니다...");
+      const verifiedMembers = await findMembersByName(name);
+      const verified = verifiedMembers.some((m) => String(m.code || "") === code && memberPasswordMatches(m, newPassword, newHash));
       if (!verified) {
-        setProgress("저장은 완료됐지만 로그인 검증에 실패했습니다. loginIndex/members 병합 상태를 확인하세요.");
+        failChange("저장은 되었지만 로그인 검증에 실패했습니다. 새로고침 후 다시 로그인해 보세요.");
         return;
       }
 
@@ -9541,16 +9678,17 @@ function renderAll() {
       byId("memberChangeConfirmPasswordInput").value = "";
       byId("memberPasswordChangePanel")?.classList.remove("is-open");
       setMemberAuthViewMode("main");
-      setProgress("비밀번호가 변경되었습니다. 새 비밀번호로 로그인하세요.", true);
-      alert("비밀번호가 변경되었습니다.\n새 비밀번호로 로그인하세요.");
+      saveMemberLoginName(name);
+      const loginNameInput = byId("memberLoginNameInput");
+      if (loginNameInput) loginNameInput.value = name;
+      setStep(`${resultPrefix} 성공: 비밀번호가 변경되었습니다. 새 비밀번호로 로그인하세요.`, true);
+      successChange("비밀번호가 변경되었습니다. 새 비밀번호로 로그인하세요.");
+      setTimeout(finishButton, 800);
     } catch (error) {
-      console.error("회원 로그인 비밀번호 변경 오류:", error);
-      setProgress(`비밀번호 변경 실패: ${error?.code || error?.message || error}`);
+      console.error("회원 비밀번호 변경 오류:", error);
+      failChange(`예상하지 못한 오류가 발생했습니다. ${error?.code || error?.message || error}`);
     } finally {
-      if (changeBtn) {
-        changeBtn.disabled = false;
-        changeBtn.textContent = previousButtonText || "변경";
-      }
+      if (submitBtn && submitBtn.textContent !== "완료") finishButton();
     }
   }
 
