@@ -1864,7 +1864,8 @@ body.admin-entry-only #adminLoginPanel.hidden{
   color:#9a3412 !important;
   font-weight:900 !important;
 }
-#memberOrphanRepairBtn{
+#memberOrphanRepairBtn,
+#memberIndexCleanupBtn{
   background:#eef5ff !important;
   border-color:#2563eb !important;
   color:#1428c8 !important;
@@ -2762,10 +2763,11 @@ body.member-mode .controls {
   right:0 !important;
   z-index:9998 !important;
   display:grid !important;
-  grid-template-columns:repeat(2, minmax(112px, 1fr)) !important;
+  grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+  grid-auto-rows:34px !important;
   gap:6px !important;
-  width:min(320px, calc(100vw - 28px)) !important;
-  max-width:min(320px, calc(100vw - 28px)) !important;
+  width:min(300px, calc(100vw - 28px)) !important;
+  max-width:min(300px, calc(100vw - 28px)) !important;
   min-width:260px !important;
   padding:8px !important;
   margin:0 !important;
@@ -2785,23 +2787,25 @@ body.member-mode .controls {
   min-width:0 !important;
   height:34px !important;
   min-height:34px !important;
-  padding:0 8px !important;
+  padding:0 6px !important;
   border-radius:12px !important;
-  font-size:12px !important;
+  font-size:11px !important;
   line-height:1.15 !important;
-  letter-spacing:-0.03em !important;
+  letter-spacing:-0.04em !important;
   white-space:nowrap !important;
-  overflow:visible !important;
+  overflow:hidden !important;
   text-overflow:clip !important;
+  box-sizing:border-box !important;
 }
+#memberManagePanel #memberJsonBackupBtn,
+#memberManagePanel #memberJsonRestoreBtn,
 #memberManagePanel #memberDbCleanupBtn,
 #memberManagePanel #memberOrphanRepairBtn,
+#memberManagePanel #memberIndexCleanupBtn,
 #memberManagePanel #memberLoginAuditBtn,
 #memberManagePanel #memberPasswordResetBtn{
-  font-size:12px !important;
-}
-#memberManagePanel #memberOrphanRepairBtn{
-  grid-column:span 2 !important;
+  font-size:11px !important;
+  grid-column:auto !important;
 }
 #memberManagePanel.member-admin-group-open .member-manage-title-search,
 #memberManagePanel.member-admin-group-open .member-manage-header-actions{
@@ -2814,24 +2818,29 @@ body.member-mode .controls {
   #memberManagePanel .member-manage-admin-group-panel{
     top:27px !important;
     right:0 !important;
-    grid-template-columns:repeat(2, minmax(102px, 1fr)) !important;
-    width:min(300px, calc(100vw - 24px)) !important;
-    max-width:min(300px, calc(100vw - 24px)) !important;
-    min-width:244px !important;
+    grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-rows:32px !important;
+    width:min(292px, calc(100vw - 24px)) !important;
+    max-width:min(292px, calc(100vw - 24px)) !important;
+    min-width:236px !important;
     gap:5px !important;
     padding:7px !important;
   }
   #memberManagePanel .member-manage-admin-group-panel .btn{
     height:32px !important;
     min-height:32px !important;
-    font-size:11px !important;
-    padding:0 6px !important;
+    font-size:10px !important;
+    padding:0 4px !important;
   }
+  #memberManagePanel #memberJsonBackupBtn,
+  #memberManagePanel #memberJsonRestoreBtn,
   #memberManagePanel #memberDbCleanupBtn,
   #memberManagePanel #memberOrphanRepairBtn,
+  #memberManagePanel #memberIndexCleanupBtn,
   #memberManagePanel #memberLoginAuditBtn,
   #memberManagePanel #memberPasswordResetBtn{
-    font-size:11px !important;
+    font-size:10px !important;
+    grid-column:auto !important;
   }
 }
 
@@ -2890,11 +2899,11 @@ body.member-mode .controls {
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
 
       <div class="member-login-refresh-row">
-        <button id="memberLoginRefreshBtn" type="button" aria-label="새로고침">New</button>
+        <button id="memberLoginRefreshBtn" type="button" aria-label="새로고침">Refresh</button>
       </div>
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
-      <h2 id="memberAuthTitle" class="member-auth-title">GEOM_AM Mountain Members'</h2>
+      <h2 id="memberAuthTitle" class="member-auth-title">Geom_Am Mountain Members'</h2>
       <div class="member-auth-row">
         <label for="memberLoginNameInput">아이디</label>
         <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" />
@@ -3175,6 +3184,7 @@ body.member-mode .controls {
                     <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
                     <button class="btn btn-outline" id="memberDbCleanupBtn" type="button" title="회원 DB의 고아코드/고아회원/잘못된 인덱스를 삭제 없이 검사">DB점검</button>
                     <button class="btn btn-outline" id="memberOrphanRepairBtn" type="button" title="DB점검에서 발견된 고아 joinCodes를 로그인 가능한 회원 DB로 복구">고아코드복구</button>
+                    <button class="btn btn-outline" id="memberIndexCleanupBtn" type="button" title="loginIndex/nameIndex의 이름키와 실제 회원명부 이름이 다른 오염 인덱스를 정리">인덱스정리</button>
                     <button class="btn btn-outline" id="memberLoginAuditBtn" type="button" title="아이디=이름, 비밀번호=전화번호 끝4자리+0 기준으로 실제 로그인 가능성을 검사">로그인점검</button>
                     <button class="btn btn-outline" id="memberPasswordResetBtn" type="button" title="회원관리 목록에서 선택한 가입회원 1명의 비밀번호만 전화번호 끝4자리+0 기준으로 초기화">비번초기화</button>
                   </div>
@@ -12251,6 +12261,193 @@ function renderAll() {
     ].filter(Boolean).join('\n'));
   }
 
+
+  async function cleanupContaminatedMemberIndexes() {
+    const ok = confirm(
+      '인덱스 정리를 실행할까요?\n\n' +
+      '대상: membershipSecure/loginIndex,\n +
+      '     membershipSecure/nameIndex\n' +
+      '기준: memberList/joinCodes와 \n +
+      '     membershipSecure/members의 실제 회원 이름\n\n' +
+      '이름키가 실제 회원 이름과 맞지 않는 오염 인덱스는 \n +
+      '삭제하고 올바른 이름키로 다시 생성합니다.\n' +
+      '좌석/회원명부/비밀번호 값은 변경하지 않습니다.'
+    );
+    if (!ok) return;
+
+    const readObj = async (path) => {
+      try {
+        const snap = await get(ref(manageDb, path));
+        return snap && snap.exists() ? (snap.val() || {}) : {};
+      } catch (error) {
+        return { __readError: error?.code || error?.message || String(error), __path: path };
+      }
+    };
+    const compactCode = (value) => String(value || '').trim();
+    const getMemberName = (member) => String(
+      member?.name || member?.memberName || member?.userName || member?.displayName || member?.이름 || ''
+    ).trim();
+    const makeReportLine = (source, fromKey, toKey, code, name) => {
+      return `${source}: ${fromKey} → ${toKey} / ${code}${name ? ' / ' + name : ''}`;
+    };
+    const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+
+    alert('인덱스 정리 진행중...\n1/4 회원 기준자료 읽는중.. 실행할까요?');
+
+    const joinCodes = await readObj(MANAGE_JOIN_CODES_PATH);
+    const membersMain = await readObj(`${MANAGE_MEMBERS_ROOT}/members`);
+    const loginIndex = await readObj(`${MANAGE_MEMBERS_ROOT}/loginIndex`);
+    const nameIndex = await readObj(`${MANAGE_MEMBERS_ROOT}/nameIndex`);
+
+    const readErrors = [joinCodes, membersMain, loginIndex, nameIndex]
+      .filter((item) => item && item.__readError)
+      .map((item) => `${item.__path || '-'}: ${item.__readError}`);
+    if (readErrors.length) {
+      alert('인덱스 정리 실패: 기준자료를 읽지 못했습니다.\n\n' + readErrors.join('\n'));
+      return;
+    }
+
+    const actualByCode = {};
+    const mergeActual = (code, record) => {
+      const key = compactCode(code || record?.code);
+      if (!key || !isObject(record)) return;
+      const previous = actualByCode[key] || {};
+      actualByCode[key] = { ...previous, ...record, code: key };
+    };
+    Object.keys(joinCodes || {}).forEach((code) => mergeActual(code, joinCodes[code]));
+    Object.keys(membersMain || {}).forEach((code) => mergeActual(code, membersMain[code]));
+
+    const updates = {};
+    const movedLoginIndex = [];
+    const movedNameIndex = [];
+    const orphanLoginIndex = [];
+    const orphanNameIndex = [];
+    const skippedNoName = [];
+
+    alert('인덱스 정리 진행중...\n2/4 loginIndex 검사중');
+
+    if (isObject(loginIndex)) {
+      Object.keys(loginIndex).forEach((nameKey) => {
+        const branch = loginIndex[nameKey];
+        if (!isObject(branch)) return;
+        Object.keys(branch).forEach((code) => {
+          const key = compactCode(code);
+          if (!key) return;
+          const record = isObject(branch[code]) ? branch[code] : {};
+          const actual = actualByCode[key];
+          if (!actual) {
+            orphanLoginIndex.push(`${nameKey} / ${key}`);
+            return;
+          }
+          const actualName = getMemberName(actual) || getMemberName(record);
+          if (!actualName) {
+            skippedNoName.push(`loginIndex: ${nameKey} / ${key}`);
+            return;
+          }
+          const correctNameKey = makeManageNameKey(actualName);
+          if (!correctNameKey) return;
+          const currentNameKey = String(nameKey || '').trim();
+          const shouldMove = currentNameKey !== correctNameKey || getMemberName(record) !== actualName || String(record.code || key).trim() !== key;
+          if (shouldMove) {
+            const fixedMember = {
+              ...actual,
+              ...record,
+              code: key,
+              name: actualName,
+              passwordHash: String(record.passwordHash || actual.passwordHash || '')
+            };
+            updates[`${MANAGE_MEMBERS_ROOT}/loginIndex/${currentNameKey}/${key}`] = null;
+            updates[`${MANAGE_MEMBERS_ROOT}/loginIndex/${correctNameKey}/${key}`] = makeManageMemberLoginIndexRecord(fixedMember);
+            movedLoginIndex.push(makeReportLine('loginIndex', currentNameKey, correctNameKey, key, actualName));
+          }
+        });
+      });
+    }
+
+    alert('인덱스 정리 진행중...\n3/4 nameIndex 검사중');
+
+    if (isObject(nameIndex)) {
+      Object.keys(nameIndex).forEach((nameKey) => {
+        const branch = nameIndex[nameKey];
+        if (!isObject(branch)) return;
+        Object.keys(branch).forEach((code) => {
+          const key = compactCode(code);
+          if (!key) return;
+          const actual = actualByCode[key];
+          if (!actual) {
+            orphanNameIndex.push(`${nameKey} / ${key}`);
+            return;
+          }
+          const actualName = getMemberName(actual);
+          if (!actualName) {
+            skippedNoName.push(`nameIndex: ${nameKey} / ${key}`);
+            return;
+          }
+          const correctNameKey = makeManageNameKey(actualName);
+          if (!correctNameKey) return;
+          const currentNameKey = String(nameKey || '').trim();
+          if (currentNameKey !== correctNameKey || branch[code] !== true) {
+            updates[`${MANAGE_MEMBERS_ROOT}/nameIndex/${currentNameKey}/${key}`] = null;
+            updates[`${MANAGE_MEMBERS_ROOT}/nameIndex/${correctNameKey}/${key}`] = true;
+            movedNameIndex.push(makeReportLine('nameIndex', currentNameKey, correctNameKey, key, actualName));
+          }
+        });
+      });
+    }
+
+    const updateKeys = Object.keys(updates);
+    if (!updateKeys.length) {
+      alert([
+        '인덱스 정리 완료',
+        '',
+        '정리할 오염 인덱스가 없습니다.',
+        `고아 loginIndex: ${orphanLoginIndex.length}건`,
+        `고아 nameIndex: ${orphanNameIndex.length}건`,
+        skippedNoName.length ? `이름확인 불가: ${skippedNoName.length}건` : ''
+      ].filter(Boolean).join('\n'));
+      return;
+    }
+
+    const preview = [...movedLoginIndex, ...movedNameIndex].slice(0, 20).join('\n');
+    const ok2 = confirm([
+      '오염 인덱스를 정리할까요?',
+      '',
+      `loginIndex 이동/수정: ${movedLoginIndex.length}건`,
+      `nameIndex 이동/수정: ${movedNameIndex.length}건`,
+      `DB 업데이트 항목: ${updateKeys.length}건`,
+      '',
+      preview,
+      movedLoginIndex.length + movedNameIndex.length > 20 ? `...외 ${movedLoginIndex.length + movedNameIndex.length - 20}건` : '',
+      '',
+      '※ 좌석/회원명부/비밀번호 값은 변경하지 않고 인덱스 경로만 정리합니다.'
+    ].filter(Boolean).join('\n'));
+    if (!ok2) {
+      alert('인덱스 정리를 취소했습니다.');
+      return;
+    }
+
+    alert('인덱스 정리 진행중...\n4/4 Firebase 저장중');
+    try {
+      await update(ref(manageDb), updates);
+      alert([
+        '인덱스 정리 완료',
+        '',
+        `loginIndex 정리: ${movedLoginIndex.length}건`,
+        `nameIndex 정리: ${movedNameIndex.length}건`,
+        `고아 loginIndex 참고: ${orphanLoginIndex.length}건`,
+        `고아 nameIndex 참고: ${orphanNameIndex.length}건`,
+        '',
+        [...movedLoginIndex, ...movedNameIndex].slice(0, 20).join('\n'),
+        movedLoginIndex.length + movedNameIndex.length > 20 ? `...외 ${movedLoginIndex.length + movedNameIndex.length - 20}건` : '',
+        skippedNoName.length ? '\n이름 확인 불가:\n' + skippedNoName.slice(0, 10).join('\n') : ''
+      ].filter(Boolean).join('\n'));
+      try { await forceLoadMemberManageList(); } catch (e) {}
+    } catch (error) {
+      alert('인덱스 정리 실패: Firebase 저장 권한 또는 네트워크를 확인하세요.\n\n' + (error?.code || error?.message || error));
+      throw error;
+    }
+  }
+
   async function cleanupOrphanMemberDb() {
     const ok = confirm(
       'DB점검을 실행할까요?\n\n' +
@@ -12746,6 +12943,15 @@ function renderAll() {
       repairOrphanJoinCodesToLoginDb().catch((error) => {
         console.error('고아코드 복구 오류:', error);
         alert(`고아코드 복구 오류: ${error?.code || error?.message || error}`);
+      });
+      return;
+    }
+    const memberIndexCleanup = event.target.closest('#memberManagePanel #memberIndexCleanupBtn');
+    if (memberIndexCleanup) {
+      event.preventDefault();
+      cleanupContaminatedMemberIndexes().catch((error) => {
+        console.error('인덱스 정리 오류:', error);
+        alert(`인덱스 정리 오류: ${error?.code || error?.message || error}`);
       });
       return;
     }
