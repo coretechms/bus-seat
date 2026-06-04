@@ -14094,17 +14094,20 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
 
 <script id="mobile-login-back-exit-once-patch">
-/* 요청 수정: 모바일 로그인 화면에서는 휴대폰 뒤로가기 1회로 앱을 종료한다.
-   원인: 기존 내부 화면전환(member/memberManage/loginManage)용 history 상태가 로그인 화면까지 남아
-   뒤로가기 이력이 여러 단계 쌓였기 때문에 여러 번 눌러야 종료되었다.
-   처리: 로그인 게이트가 보이는 동안에는 내부 화면 복구 popstate 처리를 막고,
-   첫 뒤로가기에서 남은 내부 history를 한 번에 빠져나가도록 한다. */
+/* 요청 수정: 모바일 로그인 화면 뒤로가기 2회 시 모든 내부 history 정리 후 앱 종료.
+   원인: 앱 내부 화면전환 history + 브라우저/웹뷰 history 가 누적되어
+   뒤로가기를 여러 번 눌러야 종료되는 현상 발생.
+   처리:
+   1차 뒤로가기 → 내부 history 를 로그인 기준으로 정리
+   2차 뒤로가기 → 남은 history 를 한 번에 제거 후 앱 종료 시도 */
 (function(){
-  if (window.__mobileLoginBackExitOncePatchApplied) return;
-  window.__mobileLoginBackExitOncePatchApplied = true;
+  if (window.__mobileLoginBackExitDoublePatchApplied) return;
+  window.__mobileLoginBackExitDoublePatchApplied = true;
 
   var LOGIN_STATE = { busSeatScreen: "memberLogin", busSeatLoginExitBase: true };
-  var exitingLoginHistory = false;
+  var lastBackPressedAt = 0;
+  var EXIT_INTERVAL = 2200;
+  var exitingNow = false;
 
   function isLoginGateVisible(){
     try {
@@ -14121,53 +14124,123 @@ body.admin-mode:not(.member-manage-mode) .controls {
   function setLoginBaseState(){
     if (!isLoginGateVisible()) return;
     try {
-      var s = history.state || {};
-      if (s.busSeatLoginExitBase) return;
       history.replaceState(LOGIN_STATE, "", location.href);
     } catch (error) {}
   }
 
-  function exitAppFromLoginOnce(){
-    if (exitingLoginHistory) return;
-    exitingLoginHistory = true;
+  function showExitToast(){
     try {
-      var steps = Math.max(1, Math.min(Number(history.length || 1) - 1, 20));
-      if (steps > 0) {
-        history.go(-steps);
-      } else {
-        history.back();
+      if (window.__loginExitToastEl) {
+        window.__loginExitToastEl.remove();
       }
+
+      var toast = document.createElement("div");
+      toast.textContent = "한번 더 뒤로가기 하면 앱을 종료합니다.";
+      toast.style.position = "fixed";
+      toast.style.left = "50%";
+      toast.style.bottom = "34px";
+      toast.style.transform = "translateX(-50%)";
+      toast.style.background = "rgba(17,24,39,.92)";
+      toast.style.color = "#fff";
+      toast.style.padding = "10px 16px";
+      toast.style.borderRadius = "999px";
+      toast.style.fontSize = "13px";
+      toast.style.fontWeight = "700";
+      toast.style.zIndex = "2147483647";
+      toast.style.boxShadow = "0 4px 18px rgba(0,0,0,.28)";
+      document.body.appendChild(toast);
+
+      window.__loginExitToastEl = toast;
+
+      setTimeout(function(){
+        try {
+          if (toast.parentNode) toast.parentNode.removeChild(toast);
+        } catch (e) {}
+      }, 1800);
+    } catch (error) {}
+  }
+
+  function closeApplicationNow(){
+    if (exitingNow) return;
+    exitingNow = true;
+
+    try {
+      var totalSteps = Math.max(1, Math.min((history.length || 1) - 1, 50));
+      history.go(-totalSteps);
     } catch (error) {
       try { history.back(); } catch (e) {}
     }
-    setTimeout(function(){ exitingLoginHistory = false; }, 1200);
+
+    try {
+      if (navigator.app && typeof navigator.app.exitApp === "function") {
+        navigator.app.exitApp();
+      }
+    } catch (error) {}
+
+    try {
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+        window.Capacitor.Plugins.App.exitApp();
+      }
+    } catch (error) {}
+
+    setTimeout(function(){
+      exitingNow = false;
+    }, 1800);
   }
 
-  // 다른 popstate 보정 스크립트보다 먼저 로그인 화면의 뒤로가기를 종료 동작으로 고정한다.
-  window.addEventListener("popstate", function(event){
+  function handleLoginBackPressed(event){
     if (!isLoginGateVisible()) return;
+
     if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
     else if (event && event.stopPropagation) event.stopPropagation();
-    exitAppFromLoginOnce();
-  }, true);
+
+    var now = Date.now();
+
+    if ((now - lastBackPressedAt) < EXIT_INTERVAL) {
+      closeApplicationNow();
+      return;
+    }
+
+    lastBackPressedAt = now;
+    setLoginBaseState();
+    showExitToast();
+
+    try {
+      history.pushState(LOGIN_STATE, "", location.href);
+    } catch (error) {}
+  }
+
+  window.addEventListener("popstate", handleLoginBackPressed, true);
 
   document.addEventListener("DOMContentLoaded", function(){
     setTimeout(setLoginBaseState, 0);
     setTimeout(setLoginBaseState, 300);
   });
+
   window.addEventListener("pageshow", function(){
     setTimeout(setLoginBaseState, 0);
     setTimeout(setLoginBaseState, 300);
   });
 
-  // 로그인 화면이 다시 표시되는 순간에도 내부 화면 이력을 로그인 기준 상태로 덮어쓴다.
   if (window.MutationObserver) {
     document.addEventListener("DOMContentLoaded", function(){
       try {
         var gate = document.getElementById("memberAuthGate");
         if (!gate || !document.body) return;
-        new MutationObserver(function(){ setTimeout(setLoginBaseState, 0); }).observe(document.body, { attributes:true, attributeFilter:["class"] });
-        new MutationObserver(function(){ setTimeout(setLoginBaseState, 0); }).observe(gate, { attributes:true, attributeFilter:["class", "style"] });
+
+        new MutationObserver(function(){
+          setTimeout(setLoginBaseState, 0);
+        }).observe(document.body, {
+          attributes:true,
+          attributeFilter:["class"]
+        });
+
+        new MutationObserver(function(){
+          setTimeout(setLoginBaseState, 0);
+        }).observe(gate, {
+          attributes:true,
+          attributeFilter:["class","style"]
+        });
       } catch (error) {}
     });
   }
