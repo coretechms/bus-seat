@@ -2950,19 +2950,19 @@ body.member-mode .controls {
       <div id="memberPasswordChangePanel" class="member-password-change-panel">
         <div class="member-auth-row">
           <label for="memberChangeNameInput">아이디</label>
-          <input id="memberChangeNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" placeholder="이  름" value="" />
+          <input id="memberChangeNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" enterkeyhint="next" placeholder="이  름" value="" />
         </div>
         <div class="member-auth-row">
           <label for="memberChangeOldPasswordInput">기존비밀번호</label>
-          <input id="memberChangeOldPasswordInput" type="password" autocomplete="off" placeholder="기존 비밀번호" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <input id="memberChangeOldPasswordInput" type="password" autocomplete="off" enterkeyhint="next" placeholder="기존 비밀번호" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-auth-row">
           <label for="memberChangeNewPasswordInput">비밀번호변경</label>
-          <input id="memberChangeNewPasswordInput" type="password" autocomplete="off" placeholder="변경 비밀번호" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <input id="memberChangeNewPasswordInput" type="password" autocomplete="off" enterkeyhint="next" placeholder="변경 비밀번호" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-auth-row">
           <label for="memberChangeConfirmPasswordInput">비밀번호확인</label>
-          <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 확인" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="off" enterkeyhint="done" placeholder="비밀번호 확인" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-password-change-actions">
           <button id="memberChangePasswordSubmitBtn" type="button">변경</button>
@@ -2973,15 +2973,15 @@ body.member-mode .controls {
       <div id="memberSignupPanel" class="member-signup-panel">
         <div class="member-auth-row">
           <label for="memberJoinNameInput">이 름</label>
-          <input id="memberJoinNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" placeholder="본   명" value="" />
+          <input id="memberJoinNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" enterkeyhint="next" placeholder="본   명" value="" />
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPasswordInput">비밀번호</label>
-          <input id="memberJoinPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 입력" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <input id="memberJoinPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 입력" value="" inputmode="text" enterkeyhint="next" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-auth-row">
           <label for="memberJoinGenderInput">성 별</label>
-          <select id="memberJoinGenderInput">
+          <select id="memberJoinGenderInput" enterkeyhint="next">
             <option value="" selected>남 / 여</option>
             <option value="남">남</option>
             <option value="여">여</option>
@@ -2989,15 +2989,15 @@ body.member-mode .controls {
         </div>
         <div class="member-auth-row">
           <label for="memberJoinBirthInput">생년월일</label>
-          <input id="memberJoinBirthInput" type="text" inputmode="numeric" placeholder="예: 710808 " value="" />
+          <input id="memberJoinBirthInput" type="text" inputmode="numeric" enterkeyhint="next" placeholder="예: 710808 " value="" />
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPhoneInput">전화번호</label>
-          <input id="memberJoinPhoneInput" type="tel" placeholder="010 1234 5678" value="" />
+          <input id="memberJoinPhoneInput" type="tel" enterkeyhint="next" placeholder="010 1234 5678" value="" />
         </div>
         <div class="member-auth-row">
           <label for="memberJoinDongInput">거주지</label>
-          <input id="memberJoinDongInput" type="text" placeholder="거주지(동)" value="" />
+          <input id="memberJoinDongInput" type="text" enterkeyhint="done" placeholder="거주지(동)" value="" />
         </div>
         <div class="member-signup-actions">
           <button id="memberJoinSubmitBtn" type="button">가입신청</button>
@@ -10592,6 +10592,60 @@ function renderAll() {
       });
     });
 
+    /* PATCH: 회원가입 화면 Enter/이동 키 순차 포커스 + 모바일 키보드 가림 방지 */
+    (function setupMemberSignupKeyboardNavigation() {
+      const joinFieldIds = [
+        "memberJoinNameInput",
+        "memberJoinPasswordInput",
+        "memberJoinGenderInput",
+        "memberJoinBirthInput",
+        "memberJoinPhoneInput",
+        "memberJoinDongInput"
+      ];
+
+      const isForwardKey = (event) => {
+        const key = String(event.key || "");
+        return key === "Enter" || key === "NumpadEnter" || key === "Go" || key === "Next" || key === "Done";
+      };
+
+      const scrollJoinFieldIntoView = (element) => {
+        if (!element) return;
+        const run = () => {
+          try {
+            element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+          } catch (error) {
+            element.scrollIntoView(false);
+          }
+        };
+        window.setTimeout(run, 60);
+        window.setTimeout(run, 280);
+      };
+
+      joinFieldIds.forEach((id, index) => {
+        const field = byId(id);
+        if (!field) return;
+
+        field.addEventListener("focus", () => scrollJoinFieldIntoView(field));
+        field.addEventListener("click", () => scrollJoinFieldIntoView(field));
+
+        field.addEventListener("keydown", (event) => {
+          if (!isForwardKey(event)) return;
+          event.preventDefault();
+          event.stopPropagation();
+
+          const nextField = byId(joinFieldIds[index + 1]);
+          if (nextField) {
+            nextField.focus({ preventScroll: true });
+            scrollJoinFieldIntoView(nextField);
+            return;
+          }
+
+          field.blur();
+          byId("memberJoinSubmitBtn")?.focus({ preventScroll: true });
+        });
+      });
+    })();
+
     ["memberLoginNameInput", "memberLoginPasswordInput"].forEach((id) => {
       const loginInput = byId(id);
       if (!loginInput) return;
@@ -10608,11 +10662,62 @@ function renderAll() {
       loginInput.addEventListener("keydown", runKeyboardLogin);
       loginInput.addEventListener("keyup", runKeyboardLogin);
     });
-    ["memberChangeNameInput", "memberChangeOldPasswordInput", "memberChangeNewPasswordInput", "memberChangeConfirmPasswordInput"].forEach((id) => {
-      byId(id)?.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") changeMemberPassword().catch(console.error);
+    /* PATCH: 비밀번호 변경 화면 Enter/이동 키 순차 포커스 + 모바일 키보드 가림 방지 */
+    (function setupMemberPasswordChangeKeyboardNavigation() {
+      const changeFieldIds = [
+        "memberChangeNameInput",
+        "memberChangeOldPasswordInput",
+        "memberChangeNewPasswordInput",
+        "memberChangeConfirmPasswordInput"
+      ];
+
+      const isForwardKey = (event) => {
+        const key = String(event.key || "");
+        return key === "Enter" || key === "NumpadEnter" || key === "Go" || key === "Next" || key === "Done";
+      };
+
+      const scrollChangeFieldIntoView = (element) => {
+        if (!element) return;
+        const run = () => {
+          try {
+            element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+          } catch (error) {
+            element.scrollIntoView(false);
+          }
+        };
+        window.setTimeout(run, 60);
+        window.setTimeout(run, 280);
+      };
+
+      changeFieldIds.forEach((id, index) => {
+        const field = byId(id);
+        if (!field) return;
+
+        field.addEventListener("focus", () => scrollChangeFieldIntoView(field));
+        field.addEventListener("click", () => scrollChangeFieldIntoView(field));
+
+        field.addEventListener("keydown", (event) => {
+          if (!isForwardKey(event)) return;
+          event.preventDefault();
+          event.stopPropagation();
+
+          const nextField = byId(changeFieldIds[index + 1]);
+          if (nextField) {
+            nextField.focus({ preventScroll: true });
+            scrollChangeFieldIntoView(nextField);
+            return;
+          }
+
+          field.blur();
+          const submitBtn = byId("memberChangePasswordSubmitBtn");
+          submitBtn?.focus({ preventScroll: true });
+          changeMemberPassword().catch((error) => {
+            console.error("회원 비밀번호 변경 오류:", error);
+            setAuthMessage("비밀번호 변경 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
+          });
+        });
       });
-    });
+    })();
   }
 
   document.addEventListener("visibilitychange", () => {
