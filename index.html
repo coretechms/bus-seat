@@ -3023,9 +3023,9 @@ body.member-mode .controls {
   white-space: nowrap !important;
 }
 #mainMemoText {
-  min-height: 74px;
-  max-height: 220px;
-  overflow-y: auto;
+  min-height: 130px !important;
+  max-height: 260px !important;
+  overflow-y: auto !important;
   resize: vertical !important;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -3037,6 +3037,9 @@ body.member-mode .controls {
   background: #fff;
   font-family: inherit;
   outline: none;
+  caret-color: #1428c8 !important;
+  cursor: text !important;
+  user-select: text !important;
 }
 #mainMemoText:focus {
   border-color: #1428c8;
