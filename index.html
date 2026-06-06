@@ -886,7 +886,18 @@
     #memberLoginMainMemoBox .guide-blink {
       animation-duration: 2.2s !important;
     }
+    /* 메인 메모 세로 스크롤바 숨김 - 스크롤 기능은 유지 */
+   #memberLoginMainMemoBox,
+   #mainMemoText {
+   scrollbar-width: none;
+   -ms-overflow-style: none;
+   }
 
+    #memberLoginMainMemoBox::-webkit-scrollbar,
+    #mainMemoText::-webkit-scrollbar {
+    display: none;
+    }
+      
     /* 요청 수정: 산행공지 선택 서식 버튼 */
     .hiking-notice-title-row {
       display: inline-flex;
