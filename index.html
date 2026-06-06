@@ -3086,54 +3086,6 @@ body.member-mode .controls {
 }
 
 
-
-
-/* PATCH: 로그인 화면 상단 밴드/카페 아이콘 1행 2열 */
-.login-top-band-cafe-row {
-  width: min(18px, 92vw);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
-  column-gap: 150px;
-  margin: 0 auto 6px;
-  padding: 0 4px;
-}
-.login-top-band-cafe-row .login-top-icon-link {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  margin: 0;
-  text-decoration: none;
-  cursor: pointer;
-}
-.login-top-band-cafe-row .login-top-icon-link:first-child {
-  justify-self: start;
-}
-.login-top-band-cafe-row .login-top-icon-link:last-child {
-  justify-self: end;
-}
-.login-top-band-cafe-row .login-top-icon-link img {
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
-  display: block;
-}
-@media (max-width: 18px) {
-  .login-top-band-cafe-row {
-    column-gap: 120px;
-    margin-bottom: 6px;
-  }
-  .login-top-band-cafe-row .login-top-icon-link,
-  .login-top-band-cafe-row .login-top-icon-link img {
-    width: 18px;
-    height: 18px;
-  }
-}
 </style>
 
 <style id="memberPasswordResetSelectedStyle">
@@ -3153,15 +3105,6 @@ body.member-mode .controls {
 <body class="membership-locked">
 
   <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
-    <!-- PATCH: 로그인 화면 상단 밴드/카페 아이콘 1행 2열 -->
-    <div id="loginTopBandCafeRow" class="login-top-band-cafe-row" aria-label="밴드 카페 바로가기">
-      <a id="loginTopBandLink" class="login-top-icon-link" href="#" title="네이버 밴드" aria-label="네이버 밴드">
-        <img src="band.png" alt="네이버 밴드" />
-      </a>
-      <a id="loginTopCafeLink" class="login-top-icon-link" href="#" title="네이버 카페" aria-label="네이버 카페">
-        <img src="cafe.png" alt="네이버 카페" />
-      </a>
-    </div>
     <div id="memberLoginMainMemoBox" aria-live="polite"></div>
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
 
