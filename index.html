@@ -4079,27 +4079,84 @@ const firebaseConfig = {
       return true;
     }
 
-    async function applyMainMemoFormat(formatType) {
-      const editor = byId("mainMemoText");
-      if (!editor) return;
-      const classMap = {
-        bold: "guide-bold",
-        blue: "guide-blue",
-        red: "guide-red",
-        blink: "guide-blink"
-      };
-      const className = classMap[formatType];
-      if (!className) return;
-      if (!applyGuideFormatToSelection(editor, className)) {
-        if (formatType === "blink" && toggleWholeMainMemoBlink(editor)) {
-          await saveMainMemoEditorValue(editor);
-          return;
-        }
-        alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
-        return;
-      }
+
+async function applyMainMemoFormat(formatType) {
+  const editor = byId("mainMemoText");
+  if (!editor) return;
+
+  const classMap = {
+    bold: "guide-bold",
+    blue: "guide-blue",
+    red: "guide-red",
+    blink: "guide-blink"
+  };
+
+  const className = classMap[formatType];
+  if (!className) return;
+
+  if (formatType === "blink") {
+    if (toggleWholeMainMemoBlink(editor)) {
       await saveMainMemoEditorValue(editor);
+      return;
     }
+  }
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
+    return;
+  }
+
+  const range = selection.getRangeAt(0);
+  let node = range.startContainer;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+
+  const existing = node && node.closest && node.closest("." + className);
+
+  if (existing && editor.contains(existing)) {
+    existing.classList.remove(className);
+
+    if (formatType === "blue" || formatType === "red") {
+      existing.classList.remove("guide-blue", "guide-red");
+    }
+
+    if (!existing.className.trim()) {
+      existing.replaceWith(...existing.childNodes);
+    }
+
+    await saveMainMemoEditorValue(editor);
+    return;
+  }
+
+  if (formatType === "blue" || formatType === "red") {
+    removeGuideColorFromSelection(editor);
+  }
+
+  if (!applyGuideFormatToSelection(editor, className)) {
+    alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
+    return;
+  }
+
+  await saveMainMemoEditorValue(editor);
+}
+
+function removeGuideColorFromSelection(editor) {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+
+  const range = selection.getRangeAt(0);
+  const spans = editor.querySelectorAll(".guide-blue, .guide-red");
+
+  spans.forEach((span) => {
+    if (range.intersectsNode(span)) {
+      span.classList.remove("guide-blue", "guide-red");
+      if (!span.className.trim()) {
+        span.replaceWith(...span.childNodes);
+      }
+    }
+  });
+}
+
 
     function renderMainMemoBox() {
       const memoHtml = renderGuideTextHtml(state.busInfo?.mainMemoText || "");
