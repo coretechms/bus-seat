@@ -4477,42 +4477,16 @@ function removeGuideColorFromSelection(editor) {
         const blocked = isBlockedSeat(seat.number);
         const duplicateRole = getDuplicateSeatRole(seat);
         let disabled = false;
-
-
-
         if (state.mode === "member") {
-  const committed = await saveMemberSeatRemote(seatNumber, finalName, {
-    status: finalStatus,
-    clearSourceSeatNo: sourceSeatNo
-  });
-
-  const remoteSeat = await readSeatRemote(seatNumber);
-  const remoteName = normalizeName(remoteSeat?.name || "");
-  const inputName = normalizeName(finalName || "");
-  const remoteStatus = normalizeSeatStatus(remoteSeat?.status || "empty");
-
-  const alreadySavedByMe =
-    inputName &&
-    remoteName === inputName &&
-    remoteStatus !== "paid" &&
-    remoteStatus !== "paid_new" &&
-    remoteStatus !== "paid_reserved";
-
-  if (!committed && !alreadySavedByMe) {
-    state.seats = prevSeats;
-    renderAll();
-    alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
-  } else {
-    state.editingSeat = null;
-    state.editName = "";
-    flashSaveVisuals(seatNumber, null);
-    renderAll();
-  }
-
-  return;
-}
-
-
+          const selectableNamedSeat = !!seat.name && duplicateRole !== "normal";
+          disabled = blocked || isAdminOnlySeatForMember(seat.number) || (!!seat.name && !selectableNamedSeat);
+        } else if (!(state.mode === "admin" && state.isAdminAuthenticated)) {
+          disabled = blocked;
+        }
+        options.push(`<option value="${seat.number}" ${disabled ? "disabled" : ""}>${getSeatOptionLabel(seat)}</option>`);
+      });
+      return options.join("");
+    }
 
     function isWaitingBlinkTarget(seat) {
       if (!seat || seat.status !== "waiting" || !seat.name || !seat.updatedAt) return false;
@@ -5997,19 +5971,14 @@ function renderAll() {
         const normalizedTargetName = normalizeName(name);
         const sourceSeatNo = Number(options.clearSourceSeatNo || 0);
         const isMoveRequest = sourceSeatNo > 0 && sourceSeatNo !== Number(seatNo);
-       const currentSeat = await readSeatRemote(seatNo);
-      const currentName = currentSeat?.name || "";
-      const currentStatus = normalizeSeatStatus(currentSeat?.status || "empty");
-      const currentUpdatedBy = String(currentSeat?.updatedBy || "");
-      const occupiedByOther =
-      currentName &&
-      normalizeName(currentName) !== normalizedTargetName &&
-     currentUpdatedBy !== state.clientId;
-
-if (currentStatus === "paid" || currentStatus === "paid_new" || currentStatus === "paid_reserved" || occupiedByOther) {
-  setStatusMessage("좌석 저장 권한 또는 좌석 상태를 확인하세요.", state.projectLabel);
-  return false;
-}
+        const currentSeat = await readSeatRemote(seatNo);
+        const currentName = currentSeat?.name || "";
+        const currentStatus = normalizeSeatStatus(currentSeat?.status || "empty");
+        const occupiedByOther = currentName && normalizeName(currentName) !== normalizedTargetName;
+        if (currentStatus === "paid" || occupiedByOther) {
+          setStatusMessage("좌석 저장 권한 또는 좌석 상태를 확인하세요.", state.projectLabel);
+          return false;
+        }
 
         const now = Date.now();
         const updates = {
@@ -6285,8 +6254,6 @@ if (currentStatus === "paid" || currentStatus === "paid_new" || currentStatus ==
 
     async function handleInlineSave(seatNumber) {
       if (state.pendingCancelSeat && Number(state.pendingCancelSeat) === Number(seatNumber)) return;
-      if (state.inlineSaveLock === Number(seatNumber)) return;
-          state.inlineSaveLock = Number(seatNumber);
       if (isBlockedSeat(seatNumber)) return;
       if (state.mode === "member" && state.nameEntryLocked && !state.isAdminAuthenticated) {
         alert("현재 전체 입력이 제한되어 있습니다.");
@@ -6337,43 +6304,17 @@ if (currentStatus === "paid" || currentStatus === "paid_new" || currentStatus ==
         setStatusMessage("Firebase 미연결 - 화면에만 표시", state.projectLabel);
         return;
       }
-
-if (state.mode === "member") {
-  const committed = await saveMemberSeatRemote(seatNumber, finalName, {
-    status: finalStatus,
-    clearSourceSeatNo: sourceSeatNo
-  });
-
-  const remoteSeat = await readSeatRemote(seatNumber);
-  const remoteName = normalizeName(remoteSeat?.name || "");
-  const inputName = normalizeName(finalName || "");
-  const remoteStatus = normalizeSeatStatus(remoteSeat?.status || "empty");
-
-  const alreadySavedByMe =
-    inputName &&
-    remoteName === inputName &&
-    remoteStatus !== "paid" &&
-    remoteStatus !== "paid_new" &&
-    remoteStatus !== "paid_reserved";
-
-  if (!committed && !alreadySavedByMe) {
-    state.seats = prevSeats;
-    state.editingSeat = Number(seatNumber);
-    state.editName = finalName;
-    renderAll();
-    alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
-  } else {
-    state.editingSeat = null;
-    state.editName = "";
-    flashSaveVisuals(seatNumber, null);
-    renderAll();
-  }
-
-  state.inlineSaveLock = null;
-  return;
-}
-
-
+      if (state.mode === "member") {
+        const committed = await saveMemberSeatRemote(seatNumber, finalName, { status: finalStatus, clearSourceSeatNo: sourceSeatNo });
+        if (!committed) {
+          state.seats = prevSeats;
+          renderAll();
+          alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
+        } else {
+          flashSaveVisuals(seatNumber, null);
+        }
+        return;
+      }
       if (state.isAdminAuthenticated) {
         const nextStatus = finalName ? normalizeSeatStatus((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus) : "empty";
         const ok = await saveSeatAdmin(seatNumber, finalName, nextStatus);
@@ -10214,11 +10155,10 @@ if (state.mode === "member") {
     } catch (error) {
       console.error("회원 비밀번호 변경 오류:", error);
       failChange(`예상하지 못한 오류가 발생했습니다. ${error?.code || error?.message || error}`);
-   } finally {
-  clearTimeout(state.inlineSaveTimers?.[seatNumber]);
-  state.inlineSaveLock = null;
-}
-}
+    } finally {
+      if (submitBtn && submitBtn.textContent !== "완료") finishButton();
+    }
+  }
 
   function clearMemberAuthInputValues() {
     [
