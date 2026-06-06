@@ -5306,7 +5306,7 @@ async function sha256Hex(value) {
     function makeBackupFileName() {
       const d = new Date();
       const pad = (n) => String(n).padStart(2, "0");
-      return `관리자모드-백업_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+      return `관리자모드_백업_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
     }
 
     function downloadJsonBackup(payload) {
@@ -11324,7 +11324,7 @@ function renderAll() {
   function makeMemberJsonBackupFileName() {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
-    return `회원가입백업_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+    return `회원관리_가입자백업_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
   }
 
   async function prepareMemberBackupSaveHandle() {
