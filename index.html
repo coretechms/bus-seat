@@ -5306,7 +5306,7 @@ async function sha256Hex(value) {
     function makeBackupFileName() {
       const d = new Date();
       const pad = (n) => String(n).padStart(2, "0");
-      return `회원가입리스트-백업_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.json`;
+      return `관리자모드-백업_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
     }
 
     function downloadJsonBackup(payload) {
