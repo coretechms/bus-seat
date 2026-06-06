@@ -453,11 +453,19 @@
       #memberTopLogoutBtn,
       #captureBoardBtn,
       #boardingPointBtn {
-        flex: 0 0 auto;
+        flex: 0 0 auto !important;
         padding: 0 10px !important;
         font-size: 10px !important;
         white-space: nowrap !important;
       }
+   /* 회원 입력 모드 로그아웃 버튼 보임 */
+     body.member-mode #memberTopLogoutBtn {
+     display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      text-align: center !important;
+      line-height: 1 !important;
+     }     
       .tabs {
         flex: 0 0 auto;
       }
@@ -517,14 +525,14 @@
       #adminPanel > div:first-child > .status-box {
         flex: 0 0 auto;
         width: auto;
-        min-width: 92px;
+        min-width: 130px;
         justify-content: center;
         padding: 4px 4px;
       }
       #adminPanel > div:first-child > .status-box > span { display: none; }
       #adminLogoutBtn { width: 100% !important; min-width: 80px; margin-left: 0 !important; font-size: 11px; }
-    }
-  
+    } 
+
     .yn-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.25);
       display: flex; align-items: center; justify-content: center; z-index: 9999;
@@ -864,7 +872,7 @@
       height: 24px !important;
       padding: 0 7px !important;
       border-radius: 10px !important;
-      font-size: 11px !important;
+      font-size: 9px !important;
       line-height: 1 !important;
       white-space: nowrap !important;
     }
@@ -873,6 +881,11 @@
     .guide-red { color: #d80000 !important; font-weight: 800 !important; }
     .guide-blink { animation: guideTextBlink 1.3s steps(2, start) infinite; font-weight: 900 !important; }
     @keyframes guideTextBlink { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+    /* 메인메모 전용: 깜빡임 속도를 안내메모보다 조금 느리게 적용 */
+    #mainMemoText .guide-blink,
+    #memberLoginMainMemoBox .guide-blink {
+      animation-duration: 2.2s !important;
+    }
 
     /* 요청 수정: 산행공지 선택 서식 버튼 */
     .hiking-notice-title-row {
@@ -917,10 +930,10 @@
     @media (max-width: 760px) {
       .info-seat-guide-format-buttons { gap: 3px; }
       .info-seat-guide-format-buttons .btn {
-        min-width: 32px !important;
-        height: 22px !important;
-        padding: 0 5px !important;
-        font-size: 10px !important;
+        min-width: 30px !important;
+        height: 20px !important;
+        padding: 0 4px !important;
+        font-size: 9px !important;
       }
     }
 
@@ -1242,8 +1255,10 @@ html.restore-admin-session body.membership-locked .app {
   inset: 0;
   z-index: 2147483000;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   padding: 18px;
   background: linear-gradient(135deg, #eef5ff 0%, #ffffff 48%, #fff8d8 100%);
   font-family: Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
@@ -1254,18 +1269,18 @@ html.restore-admin-session body.membership-locked .app {
 
 .member-login-logo {
   display: block;
-  width: 160px;
-  height: 160px;
+  width: 160.5px;
+  height: 160.5px;
   object-fit: cover;
-  border-radius: 34px;
-  margin: 0 auto 12px;
+  border-radius: 20px;
+  margin: -20px auto 4px;
   box-shadow: 0 10px 28px rgba(20, 40, 200, 0.20);
 }
 @media (max-width: 430px) {
   .member-login-logo {
-    width: 142px;
-    height: 142px;
-    border-radius: 30px;
+    width: 160px;
+    height: 160px;
+    border-radius: 20px;
     margin-bottom: 10px;
   }
 }
@@ -1275,7 +1290,7 @@ html.restore-admin-session body.membership-locked .app {
   background: #fff;
   border: 1px solid #d0d7de;
   border-radius: 16px;
-  padding: 14px;
+  padding: 10px 14px 12px;
   box-shadow: 0 16px 44px rgba(0,0,0,0.22);
 }
 .member-auth-title {
@@ -2164,7 +2179,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
 
 
 
-/* 요청 수정: 관리자 모드 상단을 로그오프/상태저장/상태선택 한 줄로 정렬하고 좌석선택/이름 입력칸 숨김 */
+/* 요청 수정: 관리자 모드 상단을 관리자종료/상태저장/상태선택 한 줄로 정렬하고 좌석선택/이름 입력칸 숨김 */
 .admin-compact-action-row {
   grid-template-columns: 1fr 1fr 1fr !important;
 }
@@ -2173,7 +2188,11 @@ body.admin-entry-only #adminLoginPanel.hidden{
 }
 body.admin-mode #adminSeat,
 body.admin-mode #adminMemberName,
-body.admin-mode #adminMarkNamedPaidBtn {
+{
+  display: none !important;
+}
+/* 관리자 모드 화면반전 옆 로그아웃은 숨김 */
+body.admin-mode #memberTopLogoutBtn {
   display: none !important;
 }
 .admin-compact-action-row #adminStatus {
@@ -2905,6 +2924,156 @@ body.member-mode .controls {
   }
 }
 
+
+
+/* 메인 메모: 로그인 화면 말풍선 형태 */
+#memberLoginMainMemoBox {
+  display: none;
+  position: relative;
+  width: min(300px, 92vw);
+  margin: 0 auto 30px;
+  padding: 11px 14px;
+  border: 1px solid #f2c26b;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #fffdf4 0%, #fff1c7 100%);
+  color: #1428c8;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: calc(110vh - 360px) !important;
+  overflow-y: auto !important;
+
+  text-align: left;
+  box-shadow: 0 8px 22px rgba(20, 40, 200, 0.16);
+}
+
+/* 말풍선 꼬리 */
+#memberLoginMainMemoBox::after {
+  content: "";
+  position: absolute;
+  left: 34px;
+  bottom: -9px;
+  width: 16px;
+  height: 16px;
+  background: #fff1c7;
+  border-right: 1px solid #f2c26b;
+  border-bottom: 1px solid #f2c26b;
+  transform: rotate(45deg);
+}
+
+#memberLoginMainMemoBox.has-main-memo {
+  display: block !important;
+}
+
+@media (max-width: 760px) {
+  #memberLoginMainMemoBox {
+    max-height: calc(100vh - 360px) !important;
+    overflow-y: auto !important;
+    font-size: 11px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 16px;
+}
+#memberLoginMainMemoBox {
+    max-height: 100px;
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+#adminMainMemoBtn.main-memo-open {
+  background: #fff7e6 !important;
+  border-color: #f2c26b !important;
+  color: #1428c8 !important;
+  font-weight: 700 !important;
+}
+#adminMainMemoPanel {
+  margin-top: 8px;
+  padding: 9px;
+  border: 1px solid #f2c26b;
+  border-radius: 14px;
+  background: #fff7e6;
+}
+.main-memo-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.main-memo-label-row label {
+  margin-bottom: 0 !important;
+  white-space: nowrap;
+}
+.main-memo-format-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+.main-memo-format-buttons .btn {
+  width: auto !important;
+  min-width: 38px !important;
+  height: 24px !important;
+  padding: 0 7px !important;
+  border-radius: 10px !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+#mainMemoText {
+  min-height: 180px !important;
+  max-height: 260px !important;
+  overflow-y: auto !important;
+  resize: vertical !important;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  width: 100%;
+  border: 1px solid #f2c26b;
+  border-radius: 14px;
+  padding: 8px 10px;
+  font-size: 10px;
+  background: #fff;
+  font-family: inherit;
+  outline: none;
+  caret-color: #1428c8 !important;
+  cursor: text !important;
+  user-select: text !important;
+}
+#mainMemoText:focus {
+  border-color: #1428c8;
+  box-shadow: 0 0 0 2px rgba(20,40,200,.12);
+}
+@media (max-width: 760px) {
+  .admin-compact-action-row {
+    grid-template-columns: 1fr 1fr 2fr !important;
+    gap: 5px !important;
+    font-size: 11px !important;
+  }
+  #adminMainMemoBtn,
+  #adminLogoutBtn,
+  #adminSaveBtnTop,
+  #adminStatus {
+    font-size: 10px !important;
+    padding-left: 3px !important;
+    padding-right: 3px !important;
+  }
+  .main-memo-format-buttons { gap: 3px; }
+  .main-memo-format-buttons .btn {
+    min-width: 32px !important;
+    height: 22px !important;
+    padding: 0 5px !important;
+    font-size: 10px !important;
+  }
+  
+}
+
+
 </style>
 
 <style id="memberPasswordResetSelectedStyle">
@@ -2924,6 +3093,7 @@ body.member-mode .controls {
 <body class="membership-locked">
 
   <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
+    <div id="memberLoginMainMemoBox" aria-live="polite"></div>
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
 
       <div class="member-login-refresh-row">
@@ -2934,11 +3104,11 @@ body.member-mode .controls {
       <h2 id="memberAuthTitle" class="member-auth-title"Geom_Am Mountain Members'</h2>
       <div class="member-auth-row">
         <label for="memberLoginNameInput">아이디</label>
-        <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" />
+        <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
       </div>
       <div class="member-auth-row">
         <label for="memberLoginPasswordInput">비밀번호</label>
-        <input id="memberLoginPasswordInput" type="password" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*" autocapitalize="off" autocorrect="off" spellcheck="false">
+         <input id="memberLoginPasswordInput" type="tel" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" autocapitalize="off" autocorrect="off" spellcheck="false" style="-webkit-text-security: disc; text-security: disc;">
       </div>
 
       <div class="member-auth-actions">
@@ -2950,19 +3120,19 @@ body.member-mode .controls {
       <div id="memberPasswordChangePanel" class="member-password-change-panel">
         <div class="member-auth-row">
           <label for="memberChangeNameInput">아이디</label>
-          <input id="memberChangeNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" placeholder="이  름" value="" />
+          <input id="memberChangeNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" enterkeyhint="next" placeholder="이  름" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
         </div>
         <div class="member-auth-row">
           <label for="memberChangeOldPasswordInput">기존비밀번호</label>
-          <input id="memberChangeOldPasswordInput" type="password" autocomplete="off" placeholder="기존 비밀번호" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <input id="memberChangeOldPasswordInput" type="password" autocomplete="off" enterkeyhint="next" placeholder="기존 비밀번호" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-auth-row">
           <label for="memberChangeNewPasswordInput">비밀번호변경</label>
-          <input id="memberChangeNewPasswordInput" type="password" autocomplete="off" placeholder="변경 비밀번호" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <input id="memberChangeNewPasswordInput" type="password" autocomplete="off" enterkeyhint="next" placeholder="변경 비밀번호" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-auth-row">
           <label for="memberChangeConfirmPasswordInput">비밀번호확인</label>
-          <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 확인" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <input id="memberChangeConfirmPasswordInput" type="password" autocomplete="off" enterkeyhint="done" placeholder="비밀번호 확인" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-password-change-actions">
           <button id="memberChangePasswordSubmitBtn" type="button">변경</button>
@@ -2973,15 +3143,15 @@ body.member-mode .controls {
       <div id="memberSignupPanel" class="member-signup-panel">
         <div class="member-auth-row">
           <label for="memberJoinNameInput">이 름</label>
-          <input id="memberJoinNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" placeholder="본   명" value="" />
+          <input id="memberJoinNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" enterkeyhint="next" placeholder="본   명" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPasswordInput">비밀번호</label>
-          <input id="memberJoinPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 입력" value="" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <input id="memberJoinPasswordInput" type="password" autocomplete="off" placeholder="비밀번호 입력" value="" inputmode="text" enterkeyhint="next" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="member-auth-row">
           <label for="memberJoinGenderInput">성 별</label>
-          <select id="memberJoinGenderInput">
+          <select id="memberJoinGenderInput" enterkeyhint="next">
             <option value="" selected>남 / 여</option>
             <option value="남">남</option>
             <option value="여">여</option>
@@ -2989,15 +3159,15 @@ body.member-mode .controls {
         </div>
         <div class="member-auth-row">
           <label for="memberJoinBirthInput">생년월일</label>
-          <input id="memberJoinBirthInput" type="text" inputmode="numeric" placeholder="예: 710808 " value="" />
+          <input id="memberJoinBirthInput" type="text" inputmode="numeric" enterkeyhint="next" placeholder="예: 710808 " value="" />
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPhoneInput">전화번호</label>
-          <input id="memberJoinPhoneInput" type="tel" placeholder="010 1234 5678" value="" />
+          <input id="memberJoinPhoneInput" type="tel" enterkeyhint="next" placeholder="010 1234 5678" value="" />
         </div>
         <div class="member-auth-row">
           <label for="memberJoinDongInput">거주지</label>
-          <input id="memberJoinDongInput" type="text" placeholder="거주지(동)" value="" />
+          <input id="memberJoinDongInput" type="text" enterkeyhint="done" placeholder="거주지(동)" value="" />
         </div>
         <div class="member-signup-actions">
           <button id="memberJoinSubmitBtn" type="button">가입신청</button>
@@ -3094,7 +3264,7 @@ body.member-mode .controls {
           <div id="adminPanel" class="hidden">
 
             <div class="admin-compact-action-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px;">
-              <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="width:100%;">로그오프</button>
+              <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="width:100%;">관리자종료</button>
               <button class="btn btn-primary" id="adminSaveBtnTop" type="button" style="width:100%;">상태저장</button>
               <select id="adminStatus" aria-label="좌석 상태 선택">
                 <option value="paid">완납</option>
@@ -3120,22 +3290,22 @@ body.member-mode .controls {
 
             <div style="margin-top:12px;">
               <div style="display:flex; gap:8px; align-items:center;">
-                <label for="busTypeSelect" style="width:80px; margin-bottom:0;">버스선택</label>
+                <label for="busTypeSelect" style="width:50px; margin-bottom:0;">버스선택</label>
                 <select id="busTypeSelect" style="flex:1;">
                   <option value="44">44인승</option>
                   <option value="40">40인승</option>
                   <option value="31">31인승</option>
                   <option value="24">24인승</option>
                 </select>
-                <button class="btn btn-outline" id="saveBusTypeBtn" type="button" style="width:38%;">버스변경</button>
+                <button class="btn btn-outline" id="saveBusTypeBtn" type="button" style="width:120px; min-width:80px;">버스변경</button>
               </div>
             </div>
 
             <div id="adminExpireInline" style="margin-top:12px;">
               <div style="display:flex; gap:8px; align-items:center;">
-                <label for="busTypeSelect" style="width:80px; margin-bottom:0;">입금시간</label>
+                <label for="busTypeSelect" style="width:50px; margin-bottom:0;">입금시간</label>
                 <input id="waitingExpireHoursInput" type="number" min="1" step="1" placeholder="자동삭제 시간(시간)" style="flex:1;" />
-                <button class="btn btn-outline" id="saveWaitingExpireBtn" type="button" style="width:38%;">시간저장</button>
+                <button class="btn btn-outline" id="saveWaitingExpireBtn" type="button" style="width:120px; min-width:80px;">시간저장</button>
               </div>
             </div>
 
@@ -3316,6 +3486,21 @@ body.member-mode .controls {
                   </div>
                 </div>
                 <div id="infoSeatGuideText" class="info-seat-guide-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
+
+                <button class="btn btn-outline" id="adminMainMemoBtn" type="button" style="width:100%; height:28px; margin-top:8px;">메인메모</button>
+                <div id="adminMainMemoPanel" class="hidden">
+                  <div class="main-memo-label-row">
+                    <label for="mainMemoText">메인 메모</label>
+                    <div class="main-memo-format-buttons" aria-label="메인 메모 선택 서식">
+                      <button class="btn btn-outline" id="mainMemoBoldBtn" type="button">굵게</button>
+                      <button class="btn btn-outline" id="mainMemoBlueBtn" type="button">파랑</button>
+                      <button class="btn btn-outline" id="mainMemoRedBtn" type="button">빨강</button>
+                      <button class="btn btn-outline" id="mainMemoBlinkBtn" type="button">깜빡임</button>
+                    </div>
+                  </div>
+                  <div id="mainMemoText" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="회원 로그인 화면 상단에 표시할 메모를 입력하세요."></div>
+                  <div style="margin-top:5px; font-size:11px; color:#777; line-height:1.4;">내용을 모두 삭제하면 회원 로그인 화면에서 메모칸이 자동으로 숨겨집니다.</div>
+                </div>
               </div>
             </div>
 
@@ -3453,7 +3638,8 @@ const firebaseConfig = {
       accountNumber: " ",
       bankName: " ",
       accountOwner: " ",
-      seatGuideText: "  "
+      seatGuideText: "  ",
+      mainMemoText: ""
     };
 
     const state = {
@@ -3797,25 +3983,38 @@ const firebaseConfig = {
       button.addEventListener("touchstart", (event) => event.preventDefault(), { passive: false });
     }
 
+
+
     function insertGuideEditorLineBreak(editor) {
-      if (!editor || !window.getSelection || !document.createRange) return false;
-      editor.focus();
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return false;
-      const range = selection.getRangeAt(0);
-      if (!(editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer)) return false;
-      range.deleteContents();
-      const br = document.createElement("br");
-      range.insertNode(br);
-      const spacer = document.createTextNode("");
-      br.parentNode.insertBefore(spacer, br.nextSibling);
-      const nextRange = document.createRange();
-      nextRange.setStart(spacer, 0);
-      nextRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(nextRange);
-      return true;
-    }
+  if (!editor || !window.getSelection || !document.createRange) return false;
+
+  editor.focus();
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return false;
+
+  const range = selection.getRangeAt(0);
+  if (!(editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer)) return false;
+
+  range.deleteContents();
+
+  const br1 = document.createElement("br");
+  const br2 = document.createElement("br");
+
+  range.insertNode(br2);
+  range.insertNode(br1);
+
+  const nextRange = document.createRange();
+  nextRange.setStartAfter(br1);
+  nextRange.collapse(true);
+
+  selection.removeAllRanges();
+  selection.addRange(nextRange);
+
+  return true;
+}
+
+
 
     function handleGuideEditorKeydown(event, saveFn) {
       if (!event || event.key !== "Enter" || event.isComposing) return;
@@ -3849,6 +4048,159 @@ const firebaseConfig = {
         return;
       }
       await saveInfoGuideEditorValue(editor);
+    }
+
+    function getGuidePlainText(html) {
+      const temp = document.createElement("div");
+      temp.innerHTML = sanitizeGuideEditorHtml(html || "");
+      return String(temp.textContent || "").replace(/\u00a0/g, " ").trim();
+    }
+
+    async function saveMainMemoEditorValue(editor) {
+      if (!editor) return;
+      state.busInfo.mainMemoText = sanitizeGuideEditorHtml(editor.innerHTML);
+      renderMainMemoBox();
+      if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote();
+    }
+
+    function unwrapMainMemoBlinkSpans(root) {
+      if (!root) return;
+      Array.from(root.querySelectorAll("span.guide-blink")).forEach((span) => {
+        const parent = span.parentNode;
+        if (!parent) return;
+        while (span.firstChild) parent.insertBefore(span.firstChild, span);
+        parent.removeChild(span);
+      });
+      root.normalize();
+    }
+
+    function toggleWholeMainMemoBlink(editor) {
+      if (!editor) return false;
+      const hasBlink = Boolean(editor.querySelector("span.guide-blink"));
+      if (hasBlink) {
+        unwrapMainMemoBlinkSpans(editor);
+        return true;
+      }
+      const plainText = String(editor.textContent || "").replace(/\u00a0/g, " ").trim();
+      if (!plainText) return false;
+      const span = document.createElement("span");
+      span.className = "guide-blink";
+      while (editor.firstChild) span.appendChild(editor.firstChild);
+      editor.appendChild(span);
+      const selection = window.getSelection ? window.getSelection() : null;
+      if (selection && document.createRange) {
+        selection.removeAllRanges();
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        selection.addRange(range);
+      }
+      return true;
+    }
+
+
+
+
+async function applyMainMemoFormat(formatType) {
+  const editor = byId("mainMemoText");
+  if (!editor) return;
+
+  const classMap = {
+    bold: "guide-bold",
+    blue: "guide-blue",
+    red: "guide-red",
+    blink: "guide-blink"
+  };
+
+  const className = classMap[formatType];
+  if (!className) return;
+
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
+    return;
+  }
+
+  const range = selection.getRangeAt(0);
+  let node = range.startContainer;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+
+  const existing = node && node.closest && node.closest("." + className);
+
+  if (existing && editor.contains(existing)) {
+    existing.classList.remove(className);
+
+    if (formatType === "blue" || formatType === "red") {
+      existing.classList.remove("guide-blue", "guide-red");
+    }
+
+    if (!existing.className.trim()) {
+      existing.replaceWith(...existing.childNodes);
+    }
+
+    await saveMainMemoEditorValue(editor);
+    return;
+  }
+
+  if (formatType === "blue" || formatType === "red") {
+    removeGuideColorFromSelection(editor);
+  }
+
+  if (!applyGuideFormatToSelection(editor, className)) {
+    alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
+    return;
+  }
+
+  await saveMainMemoEditorValue(editor);
+}
+
+function removeGuideColorFromSelection(editor) {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+
+  const range = selection.getRangeAt(0);
+  const spans = editor.querySelectorAll(".guide-blue, .guide-red");
+
+  spans.forEach((span) => {
+    if (range.intersectsNode(span)) {
+      span.classList.remove("guide-blue", "guide-red");
+      if (!span.className.trim()) {
+        span.replaceWith(...span.childNodes);
+      }
+    }
+  });
+}
+
+
+    function renderMainMemoBox() {
+      const memoHtml = renderGuideTextHtml(state.busInfo?.mainMemoText || "");
+      const hasMemo = Boolean(getGuidePlainText(memoHtml));
+      const loginMemoBox = byId("memberLoginMainMemoBox");
+      if (loginMemoBox) {
+        loginMemoBox.innerHTML = hasMemo ? memoHtml : "";
+        loginMemoBox.classList.toggle("has-main-memo", hasMemo);
+      }
+      const memoEditor = byId("mainMemoText");
+      if (memoEditor) {
+        if (document.activeElement !== memoEditor && memoEditor.innerHTML !== memoHtml) memoEditor.innerHTML = memoHtml;
+      }
+    }
+
+    function toggleMainMemoPanel() {
+      const panel = byId("adminMainMemoPanel");
+      const button = byId("adminMainMemoBtn");
+      if (!panel) return;
+      const willOpen = panel.classList.contains("hidden");
+      panel.classList.toggle("hidden", !willOpen);
+      if (button) button.classList.toggle("main-memo-open", willOpen);
+      if (willOpen) {
+        renderMainMemoBox();
+        const editor = byId("mainMemoText");
+        if (editor) {
+          editor.focus();
+          placeEditableCursorAtEnd(editor);
+        }
+      }
     }
 
     function normalizeName(inputName) {
@@ -4173,7 +4525,7 @@ const firebaseConfig = {
           <div class="seat-inner">
             ${!isEditing ? status : ""}
             ${isEditing
-              ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" />`
+              ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" oninput="this.value=this.value.replace(/\\s+/g,'')" onblur="this.focus()" />`
               : `<div class="seat-name ${offsetClass} ${nameColorClass}">${escapeHtml(seat.name)}</div>`}
           </div>
         </button>`;
@@ -4355,6 +4707,8 @@ const firebaseConfig = {
       const infoBankName = byId("infoBankName");
       const infoAccountOwner = byId("infoAccountOwner");
       const infoSeatGuideText = byId("infoSeatGuideText");
+      const mainMemoText = byId("mainMemoText");
+      const adminMainMemoBtn = byId("adminMainMemoBtn");
       const busTypeSelect = byId("busTypeSelect");
       const memberSaveBtn = byId("memberSaveBtn");
       const memberCancelBtn = byId("memberCancelBtn");
@@ -4440,6 +4794,15 @@ const firebaseConfig = {
       if (infoSeatGuideText) {
         const nextGuideHtml = renderGuideTextHtml(state.busInfo.seatGuideText || "");
         if (document.activeElement !== infoSeatGuideText && infoSeatGuideText.innerHTML !== nextGuideHtml) infoSeatGuideText.innerHTML = nextGuideHtml;
+      }
+      renderMainMemoBox();
+      if (mainMemoText) {
+        const nextMainMemoHtml = renderGuideTextHtml(state.busInfo.mainMemoText || "");
+        if (document.activeElement !== mainMemoText && mainMemoText.innerHTML !== nextMainMemoHtml) mainMemoText.innerHTML = nextMainMemoHtml;
+      }
+      if (adminMainMemoBtn) {
+        const panel = byId("adminMainMemoPanel");
+        adminMainMemoBtn.classList.toggle("main-memo-open", Boolean(panel && !panel.classList.contains("hidden")));
       }
       if (busTypeSelect) busTypeSelect.value = state.busType;
 
@@ -5057,7 +5420,7 @@ async function sha256Hex(value) {
     function makeBackupFileName() {
       const d = new Date();
       const pad = (n) => String(n).padStart(2, "0");
-      return `회원가입리스트-백업_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.json`;
+      return `관리자모드_백업_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
     }
 
     function downloadJsonBackup(payload) {
@@ -5197,6 +5560,7 @@ function renderAll() {
         captureBtn.classList.toggle("hidden", !showCapture);
       }
       updateNoticeCheckBlinkButtons();
+      renderMainMemoBox();
       SeatNameBridge.sync();
     }
 
@@ -5888,7 +6252,14 @@ function renderAll() {
       renderAll();
     }
 
+    let inlineSeatSaveBusy = false;
+
     async function handleInlineSave(seatNumber) {
+      seatNumber = Number(seatNumber || 0);
+      if (!seatNumber) return;
+      if (inlineSeatSaveBusy) return;
+      inlineSeatSaveBusy = true;
+      try {
       if (state.pendingCancelSeat && Number(state.pendingCancelSeat) === Number(seatNumber)) return;
       if (isBlockedSeat(seatNumber)) return;
       if (state.mode === "member" && state.nameEntryLocked && !state.isAdminAuthenticated) {
@@ -5961,6 +6332,9 @@ function renderAll() {
         } else {
           flashSaveVisuals(seatNumber, null);
         }
+      }
+          } finally {
+        inlineSeatSaveBusy = false;
       }
     }
 
@@ -6179,7 +6553,7 @@ function renderAll() {
     }
 
     function handleAdminLogout() {
-      // 관리자 로그오프: 회원 로그인은 유지하고 관리자 권한/관리자모드에서만 빠져나온다.
+      // 관리자종료: 회원 로그인은 유지하고 관리자 권한/관리자모드에서만 빠져나온다.
       state.isAdminAuthenticated = false;
       state.isSystemAdminAuthenticated = false;
       state.mode = "member";
@@ -7083,7 +7457,7 @@ function renderAll() {
       bindIfPresent("hikingNoticeBtn", "click", openHikingNoticeDialog);
       bindIfPresent("hikingNoticeLockBtn", "click", toggleHikingNoticeLock);
       bindIfPresent("hikingNoticeDeleteBtn", "click", deleteHikingNotice);
-      ["infoGuideBoldBtn", "infoGuideBlueBtn", "infoGuideRedBtn", "infoGuideBlinkBtn", "hikingNoticeBoldBtn", "hikingNoticeBlueBtn", "hikingNoticeRedBtn", "hikingNoticeBlinkBtn"].forEach(keepEditorSelectionOnButton);
+      ["infoGuideBoldBtn", "infoGuideBlueBtn", "infoGuideRedBtn", "infoGuideBlinkBtn", "mainMemoBoldBtn", "mainMemoBlueBtn", "mainMemoRedBtn", "mainMemoBlinkBtn", "hikingNoticeBoldBtn", "hikingNoticeBlueBtn", "hikingNoticeRedBtn", "hikingNoticeBlinkBtn"].forEach(keepEditorSelectionOnButton);
       bindIfPresent("hikingNoticeBoldBtn", "click", () => applyHikingNoticeFormat("bold"));
       bindIfPresent("hikingNoticeBlueBtn", "click", () => applyHikingNoticeFormat("blue"));
       bindIfPresent("hikingNoticeRedBtn", "click", () => applyHikingNoticeFormat("red"));
@@ -7113,6 +7487,15 @@ function renderAll() {
         handleGuideEditorKeydown(e, (editor) => { saveInfoGuideEditorValue(editor); });
       });
       bindIfPresent("infoSeatGuideText", "input", async (e) => { await saveInfoGuideEditorValue(e.target); });
+      bindIfPresent("adminMainMemoBtn", "click", toggleMainMemoPanel);
+      bindIfPresent("mainMemoText", "keydown", (e) => {
+        handleGuideEditorKeydown(e, (editor) => { saveMainMemoEditorValue(editor); });
+      });
+      bindIfPresent("mainMemoText", "input", async (e) => { await saveMainMemoEditorValue(e.target); });
+      bindIfPresent("mainMemoBoldBtn", "click", () => applyMainMemoFormat("bold"));
+      bindIfPresent("mainMemoBlueBtn", "click", () => applyMainMemoFormat("blue"));
+      bindIfPresent("mainMemoRedBtn", "click", () => applyMainMemoFormat("red"));
+      bindIfPresent("mainMemoBlinkBtn", "click", () => applyMainMemoFormat("blink"));
       bindIfPresent("infoGuideBoldBtn", "click", () => applyInfoGuideFormat("bold"));
       bindIfPresent("infoGuideBlueBtn", "click", () => applyInfoGuideFormat("blue"));
       bindIfPresent("infoGuideRedBtn", "click", () => applyInfoGuideFormat("red"));
@@ -9436,7 +9819,7 @@ function renderAll() {
     const password = rawPassword;
     const gender = String(byId("memberJoinGenderInput")?.value || "").trim();
     const birthDate = normalizeBirthYear(byId("memberJoinBirthInput")?.value);
-    const birthYear = ""; // 멤버리스트 출생년도 칸에는 더 이상 저장하지 않는다.
+    const birthYear = String(birthDate || "").slice(0, 2);
     const phoneDigits = normalizePhone(rawPhone);
     const phone = formatPhone344(phoneDigits);
     const dong = normalizeTextNoSpace(rawDong);
@@ -9880,7 +10263,7 @@ function renderAll() {
             if (typeof window.__busSeatShowAdminEntryAfterLogoff === "function") {
               window.__busSeatShowAdminEntryAfterLogoff();
             }
-            setAuthMessage("관리자 로그오프 상태가 유지되었습니다.", true);
+            setAuthMessage("관리자종료 상태가 유지되었습니다.", true);
             return;
           }
           if (session.adminAccess || session.role === "admin" || session.code === "ADMIN") {
@@ -9910,7 +10293,7 @@ function renderAll() {
     }
 
     if (isAdminEntryRefresh) {
-      // 혹시 회원 세션이 없어도 관리자 로그오프 후 새로고침에서는 회원 로그인 화면으로 보내지 않는다.
+      // 혹시 회원 세션이 없어도 관리자종료 후 새로고침에서는 회원 로그인 화면으로 보내지 않는다.
       try {
         sessionStorage.setItem("bus-seat-admin-entry-refresh-v1", "1");
         sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "adminEntry");
@@ -9922,7 +10305,7 @@ function renderAll() {
       if (typeof window.__busSeatShowAdminEntryAfterLogoff === "function") {
         window.__busSeatShowAdminEntryAfterLogoff();
       }
-      setAuthMessage("관리자 로그오프 상태가 유지되었습니다.", true);
+      setAuthMessage("관리자종료 상태가 유지되었습니다.", true);
       return;
     }
 
@@ -10592,6 +10975,60 @@ function renderAll() {
       });
     });
 
+    /* PATCH: 회원가입 화면 Enter/이동 키 순차 포커스 + 모바일 키보드 가림 방지 */
+    (function setupMemberSignupKeyboardNavigation() {
+      const joinFieldIds = [
+        "memberJoinNameInput",
+        "memberJoinPasswordInput",
+        "memberJoinGenderInput",
+        "memberJoinBirthInput",
+        "memberJoinPhoneInput",
+        "memberJoinDongInput"
+      ];
+
+      const isForwardKey = (event) => {
+        const key = String(event.key || "");
+        return key === "Enter" || key === "NumpadEnter" || key === "Go" || key === "Next" || key === "Done";
+      };
+
+      const scrollJoinFieldIntoView = (element) => {
+        if (!element) return;
+        const run = () => {
+          try {
+            element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+          } catch (error) {
+            element.scrollIntoView(false);
+          }
+        };
+        window.setTimeout(run, 60);
+        window.setTimeout(run, 280);
+      };
+
+      joinFieldIds.forEach((id, index) => {
+        const field = byId(id);
+        if (!field) return;
+
+        field.addEventListener("focus", () => scrollJoinFieldIntoView(field));
+        field.addEventListener("click", () => scrollJoinFieldIntoView(field));
+
+        field.addEventListener("keydown", (event) => {
+          if (!isForwardKey(event)) return;
+          event.preventDefault();
+          event.stopPropagation();
+
+          const nextField = byId(joinFieldIds[index + 1]);
+          if (nextField) {
+            nextField.focus({ preventScroll: true });
+            scrollJoinFieldIntoView(nextField);
+            return;
+          }
+
+          field.blur();
+          byId("memberJoinSubmitBtn")?.focus({ preventScroll: true });
+        });
+      });
+    })();
+
     ["memberLoginNameInput", "memberLoginPasswordInput"].forEach((id) => {
       const loginInput = byId(id);
       if (!loginInput) return;
@@ -10608,11 +11045,62 @@ function renderAll() {
       loginInput.addEventListener("keydown", runKeyboardLogin);
       loginInput.addEventListener("keyup", runKeyboardLogin);
     });
-    ["memberChangeNameInput", "memberChangeOldPasswordInput", "memberChangeNewPasswordInput", "memberChangeConfirmPasswordInput"].forEach((id) => {
-      byId(id)?.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") changeMemberPassword().catch(console.error);
+    /* PATCH: 비밀번호 변경 화면 Enter/이동 키 순차 포커스 + 모바일 키보드 가림 방지 */
+    (function setupMemberPasswordChangeKeyboardNavigation() {
+      const changeFieldIds = [
+        "memberChangeNameInput",
+        "memberChangeOldPasswordInput",
+        "memberChangeNewPasswordInput",
+        "memberChangeConfirmPasswordInput"
+      ];
+
+      const isForwardKey = (event) => {
+        const key = String(event.key || "");
+        return key === "Enter" || key === "NumpadEnter" || key === "Go" || key === "Next" || key === "Done";
+      };
+
+      const scrollChangeFieldIntoView = (element) => {
+        if (!element) return;
+        const run = () => {
+          try {
+            element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+          } catch (error) {
+            element.scrollIntoView(false);
+          }
+        };
+        window.setTimeout(run, 60);
+        window.setTimeout(run, 280);
+      };
+
+      changeFieldIds.forEach((id, index) => {
+        const field = byId(id);
+        if (!field) return;
+
+        field.addEventListener("focus", () => scrollChangeFieldIntoView(field));
+        field.addEventListener("click", () => scrollChangeFieldIntoView(field));
+
+        field.addEventListener("keydown", (event) => {
+          if (!isForwardKey(event)) return;
+          event.preventDefault();
+          event.stopPropagation();
+
+          const nextField = byId(changeFieldIds[index + 1]);
+          if (nextField) {
+            nextField.focus({ preventScroll: true });
+            scrollChangeFieldIntoView(nextField);
+            return;
+          }
+
+          field.blur();
+          const submitBtn = byId("memberChangePasswordSubmitBtn");
+          submitBtn?.focus({ preventScroll: true });
+          changeMemberPassword().catch((error) => {
+            console.error("회원 비밀번호 변경 오류:", error);
+            setAuthMessage("비밀번호 변경 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
+          });
+        });
       });
-    });
+    })();
   }
 
   document.addEventListener("visibilitychange", () => {
@@ -10960,7 +11448,7 @@ function renderAll() {
   function makeMemberJsonBackupFileName() {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
-    return `회원가입백업_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+    return `회원관리_가입자백업_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
   }
 
   async function prepareMemberBackupSaveHandle() {
@@ -11426,7 +11914,7 @@ function renderAll() {
         name: member.name || '',
         gender: member.gender || '',
         // 생년월일은 멤버리스트 주민번호 칸으로만 사용한다.
-        birthYear: '',
+        birthYear: String(member.birthDate || member.rrn || member.birthYear || '').slice(0, 2),
         birthDate: member.birthDate || member.rrn || member.birthYear || '',
         rrn: member.rrn || member.birthDate || member.birthYear || '',
         passwordHash: member.passwordHash || '',
@@ -13161,7 +13649,7 @@ function renderAll() {
 <!-- patched: join same name + same phone = existing; same name + different phone/birth/dong = new memberList row -->
 
 <script>
-/* 요청 수정: 관리자 로그오프 후 비밀번호 입력칸에 커서가 남지 않도록 보정 */
+/* 요청 수정: 관리자종료 후 비밀번호 입력칸에 커서가 남지 않도록 보정 */
 (function(){
   function clearAdminPasswordFocus(){
     try{
@@ -13676,7 +14164,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
 
 <script>
-/* 요청 수정: 회원 로그아웃은 로그인 화면을 반드시 다시 표시하고, 관리자 로그오프는 관리자 진입 화면만 유지 */
+/* 요청 수정: 회원 로그아웃은 로그인 화면을 반드시 다시 표시하고, 관리자종료는 관리자 진입 화면만 유지 */
 (function(){
   function forceShowMemberLoginGate(){
     try{ document.documentElement.classList.remove("restore-admin-session"); }catch(e){}
