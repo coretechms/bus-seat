@@ -4525,7 +4525,7 @@ function removeGuideColorFromSelection(editor) {
           <div class="seat-inner">
             ${!isEditing ? status : ""}
             ${isEditing
-              ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" oninput="this.value=this.value.replace(/\s+/g,'')" />`
+              ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" oninput="this.value=this.value.replace(/\\s+/g,'')" onblur="this.focus()" />`
               : `<div class="seat-name ${offsetClass} ${nameColorClass}">${escapeHtml(seat.name)}</div>`}
           </div>
         </button>`;
