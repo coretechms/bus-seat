@@ -528,6 +528,7 @@
       #adminPanel > div:first-child > .status-box > span { display: none; }
       #adminLogoutBtn { width: 100% !important; min-width: 80px; margin-left: 0 !important; font-size: 11px; }
     } 
+
     .yn-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.25);
       display: flex; align-items: center; justify-content: center; z-index: 9999;
@@ -2183,7 +2184,11 @@ body.admin-entry-only #adminLoginPanel.hidden{
 }
 body.admin-mode #adminSeat,
 body.admin-mode #adminMemberName,
-body.admin-mode #adminMarkNamedPaidBtn {
+{
+  display: none !important;
+}
+/* 관리자 모드 화면반전 옆 로그아웃은 숨김 */
+body.admin-mode #memberTopLogoutBtn {
   display: none !important;
 }
 .admin-compact-action-row #adminStatus {
