@@ -10460,6 +10460,21 @@ function renderAll() {
     return status || "-";
   }
 
+  window.maskPhoneLast4 = function maskPhoneLast4(phone) {
+    const text = String(phone || "").trim();
+    if (!text || text === "-") return "-";
+
+    const digits = text.replace(/\D/g, "");
+    if (digits.length === 11) {
+      return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ****`;
+    }
+    if (digits.length === 10) {
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ****`;
+    }
+
+    return text.replace(/(\d{3})[- ]?(\d{3,4})[- ]?(\d{4})/, "$1 $2 ****");
+  };
+
 
   function normalizeMemberApprovalSearchText(value) {
     return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
@@ -10545,7 +10560,7 @@ function renderAll() {
         <div class="member-approval-card${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${escapeHtml(m.code)}" data-member-name="${escapeHtml(m.name || '')}">
           <div class="member-approval-card-title">${escapeHtml(m.name)} / ${escapeHtml(m.code)} / ${escapeHtml(statusLabelForMember(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
           <div>성별: ${escapeHtml(m.gender || '-')} · 출생년도: ${escapeHtml(m.birthYear || '-')} · 거주지: ${escapeHtml(m.dong || '-')}</div>
-          <div>전화: ${escapeHtml(m.phone || '-')}</div>
+          <div>전화: ${escapeHtml(window.maskPhoneLast4(m.phone || '-'))}</div>
           <div>등급: ${escapeHtml(m.role || '-')} · ${adminText} · 가입일: ${escapeHtml(formatDateTime(m.createdAt))}${resultSegment}</div>
           <div class="member-approval-card-actions">
             ${(m.approved && m.status === "active") ? "" : `<button class="approve" data-member-action="approve" data-code="${escapeHtml(m.code)}">승인</button>`}
@@ -11469,7 +11484,7 @@ if (action === "delete") {
         <div class="member-approval-card${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${esc(m.code)}" data-member-name="${esc(m.name || '')}">
           <div class="member-approval-card-title">${esc(m.name || '-')} / ${esc(m.code)} / ${esc(label(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
           <div>성별: ${esc(m.gender || '-')} · 출생년도: ${esc(m.birthYear || '-')} · 거주지: ${esc(m.dong || '-')}</div>
-          <div>전화: ${esc(m.phone || '-')}</div>
+          <div>전화: ${esc(window.maskPhoneLast4(m.phone || '-'))}</div>
           <div>등급: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자' : '회원'} · 가입일: ${esc(fmt(m.createdAt))}${resultSegment}</div>
           <div class="member-approval-card-actions">
             ${(m.approved && m.status === "active") ? "" : `<button class="approve" data-forced-member-action="approve" data-code="${esc(m.code)}">승인</button>`}
