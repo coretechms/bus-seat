@@ -4525,7 +4525,7 @@ function removeGuideColorFromSelection(editor) {
           <div class="seat-inner">
             ${!isEditing ? status : ""}
             ${isEditing
-              ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" oninput="this.value=this.value.replace(/\\s+/g,'')" onblur="this.focus()" />`
+              ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" oninput="this.value=this.value.replace(/\\s+/g,'')" />`
               : `<div class="seat-name ${offsetClass} ${nameColorClass}">${escapeHtml(seat.name)}</div>`}
           </div>
         </button>`;
@@ -4670,20 +4670,38 @@ function removeGuideColorFromSelection(editor) {
           if (memberSeatSelect && memberSeatSelect.value !== String(state.editingSeat)) memberSeatSelect.value = String(state.editingSeat);
           if (adminNameInput && adminNameInput.value !== rawValue) adminNameInput.value = rawValue;
         });
-        inline.addEventListener("blur", () => handleInlineSave(state.editingSeat));
-        inline.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            handleInlineSave(state.editingSeat);
-          }
-          if (e.key === "Escape") {
-            state.editingSeat = null;
-            state.editName = "";
-            renderAll();
-          }
-        });
-      }
-    }
+
+
+
+
+
+       inline.addEventListener("blur", () => {
+  const seatNo = Number(inline.dataset.savingSeat || state.editingSeat || 0);
+  if (!seatNo) return;
+  if (inline.dataset.enterSaving === "1") return;
+  handleInlineSave(seatNo);
+});
+
+inline.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const seatNo = Number(state.editingSeat || inline.dataset.savingSeat || 0);
+    if (!seatNo) return;
+
+    inline.dataset.enterSaving = "1";
+    handleInlineSave(seatNo).finally(() => {
+      setTimeout(() => {
+        const nextInline = byId("inlineSeatInput");
+        if (nextInline) nextInline.dataset.enterSaving = "0";
+      }, 250);
+    });
+  }
+
+
+
+
 
     function toggleHidden(id, hidden) {
       const el = byId(id);
@@ -6241,6 +6259,7 @@ function renderAll() {
         alert("관리자 로그인후 변경 가능 합니다.");
         return;
       }
+
       state.adminSeat = String(seat.number);
       state.adminStatus = seat.name
         ? normalizeSeatStatus(seat.status === "empty" ? "reserved" : seat.status)
@@ -6252,23 +6271,47 @@ function renderAll() {
       renderAll();
     }
 
+
+
+
+
+
+
+
+
+
+
+
+
+    let inlineSeatSaveBusy = false;
+
     async function handleInlineSave(seatNumber) {
-      if (state.pendingCancelSeat && Number(state.pendingCancelSeat) === Number(seatNumber)) return;
-      if (isBlockedSeat(seatNumber)) return;
-      if (state.mode === "member" && state.nameEntryLocked && !state.isAdminAuthenticated) {
-        alert("현재 전체 입력이 제한되어 있습니다.");
-        state.editingSeat = null;
-        state.editName = "";
-        renderAll();
-        return;
-      }
-      const validation = validatePassengerName(state.editName);
-      const name = validation.normalized;
-      if (name && !validation.ok) {
-        await showNoticeDialog(validation.alert);
-        renderAll();
-        return;
-      }
+    seatNumber = Number(seatNumber || 0);
+    if (!seatNumber) return;
+    if (inlineSeatSaveBusy) return;
+    inlineSeatSaveBusy = true;
+
+    try {
+    if (state.pendingCancelSeat && Number(state.pendingCancelSeat) === Number(seatNumber)) return;
+    if (isBlockedSeat(seatNumber)) return;
+
+    if (state.mode === "member" && state.nameEntryLocked && !state.isAdminAuthenticated) {
+      alert("현재 전체 입력이 제한되어 있습니다.");
+      state.editingSeat = null;
+      state.editName = "";
+      renderAll();
+      return;
+    }
+
+    const validation = validatePassengerName(state.editName);
+    const name = validation.normalized;
+
+    if (name && !validation.ok) {
+      await showNoticeDialog(validation.alert);
+      renderAll();
+      return;
+    }
+
       const prevSeat = state.seats.find((s) => s.number === Number(seatNumber));
       const prevName = prevSeat?.name || "";
       const prevStatus = prevSeat?.status || "empty";
@@ -6289,44 +6332,76 @@ function renderAll() {
         if (duplicateDecision.type === "move") {
           sourceSeatNo = duplicateDecision.sourceSeat?.number || null;
           finalStatus = duplicateDecision.moveStatus || "waiting_alt";
-        } else {
-          finalStatus = "waiting";
+       } else {
+        finalStatus = "waiting";
         }
       }
 
       applyNameAssignmentLocal(seatNumber, finalName, finalStatus, { sourceSeatNo });
+
       state.memberSeat = String(seatNumber);
       state.memberName = finalName;
       state.editingSeat = null;
       state.editName = "";
+
       renderAll();
+
       if (!state.isFirebaseReady) {
         setStatusMessage("Firebase 미연결 - 화면에만 표시", state.projectLabel);
         return;
       }
+
       if (state.mode === "member") {
         const committed = await saveMemberSeatRemote(seatNumber, finalName, { status: finalStatus, clearSourceSeatNo: sourceSeatNo });
+       
         if (!committed) {
           state.seats = prevSeats;
+          state.editingSeat = null;
+          state.editName = "";
           renderAll();
+
+          setTimeout(() => {
           alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
-        } else {
+          }, 0);
+
+          return;
+        }
+
           flashSaveVisuals(seatNumber, null);
         }
         return;
       }
+
+
       if (state.isAdminAuthenticated) {
         const nextStatus = finalName ? normalizeSeatStatus((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus) : "empty";
         const ok = await saveSeatAdmin(seatNumber, finalName, nextStatus);
         if (!ok) {
           state.seats = prevSeats;
+          state.editingSeat = null;
+          state.editName = "";
           renderAll();
+
+          setTimeout(() => {
           alert("관리자 저장 권한이 없습니다.");
-        } else {
+          }, 0);
+
+          return;
+        }
+
           flashSaveVisuals(seatNumber, null);
         }
-      }
+
+     } finally {
+    inlineSeatSaveBusy = false;
+
+    const inline = byId("inlineSeatInput");
+    if (inline) {
+      inline.dataset.enterSaving = "0";
     }
+  }
+}
+
 
     async function handleMemberSave() {
       if (state.nameEntryLocked && !state.isAdminAuthenticated) {
