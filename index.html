@@ -2973,7 +2973,7 @@ body.member-mode .controls {
 
 @media (max-width: 760px) {
   #memberLoginMainMemoBox {
-    max-height: calc(100vh - 330px) !important;
+    max-height: calc(100vh - 360px) !important;
     overflow-y: auto !important;
     font-size: 11px;
     margin-bottom: 10px;
@@ -3051,7 +3051,7 @@ body.member-mode .controls {
 }
 @media (max-width: 760px) {
   .admin-compact-action-row {
-    grid-template-columns: 1fr 1fr 1.7fr !important;
+    grid-template-columns: 1fr 1fr 2fr !important;
     gap: 5px !important;
     font-size: 11px !important;
   }
@@ -6254,6 +6254,8 @@ function renderAll() {
 
     async function handleInlineSave(seatNumber) {
       if (state.pendingCancelSeat && Number(state.pendingCancelSeat) === Number(seatNumber)) return;
+      if (state.inlineSaveLock === Number(seatNumber)) return;
+          state.inlineSaveLock = Number(seatNumber);
       if (isBlockedSeat(seatNumber)) return;
       if (state.mode === "member" && state.nameEntryLocked && !state.isAdminAuthenticated) {
         alert("현재 전체 입력이 제한되어 있습니다.");
@@ -6306,15 +6308,35 @@ function renderAll() {
       }
       if (state.mode === "member") {
         const committed = await saveMemberSeatRemote(seatNumber, finalName, { status: finalStatus, clearSourceSeatNo: sourceSeatNo });
+        
         if (!committed) {
-          state.seats = prevSeats;
-          renderAll();
-          alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
-        } else {
-          flashSaveVisuals(seatNumber, null);
-        }
-        return;
-      }
+  state.seats = prevSeats;
+
+  const remoteSeat = await readSeatRemote(seatNumber);
+  const remoteName = normalizeName(remoteSeat?.name || "");
+  const inputName = normalizeName(finalName || "");
+  const remoteStatus = normalizeSeatStatus(remoteSeat?.status || "empty");
+
+  if (remoteName && remoteName === inputName && remoteStatus !== "paid") {
+    state.editingSeat = null;
+    state.editName = "";
+    renderAll();
+    flashSaveVisuals(seatNumber, null);
+    state.inlineSaveLock = null;
+    return;
+  }
+
+  state.editingSeat = Number(seatNumber);
+  state.editName = finalName;
+  renderAll();
+  alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
+} else {
+  flashSaveVisuals(seatNumber, null);
+}
+
+    state.inlineSaveLock = null;
+      return;
+ }
       if (state.isAdminAuthenticated) {
         const nextStatus = finalName ? normalizeSeatStatus((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus) : "empty";
         const ok = await saveSeatAdmin(seatNumber, finalName, nextStatus);
@@ -10155,10 +10177,11 @@ function renderAll() {
     } catch (error) {
       console.error("회원 비밀번호 변경 오류:", error);
       failChange(`예상하지 못한 오류가 발생했습니다. ${error?.code || error?.message || error}`);
-    } finally {
-      if (submitBtn && submitBtn.textContent !== "완료") finishButton();
-    }
-  }
+   } finally {
+  clearTimeout(state.inlineSaveTimers?.[seatNumber]);
+  state.inlineSaveLock = null;
+}
+}
 
   function clearMemberAuthInputValues() {
     [
