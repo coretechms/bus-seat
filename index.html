@@ -521,7 +521,7 @@
       #adminPanel > div:first-child > .status-box {
         flex: 0 0 auto;
         width: auto;
-        min-width: 92px;
+        min-width: 110px;
         justify-content: center;
         padding: 4px 4px;
       }
@@ -3286,22 +3286,22 @@ body.member-mode .controls {
 
             <div style="margin-top:12px;">
               <div style="display:flex; gap:8px; align-items:center;">
-                <label for="busTypeSelect" style="width:80px; margin-bottom:0;">버스선택</label>
+                <label for="busTypeSelect" style="width:200px; margin-bottom:0;">버스선택</label>
                 <select id="busTypeSelect" style="flex:1;">
                   <option value="44">44인승</option>
                   <option value="40">40인승</option>
                   <option value="31">31인승</option>
                   <option value="24">24인승</option>
                 </select>
-                <button class="btn btn-outline" id="saveBusTypeBtn" type="button" style="width:38%;">버스변경</button>
+                <button class="btn btn-outline" id="saveBusTypeBtn" type="button" style="width:120px; min-width:80px;">버스변경</button>
               </div>
             </div>
 
             <div id="adminExpireInline" style="margin-top:12px;">
               <div style="display:flex; gap:8px; align-items:center;">
-                <label for="busTypeSelect" style="width:80px; margin-bottom:0;">입금시간</label>
+                <label for="busTypeSelect" style="width:200px; margin-bottom:0;">입금시간</label>
                 <input id="waitingExpireHoursInput" type="number" min="1" step="1" placeholder="자동삭제 시간(시간)" style="flex:1;" />
-                <button class="btn btn-outline" id="saveWaitingExpireBtn" type="button" style="width:38%;">시간저장</button>
+                <button class="btn btn-outline" id="saveWaitingExpireBtn" type="button" style="width:120px; min-width:80px;">시간저장</button>
               </div>
             </div>
 
@@ -9805,7 +9805,7 @@ function renderAll() {
     const password = rawPassword;
     const gender = String(byId("memberJoinGenderInput")?.value || "").trim();
     const birthDate = normalizeBirthYear(byId("memberJoinBirthInput")?.value);
-    const birthYear = ""; // 멤버리스트 출생년도 칸에는 더 이상 저장하지 않는다.
+    const birthYear = String(birthDate || "").slice(0, 2);
     const phoneDigits = normalizePhone(rawPhone);
     const phone = formatPhone344(phoneDigits);
     const dong = normalizeTextNoSpace(rawDong);
@@ -11900,7 +11900,7 @@ function renderAll() {
         name: member.name || '',
         gender: member.gender || '',
         // 생년월일은 멤버리스트 주민번호 칸으로만 사용한다.
-        birthYear: '',
+        birthYear: String(member.birthDate || member.rrn || member.birthYear || '').slice(0, 2),
         birthDate: member.birthDate || member.rrn || member.birthYear || '',
         rrn: member.rrn || member.birthDate || member.birthYear || '',
         passwordHash: member.passwordHash || '',
