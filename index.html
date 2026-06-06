@@ -2174,7 +2174,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
 
 
 
-/* 요청 수정: 관리자 모드 상단을 로그오프/상태저장/상태선택 한 줄로 정렬하고 좌석선택/이름 입력칸 숨김 */
+/* 요청 수정: 관리자 모드 상단을 관리자종료/상태저장/상태선택 한 줄로 정렬하고 좌석선택/이름 입력칸 숨김 */
 .admin-compact-action-row {
   grid-template-columns: 1fr 1fr 1fr !important;
 }
@@ -3216,7 +3216,7 @@ body.member-mode .controls {
           <div id="adminPanel" class="hidden">
 
             <div class="admin-compact-action-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px;">
-              <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="width:100%;">로그오프</button>
+              <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="width:100%;">관리자종료</button>
               <button class="btn btn-primary" id="adminSaveBtnTop" type="button" style="width:100%;">상태저장</button>
               <select id="adminStatus" aria-label="좌석 상태 선택">
                 <option value="paid">완납</option>
@@ -6429,7 +6429,7 @@ function renderAll() {
     }
 
     function handleAdminLogout() {
-      // 관리자 로그오프: 회원 로그인은 유지하고 관리자 권한/관리자모드에서만 빠져나온다.
+      // 관리자종료: 회원 로그인은 유지하고 관리자 권한/관리자모드에서만 빠져나온다.
       state.isAdminAuthenticated = false;
       state.isSystemAdminAuthenticated = false;
       state.mode = "member";
@@ -10139,7 +10139,7 @@ function renderAll() {
             if (typeof window.__busSeatShowAdminEntryAfterLogoff === "function") {
               window.__busSeatShowAdminEntryAfterLogoff();
             }
-            setAuthMessage("관리자 로그오프 상태가 유지되었습니다.", true);
+            setAuthMessage("관리자종료 상태가 유지되었습니다.", true);
             return;
           }
           if (session.adminAccess || session.role === "admin" || session.code === "ADMIN") {
@@ -10169,7 +10169,7 @@ function renderAll() {
     }
 
     if (isAdminEntryRefresh) {
-      // 혹시 회원 세션이 없어도 관리자 로그오프 후 새로고침에서는 회원 로그인 화면으로 보내지 않는다.
+      // 혹시 회원 세션이 없어도 관리자종료 후 새로고침에서는 회원 로그인 화면으로 보내지 않는다.
       try {
         sessionStorage.setItem("bus-seat-admin-entry-refresh-v1", "1");
         sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "adminEntry");
@@ -10181,7 +10181,7 @@ function renderAll() {
       if (typeof window.__busSeatShowAdminEntryAfterLogoff === "function") {
         window.__busSeatShowAdminEntryAfterLogoff();
       }
-      setAuthMessage("관리자 로그오프 상태가 유지되었습니다.", true);
+      setAuthMessage("관리자종료 상태가 유지되었습니다.", true);
       return;
     }
 
@@ -13525,7 +13525,7 @@ function renderAll() {
 <!-- patched: join same name + same phone = existing; same name + different phone/birth/dong = new memberList row -->
 
 <script>
-/* 요청 수정: 관리자 로그오프 후 비밀번호 입력칸에 커서가 남지 않도록 보정 */
+/* 요청 수정: 관리자종료 후 비밀번호 입력칸에 커서가 남지 않도록 보정 */
 (function(){
   function clearAdminPasswordFocus(){
     try{
@@ -14040,7 +14040,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
 
 <script>
-/* 요청 수정: 회원 로그아웃은 로그인 화면을 반드시 다시 표시하고, 관리자 로그오프는 관리자 진입 화면만 유지 */
+/* 요청 수정: 회원 로그아웃은 로그인 화면을 반드시 다시 표시하고, 관리자종료는 관리자 진입 화면만 유지 */
 (function(){
   function forceShowMemberLoginGate(){
     try{ document.documentElement.classList.remove("restore-admin-session"); }catch(e){}
