@@ -2920,29 +2920,68 @@ body.member-mode .controls {
   }
 }
 
-/* 메인 메모: 관리자 편집 + 회원 로그인 상단 표시 */
+
+
+/* 메인 메모: 로그인 화면 말풍선 형태 */
 #memberLoginMainMemoBox {
   display: none;
+  position: relative;
   width: min(340px, 92vw);
-  margin: 0 auto;
-  padding: 8px 10px;
+  margin: 0 auto 10px;
+  padding: 11px 14px;
   border: 1px solid #f2c26b;
-  border-radius: 14px;
-  background: #fff7e6;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fffdf4 0%, #fff1c7 100%);
   color: #1428c8;
   font-size: 12px;
-  font-weight: 800;
-  line-height: 1.55;
+  font-weight: 900;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: keep-all;
   overflow-wrap: anywhere;
-  max-height: 92px;
-  overflow-y: auto;
+
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: calc(100vh - 360px) !important;
+  overflow-y: auto !important;
+
   text-align: left;
+  box-shadow: 0 8px 22px rgba(20, 40, 200, 0.16);
 }
+
+/* 말풍선 꼬리 */
+#memberLoginMainMemoBox::after {
+  content: "";
+  position: absolute;
+  left: 34px;
+  bottom: -9px;
+  width: 16px;
+  height: 16px;
+  background: #fff1c7;
+  border-right: 1px solid #f2c26b;
+  border-bottom: 1px solid #f2c26b;
+  transform: rotate(45deg);
+}
+
 #memberLoginMainMemoBox.has-main-memo {
   display: block !important;
 }
+
+@media (max-width: 760px) {
+  #memberLoginMainMemoBox {
+    max-height: calc(100vh - 330px) !important;
+    overflow-y: auto !important;
+    font-size: 11px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 16px;
+}
+#memberLoginMainMemoBox {
+    max-height: 78px;
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
 #adminMainMemoBtn.main-memo-open {
   background: #fff7e6 !important;
   border-color: #f2c26b !important;
@@ -3023,11 +3062,7 @@ body.member-mode .controls {
     padding: 0 5px !important;
     font-size: 10px !important;
   }
-  #memberLoginMainMemoBox {
-    max-height: 78px;
-    font-size: 11px;
-    margin-bottom: 6px;
-  }
+  
 }
 
 
