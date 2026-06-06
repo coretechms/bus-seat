@@ -10779,9 +10779,33 @@ function renderAll() {
       const action = btn.getAttribute("data-member-action");
       const code = btn.getAttribute("data-code");
       if (!code) return;
-      if (action === "withdraw" && !confirm("이 회원을 탈퇴 처리하고 비밀번호 해시를 삭제할까요?")) return;
-      if (action === "delete" && !confirm("이 회원자료를 모든 회원 DB에서 완전히 삭제할까요?\n삭제 후 같은 이름/전화번호로 재가입할 수 있습니다.")) return;
-      if (action === "block" && !confirm("이 회원의 앱 접근을 차단할까요?")) return;
+
+      if (action === "block") {
+  if (!confirm(
+    "회원 차단 확인\n\n" +
+    "이 회원의 앱 접근을 차단합니다.\n" +
+    "차단 후에는 로그인 및 앱 사용이 제한됩니다.\n\n" +
+    "정말 차단하시겠습니까?"
+  )) return;
+}
+
+if (action === "withdraw") {
+  if (!confirm(
+    "회원 탈퇴 확인\n\n" +
+    "이 회원을 탈퇴 처리합니다.\n" +
+    "비밀번호 해시가 삭제되어 기존 비밀번호로 로그인할 수 없습니다.\n\n" +
+    "정말 탈퇴 처리하시겠습니까?"
+  )) return;
+}
+
+if (action === "delete") {
+  if (!confirm(
+    "회원 삭제 확인\n\n" +
+    "이 회원자료를 회원 DB에서 삭제합니다.\n" +
+    "삭제 후 같은 이름/전화번호로 재가입할 수 있습니다.\n\n" +
+    "정말 삭제하시겠습니까?"
+  )) return;
+}    
       updateMemberApprovalStatus(code, action).catch((error) => {
         console.error("회원 승인 처리 오류:", error);
         setAuthMessage("회원 처리 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
@@ -12815,25 +12839,34 @@ function renderAll() {
       restored.push(makeMemberText(code, member, `초기비번 ${defaultPassword}`));
     }
 
+    const restoredReport = restored.map((v, i) => `${i + 1}. ${v}`);
+    const skippedReport = skipped.map((v, i) => `${i + 1}. ${v}`);
+
     if (!restored.length) {
       alert([
-        '고아코드 복구를 실행하지 않았습니다.',
+        '고아코드 복구 결과',
         '',
-        skipped.length ? '제외 대상:' : '',
-        skipped.slice(0, 25).map((v, i) => `${i + 1}. ${v}`).join('\n'),
-        skipped.length > 25 ? `...외 ${skipped.length - 25}건` : '',
+        '복구 가능/완료: 0건',
+        `복구 불가능/제외: ${skipped.length}건`,
         '',
-        readErrors.length ? '읽기 실패 경로:\n' + readErrors.join('\n') : ''
+        skipped.length ? '[복구 불가능 사유]' : '[안내]',
+        skipped.length ? skippedReport.slice(0, 40).join('\n') : '복구 가능한 고아코드가 없습니다.',
+        skipped.length > 40 ? `...외 ${skipped.length - 40}건` : '',
+        readErrors.length ? '\n[읽기 실패 경로]\n' + readErrors.join('\n') : ''
       ].filter(Boolean).join('\n'));
       return;
     }
 
-    const finalOk = confirm(
-      `고아코드 ${restored.length}건을 로그인 가능 상태로 복구할까요?\n\n` +
-      restored.slice(0, 15).map((v, i) => `${i + 1}. ${v}`).join('\n') +
-      (restored.length > 15 ? `\n...외 ${restored.length - 15}건` : '') +
-      (skipped.length ? `\n\n제외: ${skipped.length}건` : '')
-    );
+    const finalOk = confirm([
+      `고아코드 ${restored.length}건을 로그인 가능 상태로 복구할까요?`,
+      '',
+      '[복구 가능/진행 대상]',
+      restoredReport.slice(0, 15).join('\n'),
+      restored.length > 15 ? `...외 ${restored.length - 15}건` : '',
+      skipped.length ? `\n[복구 불가능/제외 사유 ${skipped.length}건]` : '',
+      skipped.length ? skippedReport.slice(0, 20).join('\n') : '',
+      skipped.length > 20 ? `...외 ${skipped.length - 20}건` : ''
+    ].filter(Boolean).join('\n'));
     if (!finalOk) return;
 
     await update(ref(manageDb), updates);
@@ -12841,14 +12874,15 @@ function renderAll() {
     alert([
       '고아코드 복구 완료',
       '',
-      `복구: ${restored.length}건`,
-      `제외: ${skipped.length}건`,
+      `복구 가능/완료: ${restored.length}건`,
+      `복구 불가능/제외: ${skipped.length}건`,
       '',
-      restored.slice(0, 20).map((v, i) => `${i + 1}. ${v}`).join('\n'),
-      restored.length > 20 ? `...외 ${restored.length - 20}건` : '',
-      skipped.length ? '\n제외 대상:\n' + skipped.slice(0, 12).map((v, i) => `${i + 1}. ${v}`).join('\n') : '',
-      skipped.length > 12 ? `...외 ${skipped.length - 12}건` : '',
-      readErrors.length ? '\n읽기 실패 경로:\n' + readErrors.join('\n') : ''
+      '[복구 완료]',
+      restoredReport.slice(0, 30).join('\n'),
+      restored.length > 30 ? `...외 ${restored.length - 30}건` : '',
+      skipped.length ? '\n[복구 불가능 사유]\n' + skippedReport.slice(0, 40).join('\n') : '',
+      skipped.length > 40 ? `...외 ${skipped.length - 40}건` : '',
+      readErrors.length ? '\n[읽기 실패 경로]\n' + readErrors.join('\n') : ''
     ].filter(Boolean).join('\n'));
   }
 
