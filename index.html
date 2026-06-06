@@ -5971,14 +5971,19 @@ function renderAll() {
         const normalizedTargetName = normalizeName(name);
         const sourceSeatNo = Number(options.clearSourceSeatNo || 0);
         const isMoveRequest = sourceSeatNo > 0 && sourceSeatNo !== Number(seatNo);
-        const currentSeat = await readSeatRemote(seatNo);
-        const currentName = currentSeat?.name || "";
-        const currentStatus = normalizeSeatStatus(currentSeat?.status || "empty");
-        const occupiedByOther = currentName && normalizeName(currentName) !== normalizedTargetName;
-        if (currentStatus === "paid" || occupiedByOther) {
-          setStatusMessage("좌석 저장 권한 또는 좌석 상태를 확인하세요.", state.projectLabel);
-          return false;
-        }
+       const currentSeat = await readSeatRemote(seatNo);
+      const currentName = currentSeat?.name || "";
+      const currentStatus = normalizeSeatStatus(currentSeat?.status || "empty");
+      const currentUpdatedBy = String(currentSeat?.updatedBy || "");
+      const occupiedByOther =
+      currentName &&
+      normalizeName(currentName) !== normalizedTargetName &&
+     currentUpdatedBy !== state.clientId;
+
+if (currentStatus === "paid" || currentStatus === "paid_new" || currentStatus === "paid_reserved" || occupiedByOther) {
+  setStatusMessage("좌석 저장 권한 또는 좌석 상태를 확인하세요.", state.projectLabel);
+  return false;
+}
 
         const now = Date.now();
         const updates = {
@@ -6308,10 +6313,9 @@ function renderAll() {
       }
       if (state.mode === "member") {
         const committed = await saveMemberSeatRemote(seatNumber, finalName, { status: finalStatus, clearSourceSeatNo: sourceSeatNo });
+    
         
-        if (!committed) {
-  state.seats = prevSeats;
-
+       if (!committed) {
   const remoteSeat = await readSeatRemote(seatNumber);
   const remoteName = normalizeName(remoteSeat?.name || "");
   const inputName = normalizeName(finalName || "");
@@ -6322,9 +6326,19 @@ function renderAll() {
     state.editName = "";
     renderAll();
     flashSaveVisuals(seatNumber, null);
-    state.inlineSaveLock = null;
     return;
   }
+
+  state.seats = prevSeats;
+  state.editingSeat = Number(seatNumber);
+  state.editName = finalName;
+  renderAll();
+  alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
+} else {
+  flashSaveVisuals(seatNumber, null);
+}
+
+
 
   state.editingSeat = Number(seatNumber);
   state.editName = finalName;
