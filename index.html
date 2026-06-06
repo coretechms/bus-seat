@@ -10982,6 +10982,14 @@ if (action === "delete") {
     });
 
     byId("loginLogDeleteBtn")?.addEventListener("click", () => {
+    const ok = confirm(
+     "로그인 기록 삭제 확인\n\n" +
+     "저장된 로그인 기록을 삭제합니다.\n" +
+     "삭제 후에는 기존 로그인 기록을 다시 복구할 수 없습니다.\n\n" +
+     "정말 삭제하시겠습니까?"
+    );
+    if (!ok) return;
+        
       deleteAllLoginLogs();
     });
 
