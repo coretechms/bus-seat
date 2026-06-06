@@ -6316,7 +6316,7 @@ function renderAll() {
         if (!committed) {
           state.seats = prevSeats;
           renderAll();
-          alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
+          return;
         } else {
           flashSaveVisuals(seatNumber, null);
         }
@@ -6382,7 +6382,7 @@ function renderAll() {
       if (!committed) {
         state.seats = prevSeats;
         renderAll();
-        alert("이미 다른 사용자가 해당 좌석을 선점했거나 완납 좌석입니다.");
+
         return;
       }
       flashSaveVisuals(seatNo, "memberSaveBtn");
