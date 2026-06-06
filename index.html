@@ -6337,46 +6337,43 @@ if (currentStatus === "paid" || currentStatus === "paid_new" || currentStatus ==
         setStatusMessage("Firebase 미연결 - 화면에만 표시", state.projectLabel);
         return;
       }
-      if (state.mode === "member") {
-        const committed = await saveMemberSeatRemote(seatNumber, finalName, { status: finalStatus, clearSourceSeatNo: sourceSeatNo });
-    
-        
-       if (!committed) {
+
+if (state.mode === "member") {
+  const committed = await saveMemberSeatRemote(seatNumber, finalName, {
+    status: finalStatus,
+    clearSourceSeatNo: sourceSeatNo
+  });
+
   const remoteSeat = await readSeatRemote(seatNumber);
   const remoteName = normalizeName(remoteSeat?.name || "");
   const inputName = normalizeName(finalName || "");
   const remoteStatus = normalizeSeatStatus(remoteSeat?.status || "empty");
 
-  if (remoteName && remoteName === inputName && remoteStatus !== "paid") {
+  const alreadySavedByMe =
+    inputName &&
+    remoteName === inputName &&
+    remoteStatus !== "paid" &&
+    remoteStatus !== "paid_new" &&
+    remoteStatus !== "paid_reserved";
+
+  if (!committed && !alreadySavedByMe) {
+    state.seats = prevSeats;
+    state.editingSeat = Number(seatNumber);
+    state.editName = finalName;
+    renderAll();
+    alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
+  } else {
     state.editingSeat = null;
     state.editName = "";
-    renderAll();
     flashSaveVisuals(seatNumber, null);
-    return;
+    renderAll();
   }
 
-  state.seats = prevSeats;
-  state.editingSeat = Number(seatNumber);
-  state.editName = finalName;
-  renderAll();
-  alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
-} else {
-  flashSaveVisuals(seatNumber, null);
+  state.inlineSaveLock = null;
+  return;
 }
 
 
-
-  state.editingSeat = Number(seatNumber);
-  state.editName = finalName;
-  renderAll();
-  alert("다른 사용자가 먼저 좌석을 등록했거나 완납 좌석입니다.");
-} else {
-  flashSaveVisuals(seatNumber, null);
-}
-
-    state.inlineSaveLock = null;
-      return;
- }
       if (state.isAdminAuthenticated) {
         const nextStatus = finalName ? normalizeSeatStatus((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus) : "empty";
         const ok = await saveSeatAdmin(seatNumber, finalName, nextStatus);
