@@ -3979,25 +3979,38 @@ const firebaseConfig = {
       button.addEventListener("touchstart", (event) => event.preventDefault(), { passive: false });
     }
 
+
+
     function insertGuideEditorLineBreak(editor) {
-      if (!editor || !window.getSelection || !document.createRange) return false;
-      editor.focus();
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return false;
-      const range = selection.getRangeAt(0);
-      if (!(editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer)) return false;
-      range.deleteContents();
-      const br = document.createElement("br");
-      range.insertNode(br);
-      const spacer = document.createTextNode("");
-      br.parentNode.insertBefore(spacer, br.nextSibling);
-      const nextRange = document.createRange();
-      nextRange.setStart(spacer, 0);
-      nextRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(nextRange);
-      return true;
-    }
+  if (!editor || !window.getSelection || !document.createRange) return false;
+
+  editor.focus();
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return false;
+
+  const range = selection.getRangeAt(0);
+  if (!(editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer)) return false;
+
+  range.deleteContents();
+
+  const br1 = document.createElement("br");
+  const br2 = document.createElement("br");
+
+  range.insertNode(br2);
+  range.insertNode(br1);
+
+  const nextRange = document.createRange();
+  nextRange.setStartAfter(br1);
+  nextRange.collapse(true);
+
+  selection.removeAllRanges();
+  selection.addRange(nextRange);
+
+  return true;
+}
+
+
 
     function handleGuideEditorKeydown(event, saveFn) {
       if (!event || event.key !== "Enter" || event.isComposing) return;
@@ -4081,6 +4094,8 @@ const firebaseConfig = {
     }
 
 
+
+
 async function applyMainMemoFormat(formatType) {
   const editor = byId("mainMemoText");
   if (!editor) return;
@@ -4095,12 +4110,6 @@ async function applyMainMemoFormat(formatType) {
   const className = classMap[formatType];
   if (!className) return;
 
-  if (formatType === "blink") {
-    if (toggleWholeMainMemoBlink(editor)) {
-      await saveMainMemoEditorValue(editor);
-      return;
-    }
-  }
 
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
