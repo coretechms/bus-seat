@@ -1340,7 +1340,8 @@ html.restore-admin-session body.membership-locked .app {
   justify-self: start;
 }
 #memberLoginNameInput,
-#memberJoinNameInput {
+#memberJoinNameInput,
+#memberJoinNicknameInput {
   ime-mode: active;
 }
 .member-auth-actions {
@@ -3156,6 +3157,10 @@ body.member-mode .controls {
         <div class="member-auth-row">
           <label for="memberJoinNameInput">이 름</label>
           <input id="memberJoinNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" enterkeyhint="next" placeholder="본   명" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
+        </div>
+        <div class="member-auth-row">
+          <label for="memberJoinNicknameInput">닉네임</label>
+          <input id="memberJoinNicknameInput" type="text" autocomplete="off" lang="ko" inputmode="text" enterkeyhint="next" placeholder="닉네임" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
         </div>
         <div class="member-auth-row">
           <label for="memberJoinPasswordInput">비밀번호</label>
@@ -8716,6 +8721,7 @@ function renderAll() {
     const payload = {
       code: member.code,
       name: member.name || "",
+      nickname: member.nickname || "",
       gender: member.gender || "",
       // 생년월일은 멤버리스트의 주민번호 칸으로만 넘기고, 출생년도 칸은 비운다.
       birthYear: "",
@@ -8875,6 +8881,7 @@ function renderAll() {
       rrn: getMemberListHeaderIndex(data, "주민번호", 4),
       phone: getMemberListHeaderIndex(data, "연락처", 5),
       dong: getMemberListHeaderIndex(data, "거주지", 8),
+      nickname: getMemberListHeaderIndex(data, "닉네임", 11),
       approval: getMemberListHeaderIndex(data, "가입:승인", 19),
       uid: getMemberListHeaderIndex(data, "회원UID", 20),
       joinDate: getMemberListHeaderIndex(data, "가입일", 21),
@@ -8907,6 +8914,8 @@ function renderAll() {
       setMemberListCellText(row, idx.phone, incomingPhone);
       setMemberListCellText(row, idx.dong, member.dong || "");
     }
+    // 닉네임은 기존 회원 행(metadataOnly)이어도 회원가입 승인값으로 반드시 반영한다.
+    if (idx.nickname >= 0 && member.nickname) setMemberListCellText(row, idx.nickname, member.nickname || "");
     setMemberListCellText(row, idx.approval, (resultLabel === "승인" || resultLabel === "관리자") ? "승인" : resultLabel);
     setMemberListCellText(row, idx.uid, code);
     setMemberListCellText(row, idx.joinDate, joinDate);
@@ -9002,6 +9011,7 @@ function renderAll() {
     return {
       code: String(m.code || ""),
       name: String(m.name || ""),
+      nickname: String(m.nickname || ""),
       nameKey: makeNameKey(m.name || ""),
       passwordHash: String(m.passwordHash || m.passHash || m.pwHash || m.memberPasswordHash || ""),
       approved: !!m.approved,
@@ -9823,11 +9833,13 @@ function renderAll() {
 
   async function joinMember() {
     const rawName = String(byId("memberJoinNameInput")?.value || "");
+    const rawNickname = String(byId("memberJoinNicknameInput")?.value || "");
     const rawPassword = normalizePasswordInput(byId("memberJoinPasswordInput")?.value);
     const rawPhone = String(byId("memberJoinPhoneInput")?.value || "");
     const rawDong = String(byId("memberJoinDongInput")?.value || "");
 
     const name = normalizeName(rawName);
+    const nickname = normalizeTextNoSpace(rawNickname);
     const password = rawPassword;
     const gender = String(byId("memberJoinGenderInput")?.value || "").trim();
     const birthDate = normalizeBirthYear(byId("memberJoinBirthInput")?.value);
@@ -9838,6 +9850,7 @@ function renderAll() {
 
     const spaceError = validateNoWhitespaceFields([
       { label: "본명", value: rawName },
+      { label: "닉네임", value: rawNickname },
       { label: "비밀번호", value: rawPassword },
       { label: "거주지", value: rawDong }
     ]);
@@ -9886,6 +9899,7 @@ function renderAll() {
       code,
       name,
       nameKey: name,
+      nickname,
       gender,
       birthYear,
       birthDate,
@@ -10186,6 +10200,7 @@ function renderAll() {
     [
       "memberLoginPasswordInput",
       "memberJoinNameInput",
+      "memberJoinNicknameInput",
       "memberJoinPasswordInput",
       "memberJoinBirthInput",
       "memberJoinPhoneInput",
@@ -10559,7 +10574,7 @@ function renderAll() {
       return `
         <div class="member-approval-card${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${escapeHtml(m.code)}" data-member-name="${escapeHtml(m.name || '')}">
           <div class="member-approval-card-title">${escapeHtml(m.name)} / ${escapeHtml(m.code)} / ${escapeHtml(statusLabelForMember(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
-          <div>성별: ${escapeHtml(m.gender || '-')} · 출생년도: ${escapeHtml(m.birthYear || '-')} · 거주지: ${escapeHtml(m.dong || '-')}</div>
+          <div>성별: ${escapeHtml(m.gender || '-')} · 닉네임: ${escapeHtml(m.nickname || '-')} · 출생년도: ${escapeHtml(m.birthYear || '-')} · 거주지: ${escapeHtml(m.dong || '-')}</div>
           <div>전화: ${escapeHtml(window.maskPhoneLast4(m.phone || '-'))}</div>
           <div>등급: ${escapeHtml(m.role || '-')} · ${adminText} · 가입일: ${escapeHtml(formatDateTime(m.createdAt))}${resultSegment}</div>
           <div class="member-approval-card-actions">
@@ -10678,6 +10693,7 @@ function renderAll() {
     updates[`${MEMBER_LIST_JOIN_CODES_PATH}/${code}`] = {
       code: member.code,
       name: member.name,
+      nickname: member.nickname || "",
       gender: member.gender || "",
       // 생년월일은 멤버리스트 주민번호 칸으로만 사용한다.
       birthYear: "",
@@ -10892,6 +10908,7 @@ if (action === "delete") {
   function clearMemberJoinInputs() {
     [
       "memberJoinNameInput",
+      "memberJoinNicknameInput",
       "memberJoinPasswordInput",
       "memberJoinGenderInput",
       "memberJoinBirthInput",
@@ -10907,6 +10924,7 @@ if (action === "delete") {
     bindApprovalAdminMode();
     bindKoreanFirstNameInput("memberLoginNameInput");
     bindKoreanFirstNameInput("memberJoinNameInput");
+    bindKoreanFirstNameInput("memberJoinNicknameInput");
     bindKoreanFirstNameInput("memberChangeNameInput");
     bindPhone344Input("memberJoinPhoneInput");
 
@@ -11030,6 +11048,7 @@ if (action === "delete") {
     (function setupMemberSignupKeyboardNavigation() {
       const joinFieldIds = [
         "memberJoinNameInput",
+        "memberJoinNicknameInput",
         "memberJoinPasswordInput",
         "memberJoinGenderInput",
         "memberJoinBirthInput",
@@ -11292,6 +11311,7 @@ if (action === "delete") {
     return {
       code: String(m.code || code || ""),
       name: String(m.name || m.displayName || ""),
+      nickname: String(m.nickname || ""),
       gender: String(m.gender || ""),
       birthYear: String(m.birthYear || ""),
       phone: String(m.phone || ""),
@@ -11483,7 +11503,7 @@ if (action === "delete") {
         return `
         <div class="member-approval-card${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${esc(m.code)}" data-member-name="${esc(m.name || '')}">
           <div class="member-approval-card-title">${esc(m.name || '-')} / ${esc(m.code)} / ${esc(label(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
-          <div>성별: ${esc(m.gender || '-')} · 출생년도: ${esc(m.birthYear || '-')} · 거주지: ${esc(m.dong || '-')}</div>
+          <div>성별: ${esc(m.gender || '-')} · 닉네임: ${esc(m.nickname || '-')} · 출생년도: ${esc(m.birthYear || '-')} · 거주지: ${esc(m.dong || '-')}</div>
           <div>전화: ${esc(window.maskPhoneLast4(m.phone || '-'))}</div>
           <div>등급: ${esc(m.role || '-')} · ${m.adminAccess ? '관리자' : '회원'} · 가입일: ${esc(fmt(m.createdAt))}${resultSegment}</div>
           <div class="member-approval-card-actions">
@@ -11604,6 +11624,7 @@ if (action === "delete") {
         ...(result[key] || {}),
         code: key,
         name: member.name || result[key]?.name || "",
+        nickname: member.nickname || result[key]?.nickname || "",
         gender: member.gender || result[key]?.gender || "",
         birthYear: member.birthYear || result[key]?.birthYear || "",
         phone: member.phone || result[key]?.phone || "",
@@ -11963,6 +11984,7 @@ if (action === "delete") {
       [`${MANAGE_JOIN_CODES_PATH}/${member.code}`]: {
         code: member.code,
         name: member.name || '',
+        nickname: member.nickname || '',
         gender: member.gender || '',
         // 생년월일은 멤버리스트 주민번호 칸으로만 사용한다.
         birthYear: String(member.birthDate || member.rrn || member.birthYear || '').slice(0, 2),
@@ -11994,6 +12016,7 @@ if (action === "delete") {
     return {
       code: key,
       name: member.name || member.memberName || member.userName || member.displayName || "",
+      nickname: member.nickname || "",
       gender: member.gender || "",
       birthYear: member.birthYear || "",
       birthDate: member.birthDate || member.birthYear || "",
@@ -12023,6 +12046,7 @@ if (action === "delete") {
     return {
       code: String(m.code || ""),
       name: String(m.name || ""),
+      nickname: String(m.nickname || ""),
       nameKey: makeManageNameKey(m.name || ""),
       passwordHash: String(m.passwordHash || m.passHash || m.pwHash || m.memberPasswordHash || ""),
       approved: !!m.approved,
@@ -12217,6 +12241,7 @@ if (action === "delete") {
 
     const code = String(member.code || "").trim();
     const incomingName = String(member.name || member.loginName || "").trim();
+    const incomingNickname = String(member.nickname || "").trim();
     const incomingPhone = String(member.phone || member.phoneDigits || "").trim();
     const incomingBirth = String(member.rrn || member.birthDate || member.birthYear || "").trim();
     const incomingDong = String(member.dong || member.residence || "").trim();
@@ -12279,6 +12304,8 @@ if (action === "delete") {
       setManageMemberListCellText(row, idx.phone, incomingPhone);
       setManageMemberListCellText(row, idx.dong, incomingDong);
     }
+    // 닉네임은 기존 회원 행(metadataOnly)이어도 회원가입 승인값으로 반드시 반영한다.
+    if (idx.nickname >= 0 && incomingNickname) setManageMemberListCellText(row, idx.nickname, incomingNickname);
 
     // 가입:승인 칸은 기존 호환용으로만 유지하고, 차단/탈퇴/삭제 표시는 승인결과 칸에 확정 기록한다.
     if (idx.approval >= 0) {
