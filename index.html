@@ -8356,6 +8356,38 @@ function renderAll() {
         console.warn("회원 DB 코드 조회 실패:", cfg.membersPath, key, error);
       }
     }
+    // 멤버리스트의 선택회원 DB반영 자료가 있으면 pending보다 먼저 사용한다.
+    // pending을 먼저 승인하면 오래된 가입대기 자료가 members로 승격되어 멤버리스트 수정값이 원복될 수 있다.
+    try {
+      const joinSnap = await get(ref(membershipDb, `${MEMBER_LIST_JOIN_CODES_PATH}/${key}`));
+      if (joinSnap.exists()) {
+        const joinMember = joinSnap.val() || {};
+        const joinStatus = String(joinMember.status || "").toLowerCase();
+        const joinApproved = !!joinMember.approved || joinStatus === "active" || joinStatus === "approved" || String(joinMember.joinStatus || "") === "승인" || String(joinMember.approvalResult || "") === "승인" || !!joinMember.syncedFromMemberListAt;
+        if (joinApproved && !isDeletedJoinRecord(joinMember)) {
+          return {
+            rootPath: "memberList",
+            membersPath: MEMBER_LIST_JOIN_CODES_PATH,
+            nameIndexPath: "",
+            pendingPath: `${MEMBERS_ROOT}/pending`,
+            member: {
+              ...joinMember,
+              code: joinMember.code || key,
+              approved: true,
+              status: "active",
+              role: joinMember.role || "member",
+              __joinCodesOnly: true,
+              __memberRoot: "memberList",
+              __membersPath: MEMBER_LIST_JOIN_CODES_PATH,
+              __pendingPath: `${MEMBERS_ROOT}/pending`
+            }
+          };
+        }
+      }
+    } catch (error) {
+      console.warn("멤버리스트 반영 승인자료 우선 조회 실패:", MEMBER_LIST_JOIN_CODES_PATH, key, error);
+    }
+
     // 신규 보안 구조: 가입신청은 members가 아니라 pending 객체에 먼저 저장된다.
     // 관리자 승인 처리 시 pending 자료를 members로 승격한다.
     try {
@@ -11354,14 +11386,27 @@ if (action === "delete") {
       map.set(String(code), normalized);
       return;
     }
-    // 여러 경로에서 같은 회원이 발견되면, 비어 있는 값만 보강한다.
-    map.set(String(code), {
+    const prevApprovedActive = !!prev.approved && String(prev.status || "") === "active";
+    const nextApprovedActive = !!normalized.approved && String(normalized.status || "") === "active";
+    const mergedValues = Object.fromEntries(Object.entries(normalized).filter(([, v]) => v !== "" && v !== 0 && v !== false && v != null));
+    const merged = {
       ...prev,
-      ...Object.fromEntries(Object.entries(normalized).filter(([, v]) => v !== "" && v !== 0 && v !== false && v != null)),
+      ...mergedValues,
       approved: prev.approved || normalized.approved,
       adminAccess: prev.adminAccess || normalized.adminAccess,
       raw: { ...(prev.raw || {}), ...(normalized.raw || {}) }
-    });
+    };
+    // 멤버리스트에서 반영된 승인완료 자료가 있으면 stale pending 자료가 뒤에서 들어와도 가입대기로 강등하지 않는다.
+    if (prevApprovedActive && !nextApprovedActive) {
+      merged.status = "active";
+      merged.approved = true;
+      merged.role = prev.role || merged.role || "member";
+    }
+    if (nextApprovedActive) {
+      merged.status = "active";
+      merged.approved = true;
+    }
+    map.set(String(code), merged);
   }
 
   async function readAllMembers() {
