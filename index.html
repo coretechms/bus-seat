@@ -9006,6 +9006,16 @@ function renderAll() {
     return ["active", "approved", "member", "admin"].includes(status);
   }
 
+
+
+  // 선택회원 DB반영 status 호환 보정: module 스크립트 밖에서도 공용으로 사용
+  window.normalizeApprovedStatusForMember = window.normalizeApprovedStatusForMember || function normalizeApprovedStatusForMember(value, approved){
+    const s = String(value || "").toLowerCase().trim();
+    if (s === "approved" || s === "member" || s === "admin") return "active";
+    if (s) return s;
+    return approved ? "active" : "pending";
+  };
+
   function makeMemberLoginIndexRecord(member) {
     const m = member || {};
     return {
@@ -9015,7 +9025,7 @@ function renderAll() {
       nameKey: makeNameKey(m.name || ""),
       passwordHash: String(m.passwordHash || m.passHash || m.pwHash || m.memberPasswordHash || ""),
       approved: !!m.approved,
-      status: String(m.status || (m.approved ? "active" : "pending")),
+      status: window.normalizeApprovedStatusForMember(m.status, !!m.approved),
       role: String(m.role || (m.adminAccess ? "admin" : "member")),
       adminAccess: !!m.adminAccess,
       phone: m.phone || "",
@@ -11293,7 +11303,7 @@ if (action === "delete") {
   function label(m) {
     const s = String(m?.status || "pending");
     if (s === "pending") return "가입대기";
-    if (s === "active") return m?.approved ? "승인완료" : "미승인";
+    if (s === "active" || s === "approved" || s === "member" || s === "admin") return m?.approved ? "승인완료" : "미승인";
     if (s === "blocked") return "차단";
     if (s === "withdrawn") return "탈퇴";
     if (s === "rejected") return "거절";
@@ -11318,7 +11328,7 @@ if (action === "delete") {
       phoneLast4: String(m.phoneLast4 || ""),
       dong: String(m.dong || ""),
       approved: !!m.approved,
-      status: String(m.status || (m.approved ? "active" : "pending")),
+      status: window.normalizeApprovedStatusForMember(m.status, !!m.approved),
       role: String(m.role || (m.approved ? "member" : "pending")),
       adminAccess: !!m.adminAccess,
       memberType: String(m.memberType || ""),
@@ -11329,7 +11339,7 @@ if (action === "delete") {
   }
   function joinResultLabel(m) {
     const status = String(m?.status || "");
-    if (status === "active") return m?.adminAccess ? "관리자" : "승인";
+    if (status === "active" || status === "approved" || status === "member" || status === "admin") return m?.adminAccess ? "관리자" : "승인";
     if (status === "blocked") return "차단";
     if (status === "withdrawn") return "탈퇴";
     if (status === "rejected") return "거절";
@@ -11995,7 +12005,7 @@ if (action === "delete") {
         phoneDigits: member.phoneDigits || '',
         phoneLast4: member.phoneLast4 || '',
         dong: member.dong || '',
-        status: member.status || 'pending',
+        status: window.normalizeApprovedStatusForMember(member.status, !!member.approved),
         approvalResult: joinResultLabel(member),
         joinStatus: joinResultLabel(member),
         approved: !!member.approved,
@@ -12050,7 +12060,7 @@ if (action === "delete") {
       nameKey: makeManageNameKey(m.name || ""),
       passwordHash: String(m.passwordHash || m.passHash || m.pwHash || m.memberPasswordHash || ""),
       approved: !!m.approved,
-      status: String(m.status || (m.approved ? "active" : "pending")),
+      status: window.normalizeApprovedStatusForMember(m.status, !!m.approved),
       role: String(m.role || (m.adminAccess ? "admin" : "member")),
       adminAccess: !!m.adminAccess,
       phone: m.phone || "",
@@ -14820,6 +14830,271 @@ body.admin-mode:not(.member-manage-mode) .controls {
         });
       } catch (error) {}
     });
+  }
+})();
+</script>
+
+<!-- ===== 패치: 좌석 이름 ↔ 회원관리 이름/닉네임 비교 후 미가입 좌석 이름 파랑 표시 / 깜빡임 OFF ===== -->
+<style id="seat-unregistered-member-blink-patch-style">
+  .seat-name.seat-unregistered-member-blink {
+    color: #1428c8 !important;
+    font-weight: 400 !important;
+    animation: none !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+</style>
+<script id="seat-unregistered-member-blink-patch">
+(function(){
+  "use strict";
+
+  /*
+    비교 기준 고정:
+    1) 좌석에 표시된 이름(.seat-name)
+    2) 회원관리/멤버리스트의 이름, 닉네임
+    전화번호, 생년월일, 주민번호 등은 비교하지 않는다.
+  */
+  var MEMBER_FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgwQ",
+    authDomain: "bus-seat-eb86c.firebaseapp.com",
+    databaseURL: "https://bus-seat-eb86c-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "bus-seat-eb86c",
+    storageBucket: "bus-seat-eb86c.firebasestorage.app",
+    messagingSenderId: "132111967366",
+    appId: "1:132111967366:web:e034a00f8c8cc4aa441d07"
+  };
+
+  var registeredNameSet = new Set();
+  var refreshTimer = null;
+  var domTimer = null;
+  var firebaseBound = false;
+
+  function normalizeSeatMemberName(value) {
+    return String(value || "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/[^가-힣a-zA-Z0-9\s]/g, "")
+      .replace(/\s+/g, "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function htmlToText(value) {
+    var div = document.createElement("div");
+    div.innerHTML = String(value || "");
+    return String(div.textContent || div.innerText || "").trim();
+  }
+
+  function cellText(cell) {
+    if (cell && typeof cell === "object") return htmlToText(cell.html ?? cell.text ?? cell.v ?? "");
+    return htmlToText(cell || "");
+  }
+
+  function addNameCandidate(set, value) {
+    var key = normalizeSeatMemberName(value);
+    if (key) set.add(key);
+  }
+
+  function isDeletedLike(record) {
+    var text = [
+      record && record.status,
+      record && record.approvalResult,
+      record && record.joinStatus,
+      record && record.result
+    ].map(function(v){ return String(v || "").toLowerCase(); }).join(" ");
+    return /deleted|delete|blocked|withdrawn|rejected|삭제|차단|탈퇴|거절/.test(text);
+  }
+
+  function isApprovedLike(record) {
+    if (!record || typeof record !== "object") return false;
+    if (isDeletedLike(record)) return false;
+    if (record.approved === true || record.adminAccess === true) return true;
+    var text = [
+      record.status,
+      record.approval,
+      record.approvalResult,
+      record.joinStatus,
+      record.result,
+      record.role
+    ].map(function(v){ return String(v || "").toLowerCase(); }).join(" ");
+    if (/pending|대기/.test(text)) return false;
+    return /active|approved|member|admin|승인|관리자/.test(text);
+  }
+
+  function addApprovedMemberRecord(set, record) {
+    if (!isApprovedLike(record)) return;
+    addNameCandidate(set, record.name);
+    addNameCandidate(set, record.nickname);
+  }
+
+  function getHeaderIndex(rows, label, fallbackIndex) {
+    var header = Array.isArray(rows && rows[0]) ? rows[0] : [];
+    var target = normalizeSeatMemberName(label);
+    for (var i = 0; i < header.length; i += 1) {
+      var text = normalizeSeatMemberName(cellText(header[i]));
+      if (text === target || text.indexOf(target) !== -1) return i;
+    }
+    return fallbackIndex;
+  }
+
+  function extractMemberListRows(raw) {
+    if (!raw) return [];
+    var data = raw.data && Array.isArray(raw.data.rows) ? raw.data : raw;
+    if (Array.isArray(data.rows)) return data.rows;
+    if (Array.isArray(data)) return data;
+    return [];
+  }
+
+  function addApprovedMemberListMainRows(set, raw) {
+    var rows = extractMemberListRows(raw);
+    if (!rows.length) return;
+    var nameIdx = getHeaderIndex(rows, "이름", 1);
+    var nickIdx = getHeaderIndex(rows, "닉네임", 11);
+    var approvalIdx = getHeaderIndex(rows, "가입승인", 19);
+    var resultIdx = getHeaderIndex(rows, "승인결과", 22);
+
+    rows.slice(1).forEach(function(row){
+      if (!Array.isArray(row)) return;
+      var approvalText = cellText(row[approvalIdx]);
+      var resultText = cellText(row[resultIdx]);
+      var statusText = (approvalText + " " + resultText).trim();
+      if (!/승인|관리자|active|approved|member|admin/i.test(statusText)) return;
+      if (/대기|차단|탈퇴|삭제|거절|pending|blocked|withdrawn|deleted|rejected/i.test(statusText)) return;
+      addNameCandidate(set, cellText(row[nameIdx]));
+      addNameCandidate(set, cellText(row[nickIdx]));
+    });
+  }
+
+  function addRecordMap(set, rawMap) {
+    if (!rawMap || typeof rawMap !== "object") return;
+    Object.keys(rawMap).forEach(function(key){
+      var record = rawMap[key];
+      if (record && typeof record === "object") addApprovedMemberRecord(set, record);
+    });
+  }
+
+  function applyUnregisteredBlink() {
+    var currentSet = registeredNameSet || new Set();
+    document.querySelectorAll(".seat").forEach(function(seatEl){
+      var nameEl = seatEl.querySelector(".seat-name");
+      if (!nameEl) return;
+      var seatNameKey = normalizeSeatMemberName(nameEl.textContent || "");
+      var shouldBlink = !!seatNameKey && !currentSet.has(seatNameKey);
+      nameEl.classList.toggle("seat-unregistered-member-blink", shouldBlink);
+      seatEl.classList.toggle("seat-has-unregistered-member-name", shouldBlink);
+      if (shouldBlink) {
+        nameEl.title = "회원관리 이름/닉네임에 없는 좌석 이름입니다.";
+      } else if (nameEl.title === "회원관리 이름/닉네임에 없는 좌석 이름입니다.") {
+        nameEl.removeAttribute("title");
+      }
+    });
+  }
+
+  function scheduleApply() {
+    clearTimeout(domTimer);
+    domTimer = setTimeout(applyUnregisteredBlink, 80);
+  }
+
+  function getFirebaseDb() {
+    if (!window.firebase || !window.firebase.initializeApp || !window.firebase.database) return null;
+    var app = null;
+    try {
+      if (window.firebase.apps && window.firebase.apps.length) {
+        app = window.firebase.apps.find(function(item){ return item && item.name === "seatUnregisteredMemberBlinkPatch"; });
+      }
+      if (!app) app = window.firebase.initializeApp(MEMBER_FIREBASE_CONFIG, "seatUnregisteredMemberBlinkPatch");
+      return window.firebase.database(app);
+    } catch (error) {
+      console.warn("미가입 좌석 표시 Firebase 초기화 실패", error);
+      return null;
+    }
+  }
+
+  function rebuildNameSetFromSnapshots(snapshots) {
+    var nextSet = new Set();
+    addRecordMap(nextSet, snapshots.joinCodes);
+    addRecordMap(nextSet, snapshots.secureMembers);
+    addRecordMap(nextSet, snapshots.legacyMembers);
+    addRecordMap(nextSet, snapshots.rootMembers);
+    addApprovedMemberListMainRows(nextSet, snapshots.memberListMain);
+    registeredNameSet = nextSet;
+    applyUnregisteredBlink();
+  }
+
+  function refreshMemberNameSetOnce() {
+    var db = getFirebaseDb();
+    if (!db) { scheduleApply(); return; }
+    Promise.all([
+      db.ref("memberList/joinCodes").once("value").then(function(s){ return s.val() || {}; }).catch(function(){ return {}; }),
+      db.ref("membershipSecure/members").once("value").then(function(s){ return s.val() || {}; }).catch(function(){ return {}; }),
+      db.ref("busSeatApp/membership/members").once("value").then(function(s){ return s.val() || {}; }).catch(function(){ return {}; }),
+      db.ref("members").once("value").then(function(s){ return s.val() || {}; }).catch(function(){ return {}; }),
+      db.ref("memberList/main").once("value").then(function(s){ return s.val() || null; }).catch(function(){ return null; })
+    ]).then(function(values){
+      rebuildNameSetFromSnapshots({
+        joinCodes: values[0],
+        secureMembers: values[1],
+        legacyMembers: values[2],
+        rootMembers: values[3],
+        memberListMain: values[4]
+      });
+    }).catch(function(error){
+      console.warn("회원관리 이름/닉네임 조회 실패", error);
+      scheduleApply();
+    });
+  }
+
+  function bindFirebaseRealtime() {
+    if (firebaseBound) return;
+    var db = getFirebaseDb();
+    if (!db) return;
+    firebaseBound = true;
+    [
+      "memberList/joinCodes",
+      "membershipSecure/members",
+      "busSeatApp/membership/members",
+      "members",
+      "memberList/main"
+    ].forEach(function(path){
+      db.ref(path).on("value", function(){
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(refreshMemberNameSetOnce, 150);
+      }, function(error){
+        console.warn("미가입 좌석 표시 실시간 감시 실패:", path, error);
+      });
+    });
+  }
+
+  function startPatch() {
+    refreshMemberNameSetOnce();
+    bindFirebaseRealtime();
+    scheduleApply();
+
+    if (window.MutationObserver) {
+      var board = document.querySelector(".seat-layout") || document.body;
+      if (board) {
+        new MutationObserver(scheduleApply).observe(board, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: ["class", "data-seat"]
+        });
+      }
+    }
+
+    document.addEventListener("input", scheduleApply, true);
+    document.addEventListener("change", scheduleApply, true);
+    setInterval(function(){
+      bindFirebaseRealtime();
+      refreshMemberNameSetOnce();
+    }, 30000);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startPatch, { once: true });
+  } else {
+    startPatch();
   }
 })();
 </script>
