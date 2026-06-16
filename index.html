@@ -3087,6 +3087,86 @@ body.member-mode .controls {
 }
 
 
+
+/* ===== 로그인 화면 상단 로고 링크 ===== */
+.member-login-top-links {
+  width: min(300px, 86vw);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  justify-items: center;
+  gap: 78px;
+  margin: 0 auto 26px;
+}
+.member-login-top-logo-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.member-login-top-logo-link.is-disabled {
+  cursor: default;
+  pointer-events: none;
+}
+.member-login-top-logo-link img {
+  display: block;
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.admin-logo-link-panel {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #d4d4d4;
+  border-radius: 12px;
+  background: #fafafa;
+}
+.admin-logo-link-panel .admin-logo-link-title {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #1428c8;
+}
+.admin-logo-link-panel .admin-logo-link-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+.admin-logo-link-panel label {
+  margin: 0 !important;
+  width: auto !important;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.admin-logo-link-panel input {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 28px !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+}
+@media (max-width: 430px) {
+  .member-login-top-links {
+    width: min(270px, 86vw);
+    gap: 70px;
+    margin-bottom: 22px;
+  }
+  .member-login-top-logo-link,
+  .member-login-top-logo-link img {
+    width: 54px;
+    height: 54px;
+  }
+}
+
 </style>
 
 <style id="memberPasswordResetSelectedStyle">
@@ -3106,6 +3186,14 @@ body.member-mode .controls {
 <body class="membership-locked">
 
   <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
+    <div class="member-login-top-links" aria-label="상단 바로가기 로고">
+      <a id="memberLoginLogoLink1" class="member-login-top-logo-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="상단 로고 1 링크">
+        <img src="band.png" alt="밴드" />
+      </a>
+      <a id="memberLoginLogoLink2" class="member-login-top-logo-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="상단 로고 2 링크">
+        <img src="cafe.png" alt="카페" />
+      </a>
+    </div>
     <div id="memberLoginMainMemoBox" aria-live="polite"></div>
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
 
@@ -3491,6 +3579,17 @@ body.member-mode .controls {
                 <label for="infoAccountOwner" style="width:80px; margin-bottom:0; flex-shrink:0;">예금주</label>
                 <input id="infoAccountOwner" type="text" />
               </div>
+              <div class="admin-logo-link-panel">
+                <div class="admin-logo-link-title">로그인 상단 로고 링크</div>
+                <div class="admin-logo-link-row">
+                  <label for="loginTopLogoLink1Input">왼쪽 로고</label>
+                  <input id="loginTopLogoLink1Input" type="url" placeholder="https:// 로 시작하는 링크 입력" />
+                </div>
+                <div class="admin-logo-link-row">
+                  <label for="loginTopLogoLink2Input">오른쪽 로고</label>
+                  <input id="loginTopLogoLink2Input" type="url" placeholder="https:// 로 시작하는 링크 입력" />
+                </div>
+              </div>
               <div style="margin-top:8px;">
                 <div class="info-seat-guide-label-row">
                   <label for="infoSeatGuideText">안내문구</label>
@@ -3656,7 +3755,9 @@ const firebaseConfig = {
       bankName: " ",
       accountOwner: " ",
       seatGuideText: "  ",
-      mainMemoText: ""
+      mainMemoText: "",
+      loginTopLogoLink1: "",
+      loginTopLogoLink2: ""
     };
 
     const state = {
@@ -4188,6 +4289,38 @@ function removeGuideColorFromSelection(editor) {
   });
 }
 
+
+
+    function normalizeExternalLinkUrl(rawUrl) {
+      const text = String(rawUrl || "").trim();
+      if (!text) return "";
+      if (/^(https?:\/\/)/i.test(text)) return text;
+      return "https://" + text;
+    }
+
+    function applyLoginTopLogoLink(anchorId, rawUrl) {
+      const anchor = byId(anchorId);
+      if (!anchor) return;
+      const url = normalizeExternalLinkUrl(rawUrl);
+      if (url) {
+        anchor.href = url;
+        anchor.classList.remove("is-disabled");
+        anchor.setAttribute("aria-disabled", "false");
+      } else {
+        anchor.href = "#";
+        anchor.classList.add("is-disabled");
+        anchor.setAttribute("aria-disabled", "true");
+      }
+    }
+
+    function renderLoginTopLogoLinks() {
+      applyLoginTopLogoLink("memberLoginLogoLink1", state.busInfo?.loginTopLogoLink1 || "");
+      applyLoginTopLogoLink("memberLoginLogoLink2", state.busInfo?.loginTopLogoLink2 || "");
+      const input1 = byId("loginTopLogoLink1Input");
+      const input2 = byId("loginTopLogoLink2Input");
+      if (input1 && document.activeElement !== input1) input1.value = state.busInfo?.loginTopLogoLink1 || "";
+      if (input2 && document.activeElement !== input2) input2.value = state.busInfo?.loginTopLogoLink2 || "";
+    }
 
     function renderMainMemoBox() {
       const memoHtml = renderGuideTextHtml(state.busInfo?.mainMemoText || "");
@@ -4813,6 +4946,7 @@ function removeGuideColorFromSelection(editor) {
         if (document.activeElement !== infoSeatGuideText && infoSeatGuideText.innerHTML !== nextGuideHtml) infoSeatGuideText.innerHTML = nextGuideHtml;
       }
       renderMainMemoBox();
+      renderLoginTopLogoLinks();
       if (mainMemoText) {
         const nextMainMemoHtml = renderGuideTextHtml(state.busInfo.mainMemoText || "");
         if (document.activeElement !== mainMemoText && mainMemoText.innerHTML !== nextMainMemoHtml) mainMemoText.innerHTML = nextMainMemoHtml;
@@ -7500,6 +7634,8 @@ function renderAll() {
       bindIfPresent("infoAccountNumber", "input", async (e) => { state.busInfo.accountNumber = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoBankName", "input", async (e) => { state.busInfo.bankName = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoAccountOwner", "input", async (e) => { state.busInfo.accountOwner = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("loginTopLogoLink1Input", "input", async (e) => { state.busInfo.loginTopLogoLink1 = e.target.value.trim(); renderLoginTopLogoLinks(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
+      bindIfPresent("loginTopLogoLink2Input", "input", async (e) => { state.busInfo.loginTopLogoLink2 = e.target.value.trim(); renderLoginTopLogoLinks(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoSeatGuideText", "keydown", (e) => {
         handleGuideEditorKeydown(e, (editor) => { saveInfoGuideEditorValue(editor); });
       });
