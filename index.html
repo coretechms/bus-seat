@@ -16078,6 +16078,87 @@ body.admin-mode:not(.member-manage-mode) .controls {
 })();
 </script>
 
+
+
+<!-- ===== 요청 수정: 안내문구 입력 박스 글자수 자동 높이(재수정) ===== -->
+<style id="info-guide-auto-height-final-patch">
+  /* 안내문구 입력 박스: 글자수에 맞춰 세로로 계속 늘어나고 내부 스크롤은 만들지 않음 */
+  #infoSeatGuideText {
+    min-height: 80px !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+    resize: none !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: keep-all !important;
+    line-height: 1.6 !important;
+  }
+  #adminInfoGuidePanel {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+</style>
+<script id="info-guide-auto-height-final-patch-js">
+(function(){
+  if (window.__infoGuideAutoHeightFinalPatchApplied) return;
+  window.__infoGuideAutoHeightFinalPatchApplied = true;
+
+  function resizeInfoGuideBox(){
+    var editor = document.getElementById("infoSeatGuideText");
+    if (!editor) return;
+    editor.style.height = "auto";
+    editor.style.maxHeight = "none";
+    editor.style.overflowY = "visible";
+    editor.style.height = Math.max(80, editor.scrollHeight + 2) + "px";
+
+    var panel = document.getElementById("adminInfoGuidePanel");
+    if (panel) {
+      panel.style.height = "auto";
+      panel.style.maxHeight = "none";
+      panel.style.overflow = "visible";
+    }
+  }
+
+  function scheduleResize(){
+    resizeInfoGuideBox();
+    requestAnimationFrame(resizeInfoGuideBox);
+    setTimeout(resizeInfoGuideBox, 60);
+  }
+
+  document.addEventListener("input", function(e){
+    if (e.target && e.target.id === "infoSeatGuideText") scheduleResize();
+  }, true);
+
+  document.addEventListener("keyup", function(e){
+    if (e.target && e.target.id === "infoSeatGuideText") scheduleResize();
+  }, true);
+
+  document.addEventListener("click", function(e){
+    if (e.target && (e.target.id === "adminInfoGuideBtn" || e.target.closest("#adminInfoGuideBtn"))) {
+      scheduleResize();
+    }
+  }, true);
+
+  document.addEventListener("DOMContentLoaded", function(){
+    var editor = document.getElementById("infoSeatGuideText");
+    if (editor && window.MutationObserver) {
+      new MutationObserver(scheduleResize).observe(editor, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+    }
+    scheduleResize();
+  });
+
+  window.addEventListener("load", scheduleResize);
+  window.__resizeInfoGuideBox = scheduleResize;
+})();
+</script>
+
 </body>
 </html>
 <script id="member-manage-back-to-member-mode-final-patch">
