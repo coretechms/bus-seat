@@ -3005,6 +3005,19 @@ body.member-mode .controls {
   color: #1428c8 !important;
   font-weight: 700 !important;
 }
+#adminInfoGuideBtn.info-guide-open {
+  background: #fff7e6 !important;
+  border-color: #f2c26b !important;
+  color: #1428c8 !important;
+  font-weight: 700 !important;
+}
+#adminInfoGuidePanel {
+  margin-top: 8px;
+  padding: 9px;
+  border: 1px solid #f2c26b;
+  border-radius: 14px;
+  background: #fff7e6;
+}
 #adminMainMemoPanel {
   margin-top: 8px;
   padding: 9px;
@@ -3629,17 +3642,20 @@ body.member-mode .controls {
                 </div>
               </div>
               <div style="margin-top:8px;">
-                <div class="info-seat-guide-label-row">
-                  <label for="infoSeatGuideText">안내문구</label>
-                  <button class="btn btn-outline admin-settings-only" id="adminNoticeCheckBlinkBtn" type="button" style="width:auto; min-width:62px; height:24px; padding:0 8px; border-radius:10px; font-size:11px; white-space:nowrap;">공지확인</button>
-                  <div class="info-seat-guide-format-buttons admin-settings-only" aria-label="안내문구 선택 서식">
-                    <button class="btn btn-outline" id="infoGuideBoldBtn" type="button">굵게</button>
-                    <button class="btn btn-outline" id="infoGuideBlueBtn" type="button">파랑</button>
-                    <button class="btn btn-outline" id="infoGuideRedBtn" type="button">빨강</button>
-                    <button class="btn btn-outline" id="infoGuideBlinkBtn" type="button">깜빡임</button>
+                <button class="btn btn-outline" id="adminInfoGuideBtn" type="button" style="width:100%; height:28px;">안내문구</button>
+                <div id="adminInfoGuidePanel" class="hidden">
+                  <div class="info-seat-guide-label-row">
+                    <label for="infoSeatGuideText">안내문구</label>
+                    <button class="btn btn-outline admin-settings-only" id="adminNoticeCheckBlinkBtn" type="button" style="width:auto; min-width:62px; height:24px; padding:0 8px; border-radius:10px; font-size:11px; white-space:nowrap;">공지확인</button>
+                    <div class="info-seat-guide-format-buttons" aria-label="안내문구 선택 서식">
+                      <button class="btn btn-outline" id="infoGuideBoldBtn" type="button">굵게</button>
+                      <button class="btn btn-outline" id="infoGuideBlueBtn" type="button">파랑</button>
+                      <button class="btn btn-outline" id="infoGuideRedBtn" type="button">빨강</button>
+                      <button class="btn btn-outline" id="infoGuideBlinkBtn" type="button">깜빡임</button>
+                    </div>
                   </div>
+                  <div id="infoSeatGuideText" class="info-seat-guide-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
                 </div>
-                <div id="infoSeatGuideText" class="info-seat-guide-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
 
                 <button class="btn btn-outline" id="adminMainMemoBtn" type="button" style="width:100%; height:28px; margin-top:8px;">메인메모</button>
                 <div id="adminMainMemoPanel" class="hidden">
@@ -4374,6 +4390,22 @@ function removeGuideColorFromSelection(editor) {
       }
     }
 
+    function toggleInfoGuidePanel() {
+      const panel = byId("adminInfoGuidePanel");
+      const button = byId("adminInfoGuideBtn");
+      if (!panel) return;
+      const willOpen = panel.classList.contains("hidden");
+      panel.classList.toggle("hidden", !willOpen);
+      if (button) button.classList.toggle("info-guide-open", willOpen);
+      if (willOpen) {
+        const editor = byId("infoSeatGuideText");
+        if (editor) {
+          editor.focus();
+          placeEditableCursorAtEnd(editor);
+        }
+      }
+    }
+
     function toggleMainMemoPanel() {
       const panel = byId("adminMainMemoPanel");
       const button = byId("adminMainMemoBtn");
@@ -4896,6 +4928,7 @@ function removeGuideColorFromSelection(editor) {
       const infoAccountOwner = byId("infoAccountOwner");
       const infoSeatGuideText = byId("infoSeatGuideText");
       const mainMemoText = byId("mainMemoText");
+      const adminInfoGuideBtn = byId("adminInfoGuideBtn");
       const adminMainMemoBtn = byId("adminMainMemoBtn");
       const busTypeSelect = byId("busTypeSelect");
       const memberSaveBtn = byId("memberSaveBtn");
@@ -4988,6 +5021,10 @@ function removeGuideColorFromSelection(editor) {
       if (mainMemoText) {
         const nextMainMemoHtml = renderGuideTextHtml(state.busInfo.mainMemoText || "");
         if (document.activeElement !== mainMemoText && mainMemoText.innerHTML !== nextMainMemoHtml) mainMemoText.innerHTML = nextMainMemoHtml;
+      }
+      if (adminInfoGuideBtn) {
+        const panel = byId("adminInfoGuidePanel");
+        adminInfoGuideBtn.classList.toggle("info-guide-open", Boolean(panel && !panel.classList.contains("hidden")));
       }
       if (adminMainMemoBtn) {
         const panel = byId("adminMainMemoPanel");
@@ -7678,6 +7715,7 @@ function renderAll() {
         handleGuideEditorKeydown(e, (editor) => { saveInfoGuideEditorValue(editor); });
       });
       bindIfPresent("infoSeatGuideText", "input", async (e) => { await saveInfoGuideEditorValue(e.target); });
+      bindIfPresent("adminInfoGuideBtn", "click", toggleInfoGuidePanel);
       bindIfPresent("adminMainMemoBtn", "click", toggleMainMemoPanel);
       bindIfPresent("mainMemoText", "keydown", (e) => {
         handleGuideEditorKeydown(e, (editor) => { saveMainMemoEditorValue(editor); });
@@ -15832,6 +15870,211 @@ body.admin-mode:not(.member-manage-mode) .controls {
   window.addEventListener("load", bindFinalMemoFormatFix);
   setTimeout(bindFinalMemoFormatFix, 300);
   setTimeout(bindFinalMemoFormatFix, 1200);
+})();
+</script>
+
+
+
+<!-- ===== 전체 편집 버튼 토글 패치: 굵게/색상/깜빡임 적용-해제 ===== -->
+<script id="all-guide-format-toggle-final-patch">
+(function(){
+  if (window.__allGuideFormatToggleFinalPatchApplied) return;
+  window.__allGuideFormatToggleFinalPatchApplied = true;
+
+  var BUTTONS = {
+    infoGuideBoldBtn:   { editorId: "infoSeatGuideText", className: "guide-bold",  type: "bold",  saveName: "saveInfoGuideEditorValue" },
+    infoGuideBlueBtn:   { editorId: "infoSeatGuideText", className: "guide-blue",  type: "color", saveName: "saveInfoGuideEditorValue" },
+    infoGuideRedBtn:    { editorId: "infoSeatGuideText", className: "guide-red",   type: "color", saveName: "saveInfoGuideEditorValue" },
+    infoGuideBlinkBtn:  { editorId: "infoSeatGuideText", className: "guide-blink", type: "blink", saveName: "saveInfoGuideEditorValue" },
+
+    mainMemoBoldBtn:    { editorId: "mainMemoText", className: "guide-bold",  type: "bold",  saveName: "saveMainMemoEditorValue" },
+    mainMemoBlueBtn:    { editorId: "mainMemoText", className: "guide-blue",  type: "color", saveName: "saveMainMemoEditorValue" },
+    mainMemoRedBtn:     { editorId: "mainMemoText", className: "guide-red",   type: "color", saveName: "saveMainMemoEditorValue" },
+    mainMemoBlinkBtn:   { editorId: "mainMemoText", className: "guide-blink", type: "blink", saveName: "saveMainMemoEditorValue" },
+
+    hikingNoticeBoldBtn:   { editorId: "hikingNoticeText", className: "guide-bold",  type: "bold",  saveName: "saveHikingNoticeEditorValue" },
+    hikingNoticeBlueBtn:   { editorId: "hikingNoticeText", className: "guide-blue",  type: "color", saveName: "saveHikingNoticeEditorValue" },
+    hikingNoticeRedBtn:    { editorId: "hikingNoticeText", className: "guide-red",   type: "color", saveName: "saveHikingNoticeEditorValue" },
+    hikingNoticeBlinkBtn:  { editorId: "hikingNoticeText", className: "guide-blink", type: "blink", saveName: "saveHikingNoticeEditorValue" }
+  };
+
+  var savedRanges = {};
+  var lastHandledAt = 0;
+
+  function byId(id){ return document.getElementById(id); }
+
+  function editorOf(editorId){ return byId(editorId); }
+
+  function getButton(target){
+    if (!target || !target.closest) return null;
+    return target.closest(Object.keys(BUTTONS).map(function(id){ return "#" + id; }).join(","));
+  }
+
+  function rangeInsideEditor(range, editor){
+    if (!range || !editor) return false;
+    var node = range.commonAncestorContainer;
+    return node === editor || editor.contains(node);
+  }
+
+  function saveSelectionFor(editorId){
+    var editor = editorOf(editorId);
+    var sel = window.getSelection ? window.getSelection() : null;
+    if (!editor || !sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+    var range = sel.getRangeAt(0);
+    if (!rangeInsideEditor(range, editor)) return;
+    try { savedRanges[editorId] = range.cloneRange(); } catch(e) {}
+  }
+
+  function saveActiveSelection(){
+    Object.keys(BUTTONS).forEach(function(id){ saveSelectionFor(BUTTONS[id].editorId); });
+  }
+
+  function restoreSelection(editorId){
+    var editor = editorOf(editorId);
+    var range = savedRanges[editorId];
+    var sel = window.getSelection ? window.getSelection() : null;
+    if (!editor || !range || !sel) return false;
+    try {
+      if (!rangeInsideEditor(range, editor)) return false;
+      sel.removeAllRanges();
+      sel.addRange(range.cloneRange());
+      return true;
+    } catch(e) {
+      return false;
+    }
+  }
+
+  function unwrap(node){
+    if (!node || !node.parentNode) return;
+    var parent = node.parentNode;
+    while (node.firstChild) parent.insertBefore(node.firstChild, node);
+    parent.removeChild(node);
+    parent.normalize();
+  }
+
+  function hasClassInRange(editor, range, className){
+    var found = false;
+    if (!editor || !range) return false;
+
+    var common = range.commonAncestorContainer;
+    var node = common && common.nodeType === Node.TEXT_NODE ? common.parentNode : common;
+    while (node && node !== editor) {
+      if (node.nodeType === Node.ELEMENT_NODE && node.classList && node.classList.contains(className)) return true;
+      node = node.parentNode;
+    }
+
+    Array.prototype.forEach.call(editor.querySelectorAll("." + className), function(span){
+      if (found) return;
+      try { if (range.intersectsNode(span)) found = true; } catch(e) {}
+    });
+    return found;
+  }
+
+  function removeClassInRange(editor, range, classNames){
+    var selector = classNames.map(function(name){ return "." + name; }).join(",");
+    Array.prototype.slice.call(editor.querySelectorAll(selector)).forEach(function(span){
+      try {
+        if (!range.intersectsNode(span)) return;
+        classNames.forEach(function(name){ span.classList.remove(name); });
+        if (!String(span.className || "").trim()) unwrap(span);
+      } catch(e) {}
+    });
+  }
+
+  function saveEditor(editor, saveName){
+    if (!editor) return;
+    try {
+      if (typeof window[saveName] === "function") {
+        window[saveName](editor);
+      } else {
+        editor.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    } catch(e) {
+      try { editor.dispatchEvent(new Event("input", { bubbles: true })); } catch(ignore) {}
+    }
+  }
+
+  function applyToggle(config){
+    var editor = editorOf(config.editorId);
+    if (!editor) return;
+    try { editor.focus({ preventScroll: true }); } catch(e) { editor.focus(); }
+
+    var sel = window.getSelection ? window.getSelection() : null;
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed || !rangeInsideEditor(sel.getRangeAt(0), editor)) {
+      restoreSelection(config.editorId);
+      sel = window.getSelection ? window.getSelection() : null;
+    }
+
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed || !rangeInsideEditor(sel.getRangeAt(0), editor)) {
+      alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
+      return;
+    }
+
+    var range = sel.getRangeAt(0);
+    var shouldRemove = hasClassInRange(editor, range, config.className);
+
+    if (shouldRemove) {
+      if (config.type === "color") {
+        removeClassInRange(editor, range, ["guide-blue", "guide-red"]); // 두 번 클릭 시 검정으로 복귀
+      } else {
+        removeClassInRange(editor, range, [config.className]); // 굵게/깜빡임 두 번 클릭 시 해제
+      }
+    } else {
+      if (config.type === "color") {
+        removeClassInRange(editor, range, ["guide-blue", "guide-red"]); // 파랑↔빨강 전환 시 기존 색 제거
+        sel.removeAllRanges();
+        sel.addRange(range);
+        range = sel.getRangeAt(0);
+      }
+      var span = document.createElement("span");
+      span.className = config.className;
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+      range = document.createRange();
+      range.selectNodeContents(span);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    try { savedRanges[config.editorId] = sel.getRangeAt(0).cloneRange(); } catch(e) {}
+    saveEditor(editor, config.saveName);
+  }
+
+  ["selectionchange", "mouseup", "keyup", "touchend", "pointerup"].forEach(function(type){
+    document.addEventListener(type, function(){ setTimeout(saveActiveSelection, 0); }, true);
+  });
+
+  ["pointerdown", "mousedown", "touchstart"].forEach(function(type){
+    document.addEventListener(type, function(event){
+      var btn = getButton(event.target);
+      if (!btn) return;
+      var config = BUTTONS[btn.id];
+      if (!config) return;
+      saveSelectionFor(config.editorId);
+      if (type !== "touchstart") event.preventDefault();
+    }, true);
+  });
+
+  ["click", "touchend"].forEach(function(type){
+    document.addEventListener(type, function(event){
+      var btn = getButton(event.target);
+      if (!btn) return;
+      var config = BUTTONS[btn.id];
+      if (!config) return;
+      var now = Date.now();
+      if (now - lastHandledAt < 180) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        return;
+      }
+      lastHandledAt = now;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      applyToggle(config);
+    }, true);
+  });
 })();
 </script>
 
