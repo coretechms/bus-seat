@@ -15514,6 +15514,241 @@ body.admin-mode:not(.member-manage-mode) .controls {
 })();
 </script>
 
+
+
+<!-- ===== 메인메모 서식 버튼 최종 복구 패치 ===== -->
+<script id="main-memo-format-final-fix">
+(function(){
+  if (window.__mainMemoFormatFinalFixApplied) return;
+  window.__mainMemoFormatFinalFixApplied = true;
+
+  var MEMO_BUTTONS = {
+    mainMemoBoldBtn: "guide-bold",
+    mainMemoBlueBtn: "guide-blue",
+    mainMemoRedBtn: "guide-red",
+    mainMemoBlinkBtn: "guide-blink"
+  };
+  var savedMemoRange = null;
+
+  function byId(id){ return document.getElementById(id); }
+
+  function editor(){ return byId("mainMemoText"); }
+
+  function isInEditorRange(range){
+    var ed = editor();
+    if (!ed || !range) return false;
+    var node = range.commonAncestorContainer;
+    return node === ed || ed.contains(node);
+  }
+
+  function saveSelection(){
+    var ed = editor();
+    var sel = window.getSelection ? window.getSelection() : null;
+    if (!ed || !sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+    var range = sel.getRangeAt(0);
+    if (!isInEditorRange(range)) return;
+    try { savedMemoRange = range.cloneRange(); } catch(e) {}
+  }
+
+  function restoreSelection(){
+    var ed = editor();
+    var sel = window.getSelection ? window.getSelection() : null;
+    if (!ed || !sel || !savedMemoRange) return false;
+    try {
+      if (!isInEditorRange(savedMemoRange)) return false;
+      sel.removeAllRanges();
+      sel.addRange(savedMemoRange.cloneRange());
+      return true;
+    } catch(e) {
+      return false;
+    }
+  }
+
+  function escapeHtml(value){
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function sanitizeMemoHtml(html){
+    var temp = document.createElement("div");
+    temp.innerHTML = String(html || "");
+    var allowed = { "guide-bold":1, "guide-blue":1, "guide-red":1, "guide-blink":1 };
+
+    function clean(node){
+      if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.nodeValue || "");
+      if (node.nodeType !== Node.ELEMENT_NODE) return "";
+      var tag = String(node.tagName || "").toLowerCase();
+      if (tag === "br") return "<br>";
+      var children = Array.prototype.map.call(node.childNodes || [], clean).join("");
+      if (!children) return "";
+      if (tag === "b" || tag === "strong") return '<span class="guide-bold">' + children + '</span>';
+      if (tag === "span") {
+        var classes = Array.prototype.filter.call(node.classList || [], function(name){ return !!allowed[name]; });
+        return classes.length ? '<span class="' + classes.join(" ") + '">' + children + '</span>' : children;
+      }
+      if (tag === "div" || tag === "p") return children + "<br>";
+      return children;
+    }
+
+    return Array.prototype.map.call(temp.childNodes || [], clean).join("")
+      .replace(/<span class="[^"]*"><\/span>/g, "")
+      .replace(/(<br>){3,}/g, "<br><br>")
+      .replace(/(<br>)+$/g, "");
+  }
+
+  function hasMemoText(html){
+    var temp = document.createElement("div");
+    temp.innerHTML = sanitizeMemoHtml(html || "");
+    return String(temp.textContent || "").replace(/\u00a0/g, " ").trim().length > 0;
+  }
+
+  function unwrap(el){
+    if (!el || !el.parentNode) return;
+    var parent = el.parentNode;
+    while (el.firstChild) parent.insertBefore(el.firstChild, el);
+    parent.removeChild(el);
+    parent.normalize();
+  }
+
+  function closestClass(node, className, root){
+    var cur = node && node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+    while (cur && cur !== root) {
+      if (cur.nodeType === Node.ELEMENT_NODE && cur.classList && cur.classList.contains(className)) return cur;
+      cur = cur.parentNode;
+    }
+    return null;
+  }
+
+  function removeColorInRange(range, ed){
+    Array.prototype.forEach.call(ed.querySelectorAll(".guide-blue,.guide-red"), function(span){
+      try {
+        if (range.intersectsNode(span)) {
+          span.classList.remove("guide-blue", "guide-red");
+          if (!String(span.className || "").trim()) unwrap(span);
+        }
+      } catch(e) {}
+    });
+  }
+
+  function persistMemo(){
+    var ed = editor();
+    if (!ed) return;
+    var html = sanitizeMemoHtml(ed.innerHTML);
+    if (ed.innerHTML !== html) ed.innerHTML = html;
+
+    try {
+      if (window.state && window.state.busInfo) window.state.busInfo.mainMemoText = html;
+    } catch(e) {}
+
+    var box = byId("memberLoginMainMemoBox");
+    if (box) {
+      var visible = hasMemoText(html);
+      box.innerHTML = visible ? html : "";
+      box.classList.toggle("has-main-memo", visible);
+    }
+
+    try {
+      if (typeof window.saveMainMemoEditorValue === "function") {
+        window.saveMainMemoEditorValue(ed);
+      } else if (typeof window.saveBusInfoRemote === "function") {
+        window.saveBusInfoRemote();
+      }
+    } catch(e) {}
+  }
+
+  function applyMemoClass(className){
+    var ed = editor();
+    if (!ed) return;
+
+    ed.focus({ preventScroll: true });
+    var sel = window.getSelection ? window.getSelection() : null;
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed || !isInEditorRange(sel.getRangeAt(0))) {
+      restoreSelection();
+      sel = window.getSelection ? window.getSelection() : null;
+    }
+
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed || !isInEditorRange(sel.getRangeAt(0))) {
+      alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
+      return;
+    }
+
+    var range = sel.getRangeAt(0);
+    if (className === "guide-blue" || className === "guide-red") {
+      removeColorInRange(range, ed);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    var formatted = closestClass(range.commonAncestorContainer, className, ed) ||
+                    closestClass(range.startContainer, className, ed) ||
+                    closestClass(range.endContainer, className, ed);
+    if (formatted) {
+      formatted.classList.remove(className);
+      if (!String(formatted.className || "").trim()) unwrap(formatted);
+    } else {
+      var span = document.createElement("span");
+      span.className = className;
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+      range = document.createRange();
+      range.selectNodeContents(span);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    try { savedMemoRange = sel.getRangeAt(0).cloneRange(); } catch(e) {}
+    persistMemo();
+  }
+
+  function getMemoButton(target){
+    return target && target.closest ? target.closest("#mainMemoBoldBtn,#mainMemoBlueBtn,#mainMemoRedBtn,#mainMemoBlinkBtn") : null;
+  }
+
+  function bindFinalMemoFormatFix(){
+    var ed = editor();
+    if (ed && !ed.dataset.finalMemoFormatBound) {
+      ed.dataset.finalMemoFormatBound = "1";
+      ["mouseup", "keyup", "touchend", "pointerup", "input"].forEach(function(type){
+        ed.addEventListener(type, function(){ setTimeout(saveSelection, 0); }, true);
+      });
+      ed.addEventListener("input", function(){ setTimeout(persistMemo, 0); }, true);
+    }
+
+    Object.keys(MEMO_BUTTONS).forEach(function(id){
+      var btn = byId(id);
+      if (!btn || btn.dataset.finalMemoFormatButtonBound) return;
+      btn.dataset.finalMemoFormatButtonBound = "1";
+
+      btn.addEventListener("pointerdown", function(event){ saveSelection(); event.preventDefault(); }, true);
+      btn.addEventListener("mousedown", function(event){ saveSelection(); event.preventDefault(); }, true);
+      btn.addEventListener("touchstart", function(event){ saveSelection(); }, true);
+
+      ["click", "touchend"].forEach(function(type){
+        btn.addEventListener(type, function(event){
+          event.preventDefault();
+          event.stopPropagation();
+          if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+          applyMemoClass(MEMO_BUTTONS[id]);
+        }, true);
+      });
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindFinalMemoFormatFix);
+  } else {
+    bindFinalMemoFormatFix();
+  }
+  window.addEventListener("load", bindFinalMemoFormatFix);
+  setTimeout(bindFinalMemoFormatFix, 300);
+  setTimeout(bindFinalMemoFormatFix, 1200);
+})();
+</script>
+
 </body>
 </html>
 <script id="member-manage-back-to-member-mode-final-patch">
