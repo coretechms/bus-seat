@@ -3234,7 +3234,7 @@ body.member-mode .controls {
 
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
-      <h2 id="memberAuthTitle" class="member-auth-title"Geom_Am Mountain Members'</h2>
+      <h2 id="memberAuthTitle" class="member-auth-title">Geom_Am Mountain Members</h2>
       <div class="member-auth-row">
         <label for="memberLoginNameInput">아이디</label>
         <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
@@ -15047,6 +15047,135 @@ body.admin-mode:not(.member-manage-mode) .controls {
     initAdminCompactSettingsPatch();
   }
   window.addEventListener("load", initAdminCompactSettingsPatch);
+})();
+</script>
+
+
+
+<!-- ===== 로그인 화면 refresh/밴드/카페 위치 조정 패치 + 링크/로고 복구 ===== -->
+<style id="login-link-refresh-logo-fix-style">
+  /* refresh 버튼은 메인메모 박스 위에 고정 */
+  .member-auth-gate > .member-login-refresh-row {
+    width: min(300px, 92vw) !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin: 0 auto 4px !important;
+  }
+
+  /* 메인메모 박스 아래에 밴드/카페 아이콘 배치 */
+  .member-auth-gate > #memberLoginMainMemoBox {
+    margin: 0 auto 8px !important;
+  }
+  .member-auth-gate > .member-login-top-links {
+    width: min(300px, 86vw) !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    align-items: center !important;
+    justify-items: center !important;
+    gap: 78px !important;
+    margin: 0 auto 8px !important;
+    position: relative !important;
+    z-index: 2 !important;
+  }
+  .member-auth-gate > .member-login-top-links .member-login-top-logo-link {
+    pointer-events: auto;
+    position: relative !important;
+    z-index: 3 !important;
+  }
+
+  /* 검암산악회 로고가 로그인 박스 위로 이탈하지 않도록 음수 margin 제거 */
+  .member-auth-box .member-login-logo {
+    display: block !important;
+    margin: 0 auto 8px !important;
+    position: static !important;
+    transform: none !important;
+  }
+  .member-auth-box {
+    overflow: visible !important;
+    padding-top: 12px !important;
+  }
+
+  @media (max-width: 430px) {
+    .member-auth-gate > .member-login-refresh-row {
+      width: min(300px, 92vw) !important;
+      margin: 0 auto 4px !important;
+    }
+    .member-auth-gate > .member-login-top-links {
+      width: min(270px, 86vw) !important;
+      gap: 70px !important;
+      margin: 0 auto 8px !important;
+    }
+    .member-auth-box .member-login-logo {
+      margin: 0 auto 8px !important;
+    }
+  }
+</style>
+<script id="login-link-refresh-logo-fix-script">
+(function(){
+  "use strict";
+
+  function byId(id) { return document.getElementById(id); }
+
+  function normalizeExternalLinkUrl(rawUrl) {
+    var text = String(rawUrl || "").trim();
+    if (!text) return "";
+    if (/^(https?:\/\/)/i.test(text)) return text;
+    return "https://" + text;
+  }
+
+  function restoreLinkFromInput(anchorId, inputId) {
+    var anchor = byId(anchorId);
+    var input = byId(inputId);
+    if (!anchor || !input) return;
+    var url = normalizeExternalLinkUrl(input.value || "");
+    if (!url) return;
+    anchor.href = url;
+    anchor.classList.remove("is-disabled");
+    anchor.setAttribute("aria-disabled", "false");
+  }
+
+  function relocateLoginItems() {
+    var gate = byId("memberAuthGate");
+    var memo = byId("memberLoginMainMemoBox");
+    var links = document.querySelector(".member-login-top-links");
+    var refresh = document.querySelector(".member-login-refresh-row");
+    var authBox = document.querySelector(".member-auth-box");
+    var logo = document.querySelector(".member-login-logo");
+
+    if (!gate) return;
+
+    if (refresh && memo && refresh.parentNode !== gate) gate.insertBefore(refresh, memo);
+    if (refresh && memo && refresh.nextElementSibling !== memo) gate.insertBefore(refresh, memo);
+    if (links && memo && links.previousElementSibling !== memo) memo.insertAdjacentElement("afterend", links);
+    if (authBox && logo && logo.parentNode !== authBox) authBox.insertBefore(logo, authBox.firstChild);
+    if (authBox && logo && authBox.firstElementChild !== logo) authBox.insertBefore(logo, authBox.firstChild);
+
+    restoreLinkFromInput("memberLoginLogoLink1", "loginTopLogoLink1Input");
+    restoreLinkFromInput("memberLoginLogoLink2", "loginTopLogoLink2Input");
+
+    if (typeof window.renderLoginTopLogoLinks === "function") {
+      try { window.renderLoginTopLogoLinks(); } catch (error) {}
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    relocateLoginItems();
+    setTimeout(relocateLoginItems, 100);
+    setTimeout(relocateLoginItems, 500);
+    setTimeout(relocateLoginItems, 1200);
+
+    var input1 = byId("loginTopLogoLink1Input");
+    var input2 = byId("loginTopLogoLink2Input");
+    if (input1) input1.addEventListener("input", function(){ restoreLinkFromInput("memberLoginLogoLink1", "loginTopLogoLink1Input"); });
+    if (input2) input2.addEventListener("input", function(){ restoreLinkFromInput("memberLoginLogoLink2", "loginTopLogoLink2Input"); });
+
+    var gate = byId("memberAuthGate");
+    if (gate && window.MutationObserver) {
+      try {
+        new MutationObserver(function(){ setTimeout(relocateLoginItems, 0); }).observe(gate, { childList:true, subtree:false });
+      } catch (error) {}
+    }
+  });
 })();
 </script>
 
