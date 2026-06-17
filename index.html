@@ -15634,11 +15634,89 @@ body.admin-mode:not(.member-manage-mode) .controls {
     });
   }
 
+  function getTextOffset(root, node, offset){
+    if (!root || !node) return 0;
+    var total = 0;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var current;
+    while ((current = walker.nextNode())) {
+      if (current === node) return total + Math.min(offset || 0, current.nodeValue.length);
+      total += current.nodeValue.length;
+    }
+    return total;
+  }
+
+  function saveCaretState(){
+    var ed = editor();
+    var sel = window.getSelection ? window.getSelection() : null;
+    if (!ed || !sel || sel.rangeCount === 0) return null;
+    var range = sel.getRangeAt(0);
+    if (!isInEditorRange(range)) return null;
+    return {
+      start: getTextOffset(ed, range.startContainer, range.startOffset),
+      end: getTextOffset(ed, range.endContainer, range.endOffset),
+      collapsed: range.collapsed
+    };
+  }
+
+  function setCaretByTextOffset(root, start, end){
+    if (!root || !window.getSelection) return false;
+    var range = document.createRange();
+    var sel = window.getSelection();
+    var textNodes = [];
+    var total = 0;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var node;
+    while ((node = walker.nextNode())) {
+      textNodes.push({ node: node, start: total, end: total + node.nodeValue.length });
+      total += node.nodeValue.length;
+    }
+    if (!textNodes.length) {
+      range.selectNodeContents(root);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return true;
+    }
+    start = Math.max(0, Math.min(Number(start || 0), total));
+    end = Math.max(0, Math.min(Number(end == null ? start : end), total));
+    function locate(pos){
+      for (var i = 0; i < textNodes.length; i++) {
+        var item = textNodes[i];
+        if (pos >= item.start && pos <= item.end) {
+          return { node: item.node, offset: Math.max(0, Math.min(pos - item.start, item.node.nodeValue.length)) };
+        }
+      }
+      var last = textNodes[textNodes.length - 1];
+      return { node: last.node, offset: last.node.nodeValue.length };
+    }
+    var a = locate(start);
+    var b = locate(end);
+    try {
+      range.setStart(a.node, a.offset);
+      range.setEnd(b.node, b.offset);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return true;
+    } catch(e) {
+      return false;
+    }
+  }
+
   function persistMemo(){
     var ed = editor();
     if (!ed) return;
+
+    var wasActive = document.activeElement === ed;
+    var caretState = wasActive ? saveCaretState() : null;
     var html = sanitizeMemoHtml(ed.innerHTML);
-    if (ed.innerHTML !== html) ed.innerHTML = html;
+
+    if (ed.innerHTML !== html) {
+      ed.innerHTML = html;
+      if (wasActive && caretState) {
+        setCaretByTextOffset(ed, caretState.start, caretState.end);
+      }
+    }
 
     try {
       if (window.state && window.state.busInfo) window.state.busInfo.mainMemoText = html;
@@ -15658,6 +15736,14 @@ body.admin-mode:not(.member-manage-mode) .controls {
         window.saveBusInfoRemote();
       }
     } catch(e) {}
+
+    if (wasActive && caretState) {
+      setTimeout(function(){
+        try {
+          if (document.activeElement === ed) setCaretByTextOffset(ed, caretState.start, caretState.end);
+        } catch(e) {}
+      }, 0);
+    }
   }
 
   function applyMemoClass(className){
