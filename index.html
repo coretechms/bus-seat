@@ -2172,7 +2172,7 @@ body.admin-entry-only #adminLoginPanel.hidden{
 .seat-memo-actions .exit { background:#fff; color:#333; }
 .seat-memo-security-title {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 13px !important;
   font-weight: 900;
   color: #d80000;
 }
@@ -3050,7 +3050,7 @@ body.member-mode .controls {
   border: 1px solid #f2c26b;
   border-radius: 14px;
   padding: 8px 10px;
-  font-size: 10px;
+  font-size: 13px !important;
   background: #fff;
   font-family: inherit;
   outline: none;
@@ -3182,24 +3182,56 @@ body.member-mode .controls {
   font-weight:900;
 }
 </style>
+
+<style id="loginMemoIconRefreshPositionPatch">
+/* 요청 수정: 로그인 화면 배치
+   - refesh 버튼: 메인메모 박스 위
+   - 밴드/카페 아이콘: 메인메모 박스 아래 */
+.member-auth-gate > .member-login-refresh-row {
+  width: min(300px, 92vw) !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  margin: 0 auto 4px !important;
+}
+.member-auth-gate > .member-login-top-links {
+  width: min(300px, 86vw) !important;
+  margin: -18px auto 8px !important;
+}
+#memberLoginMainMemoBox {
+  margin-bottom: 22px !important;
+}
+@media (max-width: 430px) {
+  .member-auth-gate > .member-login-refresh-row {
+    width: min(300px, 92vw) !important;
+    margin: 0 auto 4px !important;
+  }
+  .member-auth-gate > .member-login-top-links {
+    margin: -14px auto 8px !important;
+  }
+  #memberLoginMainMemoBox {
+    margin-bottom: 18px !important;
+  }
+}
+</style>
+
 </head>
 <body class="membership-locked">
 
   <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
-    <div class="member-login-top-links" aria-label="상단 바로가기 로고">
-      <a id="memberLoginLogoLink1" class="member-login-top-logo-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="상단 로고 1 링크">
-        <img src="band_icon_180.png" alt="밴드" />
-      </a>
-      <a id="memberLoginLogoLink2" class="member-login-top-logo-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="상단 로고 2 링크">
-        <img src="cafe_icon_180.png" alt="카페" />
-      </a>
+    <div class="member-login-refresh-row">
+      <button id="memberLoginRefreshBtn" type="button" aria-label="새로고침">refesh</button>
     </div>
     <div id="memberLoginMainMemoBox" aria-live="polite"></div>
+    <div class="member-login-top-links" aria-label="상단 바로가기 로고">
+      <a id="memberLoginLogoLink1" class="member-login-top-logo-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="상단 로고 1 링크">
+        <img src="band.png" alt="밴드" />
+      </a>
+      <a id="memberLoginLogoLink2" class="member-login-top-logo-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="상단 로고 2 링크">
+        <img src="cafe.png" alt="카페" />
+      </a>
+    </div>
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
 
-      <div class="member-login-refresh-row">
-        <button id="memberLoginRefreshBtn" type="button" aria-label="새로고침">refesh</button>
-      </div>
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
       <h2 id="memberAuthTitle" class="member-auth-title"Geom_Am Mountain Members'</h2>
@@ -3368,7 +3400,8 @@ body.member-mode .controls {
 
           <div id="adminPanel" class="hidden">
 
-            <div class="admin-compact-action-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px;">
+            <div class="admin-compact-action-row" style="display:grid; grid-template-columns:0.78fr 1fr 1fr 1fr 0.78fr; gap:8px; margin-top:10px;">
+              <button class="btn btn-outline" id="adminCaptureProxyBtn" type="button" style="width:100%;">캡처</button>
               <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="width:100%;">관리자종료</button>
               <button class="btn btn-primary" id="adminSaveBtnTop" type="button" style="width:100%;">상태저장</button>
               <select id="adminStatus" aria-label="좌석 상태 선택">
@@ -3378,12 +3411,15 @@ body.member-mode .controls {
                 <option value="paid_new">완납/신입</option>
                 <option value="paid_reserved">완납/예약완료</option>
               </select>
+              <button class="btn btn-outline" id="adminSettingsToggleBtn" type="button" style="width:100%;" aria-expanded="false">설정</button>
             </div>
 
             <div class="admin-hidden-seat-controls" style="display:none !important; gap:8px; margin-top:10px;">
               <select id="adminSeat" style="flex:1; min-width:0;"></select>
               <input id="adminMemberName" type="text" placeholder="이름" style="flex:1;" />
             </div>
+
+            <div id="adminSettingsPanel" class="admin-settings-panel" hidden>
 
             <div id="resetInlineConfirm" class="hidden" style="margin-bottom:6px; padding:8px; border:1px solid #d32f2f; border-radius:16px; background:#fff5f5;">
               <div style="font-size:12px; margin-bottom:6px; color:#b91c1c; font-weight:700;">전체 좌석을 모두 초기화하시겠습니까?</div>
@@ -3467,6 +3503,8 @@ body.member-mode .controls {
             
 
             
+
+            </div>
 
           </div>
 
@@ -3555,7 +3593,7 @@ body.member-mode .controls {
             
             <div id="busInfoLocked" class="notice">공지 등록</div>
             <div id="busInfoEditor" class="hidden" style="margin-top:12px;">
-              <div class="grid-2">
+              <div class="grid-2 admin-settings-only">
                 <div>
                   <label for="infoTitleMain">메인제목</label>
                   <input id="infoTitleMain" type="text" />
@@ -3565,7 +3603,7 @@ body.member-mode .controls {
                   <input id="infoFeeLabel" type="text" />
                 </div>
               </div>
-              <div class="grid-2" style="margin-top:8px;">
+              <div class="grid-2 admin-settings-only" style="margin-top:8px;">
                 <div>
                   <label for="infoAccountNumber">계좌번호</label>
                   <input id="infoAccountNumber" type="text" />
@@ -3575,11 +3613,11 @@ body.member-mode .controls {
                   <input id="infoBankName" type="text" />
                 </div>
               </div>
-              <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
+              <div class="admin-settings-only" style="margin-top:8px; display:flex; align-items:center; gap:6px;">
                 <label for="infoAccountOwner" style="width:80px; margin-bottom:0; flex-shrink:0;">예금주</label>
                 <input id="infoAccountOwner" type="text" />
               </div>
-              <div class="admin-logo-link-panel">
+              <div class="admin-logo-link-panel admin-settings-only">
                 <div class="admin-logo-link-title">로그인 상단 로고 링크</div>
                 <div class="admin-logo-link-row">
                   <label for="loginTopLogoLink1Input">왼쪽 로고</label>
@@ -3593,8 +3631,8 @@ body.member-mode .controls {
               <div style="margin-top:8px;">
                 <div class="info-seat-guide-label-row">
                   <label for="infoSeatGuideText">안내문구</label>
-                  <button class="btn btn-outline" id="adminNoticeCheckBlinkBtn" type="button" style="width:auto; min-width:62px; height:24px; padding:0 8px; border-radius:10px; font-size:11px; white-space:nowrap;">공지확인</button>
-                  <div class="info-seat-guide-format-buttons" aria-label="안내문구 선택 서식">
+                  <button class="btn btn-outline admin-settings-only" id="adminNoticeCheckBlinkBtn" type="button" style="width:auto; min-width:62px; height:24px; padding:0 8px; border-radius:10px; font-size:11px; white-space:nowrap;">공지확인</button>
+                  <div class="info-seat-guide-format-buttons admin-settings-only" aria-label="안내문구 선택 서식">
                     <button class="btn btn-outline" id="infoGuideBoldBtn" type="button">굵게</button>
                     <button class="btn btn-outline" id="infoGuideBlueBtn" type="button">파랑</button>
                     <button class="btn btn-outline" id="infoGuideRedBtn" type="button">빨강</button>
@@ -14739,6 +14777,279 @@ body.admin-mode:not(.member-manage-mode) .controls {
 })();
 </script>
 <script src="login-links-patch.js"></script>
+<script id="main-memo-format-selection-fix-patch">
+/* 요청 수정: 메인메모 굵게/파랑/빨강/깜빡임 버튼이 선택영역을 잃어 동작하지 않는 문제 보정.
+   기존 기능은 유지하고, 메인메모 버튼 클릭 시 마지막 선택영역을 복원해서 선택 글자에만 서식을 적용한다. */
+(function(){
+  if (window.__mainMemoFormatSelectionFixApplied) return;
+  window.__mainMemoFormatSelectionFixApplied = true;
+
+  var BUTTON_FORMAT = {
+    mainMemoBoldBtn: "guide-bold",
+    mainMemoBlueBtn: "guide-blue",
+    mainMemoRedBtn: "guide-red",
+    mainMemoBlinkBtn: "guide-blink"
+  };
+  var lastRange = null;
+
+  function byId(id){ return document.getElementById(id); }
+
+  function escapeHtml(value){
+    return String(value || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function sanitizeMainMemoHtml(html){
+    var temp = document.createElement("div");
+    temp.innerHTML = String(html || "");
+    var allowed = { "guide-bold": true, "guide-blue": true, "guide-red": true, "guide-blink": true };
+
+    function clean(node){
+      if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.nodeValue || "");
+      if (node.nodeType !== Node.ELEMENT_NODE) return "";
+      var tag = String(node.tagName || "").toLowerCase();
+      var children = Array.prototype.map.call(node.childNodes || [], clean).join("");
+      if (tag === "br") return "<br>";
+      if (!children) return "";
+      if (tag === "b" || tag === "strong") return '<span class="guide-bold">' + children + '</span>';
+      if (tag === "span") {
+        var classes = Array.prototype.filter.call(node.classList || [], function(name){ return allowed[name]; });
+        if (classes.length) return '<span class="' + classes.join(" ") + '">' + children + '</span>';
+        return children;
+      }
+      if (tag === "div" || tag === "p") return children ? children + "<br>" : "<br>";
+      return children;
+    }
+
+    return Array.prototype.map.call(temp.childNodes || [], clean).join("")
+      .replace(/<span class="[^"]+"><\/span>/g, "")
+      .replace(/(<br>){3,}/g, "<br><br>")
+      .replace(/(<br>)+$/g, "");
+  }
+
+  function plainTextFromHtml(html){
+    var temp = document.createElement("div");
+    temp.innerHTML = sanitizeMainMemoHtml(html || "");
+    return String(temp.textContent || "").replace(/\u00a0/g, " ").trim();
+  }
+
+  function selectionInsideEditor(){
+    var editor = byId("mainMemoText");
+    var selection = window.getSelection ? window.getSelection() : null;
+    if (!editor || !selection || selection.rangeCount === 0) return false;
+    var range = selection.getRangeAt(0);
+    return editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer;
+  }
+
+  function rememberSelection(){
+    var selection = window.getSelection ? window.getSelection() : null;
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !selectionInsideEditor()) return;
+    try { lastRange = selection.getRangeAt(0).cloneRange(); } catch(e) {}
+  }
+
+  function restoreSelection(){
+    var editor = byId("mainMemoText");
+    if (!editor || !lastRange) return false;
+    try {
+      if (!(editor.contains(lastRange.commonAncestorContainer) || editor === lastRange.commonAncestorContainer)) return false;
+      var selection = window.getSelection ? window.getSelection() : null;
+      if (!selection) return false;
+      selection.removeAllRanges();
+      selection.addRange(lastRange.cloneRange());
+      return true;
+    } catch(e) {
+      return false;
+    }
+  }
+
+  function closestFormattedNode(node, className, editor){
+    var current = node && node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+    while (current && current !== editor) {
+      if (current.nodeType === Node.ELEMENT_NODE && current.classList && current.classList.contains(className)) return current;
+      current = current.parentNode;
+    }
+    return null;
+  }
+
+  function unwrapNode(node){
+    if (!node || !node.parentNode) return;
+    var parent = node.parentNode;
+    while (node.firstChild) parent.insertBefore(node.firstChild, node);
+    parent.removeChild(node);
+    parent.normalize();
+  }
+
+  function applyFormat(className){
+    var editor = byId("mainMemoText");
+    if (!editor) return false;
+    editor.focus();
+
+    var selection = window.getSelection ? window.getSelection() : null;
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !selectionInsideEditor()) {
+      restoreSelection();
+      selection = window.getSelection ? window.getSelection() : null;
+    }
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !selectionInsideEditor()) {
+      alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
+      return false;
+    }
+
+    var range = selection.getRangeAt(0);
+    if (className === "guide-blue" || className === "guide-red") {
+      Array.prototype.forEach.call(editor.querySelectorAll(".guide-blue, .guide-red"), function(span){
+        try {
+          if (range.intersectsNode(span)) {
+            span.classList.remove("guide-blue", "guide-red");
+            if (!String(span.className || "").trim()) unwrapNode(span);
+          }
+        } catch(e) {}
+      });
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    var existing = closestFormattedNode(range.commonAncestorContainer, className, editor) ||
+      closestFormattedNode(range.startContainer, className, editor) ||
+      closestFormattedNode(range.endContainer, className, editor);
+
+    if (existing) {
+      existing.classList.remove(className);
+      if (!String(existing.className || "").trim()) unwrapNode(existing);
+    } else {
+      var span = document.createElement("span");
+      span.className = className;
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+      selection.removeAllRanges();
+      var nextRange = document.createRange();
+      nextRange.selectNodeContents(span);
+      selection.addRange(nextRange);
+    }
+
+    rememberSelection();
+    saveMainMemo();
+    return true;
+  }
+
+  function saveMainMemo(){
+    var editor = byId("mainMemoText");
+    var loginMemoBox = byId("memberLoginMainMemoBox");
+    if (!editor) return;
+    var html = sanitizeMainMemoHtml(editor.innerHTML);
+
+    if (editor.innerHTML !== html) editor.innerHTML = html;
+
+    if (typeof window.saveMainMemoEditorValue === "function") {
+      try {
+        window.saveMainMemoEditorValue(editor);
+        return;
+      } catch(e) {}
+    }
+
+    try {
+      if (window.state && window.state.busInfo) window.state.busInfo.mainMemoText = html;
+    } catch(e) {}
+
+    if (loginMemoBox) {
+      var hasMemo = Boolean(plainTextFromHtml(html));
+      loginMemoBox.innerHTML = hasMemo ? html : "";
+      loginMemoBox.classList.toggle("has-main-memo", hasMemo);
+    }
+
+    try {
+      if (typeof window.saveBusInfoRemote === "function") window.saveBusInfoRemote();
+    } catch(e) {}
+  }
+
+  function findButton(target){
+    if (!target || !target.closest) return null;
+    return target.closest("#mainMemoBoldBtn,#mainMemoBlueBtn,#mainMemoRedBtn,#mainMemoBlinkBtn");
+  }
+
+  ["selectionchange", "mouseup", "keyup", "touchend", "pointerup"].forEach(function(type){
+    document.addEventListener(type, function(){ setTimeout(rememberSelection, 0); }, true);
+  });
+
+  ["pointerdown", "mousedown", "touchstart"].forEach(function(type){
+    document.addEventListener(type, function(event){
+      var btn = findButton(event.target);
+      if (!btn) return;
+      rememberSelection();
+      event.preventDefault();
+    }, true);
+  });
+
+  document.addEventListener("click", function(event){
+    var btn = findButton(event.target);
+    if (!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    var className = BUTTON_FORMAT[btn.id];
+    if (className) applyFormat(className);
+  }, true);
+
+  document.addEventListener("input", function(event){
+    if (event.target && event.target.id === "mainMemoText") {
+      rememberSelection();
+      saveMainMemo();
+    }
+  }, true);
+})();
+</script>
+
+
+<script>
+/* ===== 관리자 기본화면 설정 버튼 패치 =====
+   기본: 캡처 / 관리자종료 / 상태저장 / 완납선택 / 안내문구 / 메인메모만 표시
+   설정: 나머지 관리자 메뉴 펼침 */
+(function () {
+  function setAdminSettingsOpen(open) {
+    var panel = document.getElementById("adminSettingsPanel");
+    var btn = document.getElementById("adminSettingsToggleBtn");
+    document.body.classList.toggle("admin-settings-open", !!open);
+    if (panel) panel.hidden = !open;
+    if (btn) {
+      btn.classList.toggle("is-open", !!open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      btn.textContent = open ? "닫기" : "설정";
+    }
+  }
+
+  function initAdminCompactSettingsPatch() {
+    var settingsBtn = document.getElementById("adminSettingsToggleBtn");
+    if (settingsBtn && !settingsBtn.dataset.compactSettingsBound) {
+      settingsBtn.dataset.compactSettingsBound = "1";
+      settingsBtn.addEventListener("click", function () {
+        setAdminSettingsOpen(!document.body.classList.contains("admin-settings-open"));
+      });
+    }
+
+    var captureProxy = document.getElementById("adminCaptureProxyBtn");
+    if (captureProxy && !captureProxy.dataset.captureProxyBound) {
+      captureProxy.dataset.captureProxyBound = "1";
+      captureProxy.addEventListener("click", function () {
+        var original = document.getElementById("captureBoardBtn");
+        if (original) original.click();
+      });
+    }
+
+    setAdminSettingsOpen(false);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAdminCompactSettingsPatch);
+  } else {
+    initAdminCompactSettingsPatch();
+  }
+  window.addEventListener("load", initAdminCompactSettingsPatch);
+})();
+</script>
+
 </body>
 </html>
 <script id="member-manage-back-to-member-mode-final-patch">
@@ -15024,6 +15335,66 @@ body.admin-mode:not(.member-manage-mode) .controls {
     opacity: 1 !important;
     text-shadow: none !important;
   }
+
+
+/* ===== 요청 수정: 메인메모 박스 PC/모바일 입력 글자크기 13px 통일 ===== */
+#mainMemoText,
+#mainMemoText * {
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+#memberLoginMainMemoBox,
+#memberLoginMainMemoBox * {
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+@media (max-width: 760px) {
+  #mainMemoText,
+  #mainMemoText *,
+  #memberLoginMainMemoBox,
+  #memberLoginMainMemoBox * {
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+  }
+}
+
+/* ===== 관리자 모드 기본화면 간소화 / 설정 펼침 패치 ===== */
+.admin-compact-action-row {
+  grid-template-columns: 0.78fr 1fr 1fr 1fr 0.78fr !important;
+}
+.admin-settings-panel[hidden] {
+  display: none !important;
+}
+body.admin-mode:not(.admin-settings-open) .admin-settings-only {
+  display: none !important;
+}
+body.admin-mode:not(.admin-settings-open) #adminSettingsPanel {
+  display: none !important;
+}
+body.admin-mode.admin-settings-open #adminSettingsPanel {
+  display: block !important;
+}
+#adminSettingsToggleBtn.is-open {
+  background: #0b7a28 !important;
+  border-color: #0b7a28 !important;
+  color: #fff !important;
+}
+#adminCaptureProxyBtn {
+  white-space: nowrap !important;
+}
+@media (max-width: 760px) {
+  .admin-compact-action-row {
+    grid-template-columns: 0.72fr 1fr 1fr 0.9fr 0.72fr !important;
+    gap: 4px !important;
+  }
+  .admin-compact-action-row .btn,
+  .admin-compact-action-row #adminStatus {
+    font-size: 10px !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+}
+
 </style>
 <script id="seat-unregistered-member-blink-patch">
 (function(){
