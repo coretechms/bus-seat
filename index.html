@@ -828,11 +828,14 @@
 
     #infoSeatGuideText {
       min-height: 80px;
-      max-height: 420px;
-      overflow-y: auto;
-      resize: vertical !important;
+      height: auto !important;
+      max-height: none !important;
+      overflow-y: hidden !important;
+      resize: none !important;
       line-height: 1.6;
       white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: keep-all;
       width: 100%;
       border: 1px solid #d4d4d4;
       border-radius: 14px;
@@ -4400,6 +4403,7 @@ function removeGuideColorFromSelection(editor) {
       if (willOpen) {
         const editor = byId("infoSeatGuideText");
         if (editor) {
+          if (typeof window.autoResizeInfoSeatGuideText === "function") window.autoResizeInfoSeatGuideText();
           editor.focus();
           placeEditableCursorAtEnd(editor);
         }
@@ -16075,6 +16079,57 @@ body.admin-mode:not(.member-manage-mode) .controls {
       applyToggle(config);
     }, true);
   });
+})();
+</script>
+
+
+
+<!-- 요청 수정: 안내문구 입력 박스 글자수에 맞게 세로 자동 늘림 -->
+<script id="info-guide-auto-height-patch">
+(function(){
+  if (window.__infoGuideAutoHeightPatchApplied) return;
+  window.__infoGuideAutoHeightPatchApplied = true;
+
+  function byId(id){ return document.getElementById(id); }
+
+  function resizeInfoGuide(){
+    var el = byId("infoSeatGuideText");
+    if (!el) return;
+    el.style.height = "auto";
+    var nextHeight = Math.max(80, el.scrollHeight + 4);
+    el.style.height = nextHeight + "px";
+    el.style.maxHeight = "none";
+    el.style.overflowY = "hidden";
+  }
+
+  window.autoResizeInfoSeatGuideText = resizeInfoGuide;
+
+  function bind(){
+    var el = byId("infoSeatGuideText");
+    if (!el) return;
+    resizeInfoGuide();
+    ["input", "keyup", "paste", "cut"].forEach(function(evt){
+      el.addEventListener(evt, function(){ setTimeout(resizeInfoGuide, 0); }, true);
+    });
+    if (window.MutationObserver) {
+      new MutationObserver(function(){ resizeInfoGuide(); }).observe(el, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["class", "style"]
+      });
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bind, { once: true });
+  } else {
+    bind();
+  }
+  window.addEventListener("load", resizeInfoGuide);
+  setTimeout(resizeInfoGuide, 300);
+  setTimeout(resizeInfoGuide, 1000);
 })();
 </script>
 
