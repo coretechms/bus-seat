@@ -3224,10 +3224,10 @@ body.member-mode .controls {
     <div id="memberLoginMainMemoBox" aria-live="polite"></div>
     <div class="member-login-top-links" aria-label="상단 바로가기 로고">
       <a id="memberLoginLogoLink1" class="member-login-top-logo-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="상단 로고 1 링크">
-        <img src="band.png" alt="밴드" />
+        <img src="band_icon_180.png" alt="밴드" />
       </a>
       <a id="memberLoginLogoLink2" class="member-login-top-logo-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="상단 로고 2 링크">
-        <img src="cafe.png" alt="카페" />
+        <img src="cafe_icon_180.png" alt="카페" />
       </a>
     </div>
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
@@ -15176,6 +15176,341 @@ body.admin-mode:not(.member-manage-mode) .controls {
       } catch (error) {}
     }
   });
+})();
+</script>
+
+
+
+<!-- ===== 밴드/카페 아이콘 사라짐 복구 패치 ===== -->
+<style id="login-band-cafe-force-visible-style">
+  /* 메인메모 아래 밴드/카페 아이콘을 항상 표시 */
+  .member-auth-gate > .member-login-top-links {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    align-items: center !important;
+    justify-items: center !important;
+    width: min(300px, 86vw) !important;
+    gap: 78px !important;
+    margin: 0 auto 8px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    min-height: 58px !important;
+    position: relative !important;
+    z-index: 30 !important;
+  }
+  .member-auth-gate > .member-login-top-links .member-login-top-logo-link,
+  .member-auth-gate > .member-login-top-links .member-login-top-logo-link.is-disabled {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 58px !important;
+    height: 58px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    position: relative !important;
+    z-index: 31 !important;
+  }
+  .member-auth-gate > .member-login-top-links img {
+    display: block !important;
+    width: 58px !important;
+    height: 58px !important;
+    object-fit: contain !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  @media (max-width: 430px) {
+    .member-auth-gate > .member-login-top-links {
+      width: min(270px, 86vw) !important;
+      gap: 70px !important;
+      min-height: 54px !important;
+    }
+    .member-auth-gate > .member-login-top-links .member-login-top-logo-link,
+    .member-auth-gate > .member-login-top-links .member-login-top-logo-link.is-disabled,
+    .member-auth-gate > .member-login-top-links img {
+      width: 54px !important;
+      height: 54px !important;
+    }
+  }
+</style>
+<script id="login-band-cafe-force-visible-script">
+(function(){
+  "use strict";
+  if (window.__loginBandCafeForceVisiblePatchApplied) return;
+  window.__loginBandCafeForceVisiblePatchApplied = true;
+
+  function byId(id){ return document.getElementById(id); }
+
+  function normalizeUrl(raw){
+    var text = String(raw || "").trim();
+    if (!text) return "#";
+    if (/^(https?:\/\/)/i.test(text)) return text;
+    return "https://" + text;
+  }
+
+  function makeImg(src, alt, fallback){
+    var img = document.createElement("img");
+    img.src = src;
+    img.alt = alt;
+    img.onerror = function(){
+      if (fallback && img.src.indexOf(fallback) === -1) img.src = fallback;
+    };
+    return img;
+  }
+
+  function ensureAnchor(id, cls, imgSrc, fallbackSrc, alt){
+    var a = byId(id);
+    if (!a) {
+      a = document.createElement("a");
+      a.id = id;
+      a.className = cls;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+    }
+    a.classList.add("member-login-top-logo-link");
+    a.classList.remove("is-disabled");
+    a.setAttribute("aria-disabled", "false");
+    a.style.display = "inline-flex";
+    a.style.visibility = "visible";
+    a.style.opacity = "1";
+    a.style.pointerEvents = "auto";
+
+    var img = a.querySelector("img");
+    if (!img) {
+      a.textContent = "";
+      img = makeImg(imgSrc, alt, fallbackSrc);
+      a.appendChild(img);
+    } else {
+      img.src = imgSrc;
+      img.alt = alt;
+      img.onerror = function(){
+        if (fallbackSrc && img.src.indexOf(fallbackSrc) === -1) img.src = fallbackSrc;
+      };
+    }
+    return a;
+  }
+
+  function restore(){
+    var gate = byId("memberAuthGate");
+    var memo = byId("memberLoginMainMemoBox");
+    if (!gate || !memo) return;
+
+    var links = document.querySelector(".member-login-top-links");
+    if (!links) {
+      links = document.createElement("div");
+      links.className = "member-login-top-links";
+      links.setAttribute("aria-label", "밴드 카페 바로가기");
+    }
+
+    var band = ensureAnchor("memberLoginLogoLink1", "member-login-top-logo-link", "band_icon_180.png", "band.png", "밴드");
+    var cafe = ensureAnchor("memberLoginLogoLink2", "member-login-top-logo-link", "cafe_icon_180.png", "cafe.png", "카페");
+
+    if (band.parentNode !== links) links.appendChild(band);
+    if (cafe.parentNode !== links) links.appendChild(cafe);
+
+    var input1 = byId("loginTopLogoLink1Input");
+    var input2 = byId("loginTopLogoLink2Input");
+    band.href = normalizeUrl(input1 ? input1.value : band.getAttribute("href"));
+    cafe.href = normalizeUrl(input2 ? input2.value : cafe.getAttribute("href"));
+
+    if (links.parentNode !== gate) memo.insertAdjacentElement("afterend", links);
+    if (links.previousElementSibling !== memo) memo.insertAdjacentElement("afterend", links);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", restore);
+  } else {
+    restore();
+  }
+  window.addEventListener("load", restore);
+  setTimeout(restore, 100);
+  setTimeout(restore, 500);
+  setTimeout(restore, 1500);
+})();
+</script>
+
+
+
+<!-- ===== 회원가입 화면: 밴드/카페 숨김 + 전체 메뉴 화면 맞춤 패치 ===== -->
+<style id="signup-hide-band-cafe-fit-screen-style">
+  /* 회원가입 메뉴 진입 중에는 밴드/카페 바로가기 아이콘 숨김 */
+  body.member-signup-open .member-auth-gate > .member-login-top-links {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* 회원가입 입력 메뉴가 화면 안에 들어오도록 로그인 게이트를 상단 정렬 + 스크롤 가능 처리 */
+  body.member-signup-open .member-auth-gate {
+    justify-content: flex-start !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-top: 8px !important;
+    padding-bottom: 10px !important;
+    gap: 4px !important;
+  }
+
+  body.member-signup-open .member-auth-gate > .member-login-refresh-row {
+    margin: 0 auto 2px !important;
+  }
+
+  body.member-signup-open #memberLoginMainMemoBox {
+    max-height: 58px !important;
+    min-height: 0 !important;
+    margin: 0 auto 4px !important;
+    overflow-y: auto !important;
+  }
+
+  body.member-signup-open .member-auth-box {
+    margin: 0 auto 10px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  body.member-signup-open .member-auth-box .member-login-logo {
+    width: 78px !important;
+    height: 78px !important;
+    margin: 0 auto 5px !important;
+    border-radius: 14px !important;
+  }
+
+  body.member-signup-open .member-auth-title {
+    margin-bottom: 6px !important;
+    font-size: 14px !important;
+  }
+
+  body.member-signup-open .member-auth-row {
+    margin-bottom: 4px !important;
+    gap: 5px !important;
+  }
+
+  body.member-signup-open .member-auth-row input,
+  body.member-signup-open .member-auth-row select {
+    height: 26px !important;
+    font-size: 11px !important;
+  }
+
+  body.member-signup-open .member-auth-actions,
+  body.member-signup-open .member-signup-actions {
+    margin-top: 5px !important;
+    gap: 5px !important;
+  }
+
+  body.member-signup-open .member-auth-actions button,
+  body.member-signup-open .member-signup-actions button {
+    height: 28px !important;
+    font-size: 11px !important;
+  }
+
+  body.member-signup-open .member-signup-panel {
+    margin-top: 6px !important;
+    padding-top: 6px !important;
+  }
+
+  body.member-signup-open .member-auth-message {
+    margin-top: 5px !important;
+    min-height: 15px !important;
+    font-size: 11px !important;
+  }
+
+  @media (max-width: 430px) {
+    body.member-signup-open .member-auth-gate {
+      padding: 6px 10px 8px !important;
+      gap: 3px !important;
+    }
+    body.member-signup-open #memberLoginMainMemoBox {
+      max-height: 48px !important;
+      margin-bottom: 3px !important;
+    }
+    body.member-signup-open .member-auth-box {
+      width: min(330px, 94vw) !important;
+      padding: 7px 10px 8px !important;
+    }
+    body.member-signup-open .member-auth-box .member-login-logo {
+      width: 66px !important;
+      height: 66px !important;
+      margin-bottom: 4px !important;
+    }
+    body.member-signup-open .member-auth-title {
+      font-size: 13px !important;
+      margin-bottom: 5px !important;
+    }
+    body.member-signup-open .member-auth-row {
+      grid-template-columns: 58px auto !important;
+      margin-bottom: 3px !important;
+    }
+    body.member-signup-open .member-auth-row label {
+      font-size: 11px !important;
+    }
+    body.member-signup-open .member-auth-row input,
+    body.member-signup-open .member-auth-row select {
+      height: 25px !important;
+      font-size: 11px !important;
+    }
+  }
+</style>
+<script id="signup-hide-band-cafe-fit-screen-script">
+(function(){
+  "use strict";
+  if (window.__signupHideBandCafeFitScreenPatchApplied) return;
+  window.__signupHideBandCafeFitScreenPatchApplied = true;
+
+  function byId(id){ return document.getElementById(id); }
+
+  function isSignupOpen(){
+    var box = document.querySelector(".member-auth-box");
+    var panel = byId("memberSignupPanel");
+    return !!((box && box.classList.contains("signup-open")) || (panel && panel.classList.contains("is-open")));
+  }
+
+  function applySignupScreenState(){
+    var open = isSignupOpen();
+    document.body.classList.toggle("member-signup-open", open);
+
+    var links = document.querySelector(".member-auth-gate > .member-login-top-links");
+    if (links) {
+      links.setAttribute("aria-hidden", open ? "true" : "false");
+      links.style.pointerEvents = open ? "none" : "";
+    }
+  }
+
+  function bind(){
+    applySignupScreenState();
+
+    ["memberJoinOpenBtn", "memberJoinCancelBtn", "memberJoinSubmitBtn", "memberLoginBtn", "memberPasswordChangeOpenBtn"].forEach(function(id){
+      var el = byId(id);
+      if (el && !el.dataset.signupFitBound) {
+        el.dataset.signupFitBound = "1";
+        el.addEventListener("click", function(){ setTimeout(applySignupScreenState, 0); setTimeout(applySignupScreenState, 80); }, true);
+      }
+    });
+
+    var box = document.querySelector(".member-auth-box");
+    var panel = byId("memberSignupPanel");
+    if (window.MutationObserver) {
+      [box, panel].forEach(function(target){
+        if (!target || target.dataset.signupFitObserved) return;
+        target.dataset.signupFitObserved = "1";
+        try {
+          new MutationObserver(function(){ applySignupScreenState(); }).observe(target, { attributes:true, attributeFilter:["class"] });
+        } catch(error) {}
+      });
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
+  else bind();
+  window.addEventListener("load", bind);
+  setTimeout(bind, 100);
+  setTimeout(applySignupScreenState, 500);
 })();
 </script>
 
