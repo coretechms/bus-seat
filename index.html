@@ -2109,6 +2109,66 @@ body.admin-entry-only #adminLoginPanel.hidden{
 
 
 /* 요청 수정: 가입신청 나가기 버튼은 로그인 버튼과 같은 가로 사이즈 */
+
+/* 요청 수정: 회원관리 기본화면은 신규 승인대기자만 표시 + 가입회원보기 토글 */
+.member-manage-title-search{
+  max-width:68% !important;
+}
+.member-manage-topbar .member-manage-header-actions{
+  max-width:32% !important;
+}
+.member-manage-title-search #memberManageMemberListBtn,
+.member-manage-title-search #memberApprovedToggleBtn{
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:58px !important;
+  max-width:86px !important;
+  height:24px !important;
+  min-height:24px !important;
+  padding:0 7px !important;
+  border-radius:10px !important;
+  font-size:10px !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+}
+.member-manage-title-search #memberManageMemberListBtn{
+  min-width:64px !important;
+  max-width:92px !important;
+  font-size:11px !important;
+}
+.member-manage-title-search #memberApprovedToggleBtn.is-open{
+  background:#0b7a28 !important;
+  border-color:#0b7a28 !important;
+  color:#fff !important;
+}
+.member-manage-topbar #memberApprovalRefreshBtn{
+  display:none !important;
+}
+@media(max-width:760px){
+  .member-manage-title-search{max-width:76% !important;}
+  .member-manage-topbar .member-manage-header-actions{max-width:24% !important;}
+  .member-manage-title-search #memberApprovalSearchInput{
+    flex-basis:58px !important;
+    width:58px !important;
+    min-width:44px !important;
+    max-width:64px !important;
+  }
+  .member-manage-title-search #memberManageMemberListBtn,
+  .member-manage-title-search #memberApprovedToggleBtn{
+    min-width:42px !important;
+    max-width:62px !important;
+    height:22px !important;
+    min-height:22px !important;
+    font-size:8px !important;
+    padding:0 3px !important;
+  }
+  .member-manage-title-search #memberManageMemberListBtn{
+    min-width:48px !important;
+    max-width:68px !important;
+    font-size:9px !important;
+  }
+}
+
 #memberJoinCloseBtn {
   width: 92px !important;
   min-width: 92px !important;
@@ -3528,6 +3588,7 @@ body.member-mode .controls {
                 <div class="member-manage-title-search">
                   <input id="memberApprovalSearchInput" type="search" autocomplete="off" placeholder="이름검색" aria-label="회원 이름 검색" />
                   <button class="btn btn-outline" id="memberManageMemberListBtn" type="button" title="회원정보 페이지로 이동">회원정보</button>
+                  <button class="btn btn-outline" id="memberApprovedToggleBtn" type="button" aria-expanded="false">가입회원보기</button>
                 </div>
                 <div class="member-manage-header-actions">
                   <button class="btn btn-outline" id="memberLoginManageBtn" type="button">로그관리</button>
@@ -3562,6 +3623,7 @@ body.member-mode .controls {
               <div class="login-manage-topbar">
                 <div class="login-manage-title">로그관리</div>
                 <div class="login-manage-actions">
+                  <button class="btn btn-outline" id="loginManageBackBtn" type="button">나가기</button>
                   <button class="btn btn-outline" id="loginLogRefreshBtn" type="button">새로고침</button>
                   <button class="btn btn-outline" id="loginLogDownloadBtn" type="button">텍스트저장</button>
                   <button class="btn btn-outline" id="loginLogDeleteBtn" type="button">기록삭제</button>
@@ -6467,6 +6529,13 @@ function renderAll() {
         alert("관리자 로그인후 변경 가능 합니다.");
         return;
       }
+      if (state.mode === "admin") {
+        if (adminSeatEditArmed !== seat.number) {
+          adminSeatEditArmed = seat.number;
+          return;
+        }
+        adminSeatEditArmed = null;
+      }
       state.adminSeat = String(seat.number);
       state.adminStatus = seat.name
         ? normalizeSeatStatus(seat.status === "empty" ? "reserved" : seat.status)
@@ -6478,6 +6547,7 @@ function renderAll() {
       renderAll();
     }
 
+    let adminSeatEditArmed = null;
     let inlineSeatSaveBusy = false;
 
     async function handleInlineSave(seatNumber) {
@@ -10749,6 +10819,21 @@ function renderAll() {
     return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
   }
 
+  function isMemberApprovedListVisible() {
+    return window.__memberApprovedListVisible === true;
+  }
+
+  function setMemberApprovedListVisible(visible) {
+    window.__memberApprovedListVisible = !!visible;
+    const btn = byId("memberApprovedToggleBtn");
+    if (btn) {
+      btn.classList.toggle("is-open", !!visible);
+      btn.setAttribute("aria-expanded", visible ? "true" : "false");
+      btn.textContent = visible ? "가입회원닫기" : "가입회원보기";
+    }
+    applyMemberApprovalSearchFilter();
+  }
+
   function applyMemberApprovalSearchFilter() {
     const inputEl = byId("memberApprovalSearchInput");
     const listEl = byId("memberApprovalList");
@@ -10756,6 +10841,7 @@ function renderAll() {
     if (!listEl) return;
 
     const query = normalizeMemberApprovalSearchText(inputEl ? inputEl.value : "");
+    const showApproved = isMemberApprovedListVisible();
     const cards = Array.from(listEl.querySelectorAll(".member-approval-card"));
     let visibleCount = 0;
 
@@ -10764,8 +10850,12 @@ function renderAll() {
       const code = normalizeMemberApprovalSearchText(card.dataset ? card.dataset.memberCode : "");
       const text = normalizeMemberApprovalSearchText(card.textContent || "");
       const matched = !query || name.includes(query) || code.includes(query) || text.includes(query);
-      card.style.display = matched ? "" : "none";
-      if (matched) visibleCount += 1;
+      const isPendingCard = card.classList.contains("pending-member");
+      const isApprovedCard = card.classList.contains("approved-member");
+      const allowedByToggle = showApproved ? (isPendingCard || isApprovedCard) : isPendingCard;
+      const visible = matched && allowedByToggle;
+      card.style.display = visible ? "" : "none";
+      if (visible) visibleCount += 1;
     });
 
     if (emptyEl) {
@@ -10822,11 +10912,12 @@ function renderAll() {
     listEl.innerHTML = members.map((m) => {
       const adminText = m.adminAccess ? "관리자" : "회원";
       const approvedCardClass = (m.approved && m.status === "active") ? " approved-member" : "";
+      const pendingCardClass = (String(m?.status || "") === "pending") ? " pending-member" : "";
       const duplicateJoin = !!(String(m?.name || "").replace(/\s+/g, "").trim() && approvedNamesForDuplicateJoin.has(String(m?.name || "").replace(/\s+/g, "").trim()) && (m.status === "pending" || !m.approved));
       const resultText = joinResultLabel(m);
       const resultSegment = resultText === "승인" ? "" : ` · 승인결과: ${escapeHtml(resultText)}`;
       return `
-        <div class="member-approval-card${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${escapeHtml(m.code)}" data-member-name="${escapeHtml(m.name || '')}">
+        <div class="member-approval-card${pendingCardClass}${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${escapeHtml(m.code)}" data-member-name="${escapeHtml(m.name || '')}">
           <div class="member-approval-card-title">${escapeHtml(m.name)} / ${escapeHtml(m.code)} / ${escapeHtml(statusLabelForMember(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
           <div>성별: ${escapeHtml(m.gender || '-')} · 닉네임: ${escapeHtml(m.nickname || '-')} · 출생년도: ${escapeHtml(m.birthYear || '-')} · 거주지: ${escapeHtml(m.dong || '-')}</div>
           <div>전화: ${escapeHtml(window.maskPhoneLast4(m.phone || '-'))}</div>
@@ -10850,6 +10941,12 @@ function renderAll() {
   if (memberApprovalSearchInput) {
     memberApprovalSearchInput.addEventListener("input", applyMemberApprovalSearchFilter);
     memberApprovalSearchInput.addEventListener("search", applyMemberApprovalSearchFilter);
+  }
+
+  const memberApprovedToggleBtn = byId("memberApprovedToggleBtn");
+  if (memberApprovedToggleBtn) {
+    memberApprovedToggleBtn.textContent = isMemberApprovedListVisible() ? "가입회원닫기" : "가입회원보기";
+    memberApprovedToggleBtn.setAttribute("aria-expanded", isMemberApprovedListVisible() ? "true" : "false");
   }
 
   async function updateMemberApprovalStatus(code, action) {
@@ -11764,11 +11861,12 @@ if (action === "delete") {
       </div>
       ${members.map((m) => {
         const approvedCardClass = (m.approved && m.status === 'active') ? ' approved-member' : '';
+        const pendingCardClass = (String(m.status || '') === 'pending') ? ' pending-member' : '';
         const duplicateJoin = isDuplicateJoinMember(m, duplicateJoinNames);
         const resultText = joinResultLabel(m);
         const resultSegment = resultText === "승인" ? "" : ` · 승인결과: ${esc(resultText)}`;
         return `
-        <div class="member-approval-card${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${esc(m.code)}" data-member-name="${esc(m.name || '')}">
+        <div class="member-approval-card${pendingCardClass}${approvedCardClass}${duplicateJoin ? ' duplicate-join-person' : ''}" data-member-code="${esc(m.code)}" data-member-name="${esc(m.name || '')}">
           <div class="member-approval-card-title">${esc(m.name || '-')} / ${esc(m.code)} / ${esc(label(m))}${duplicateJoin ? '<span class="duplicate-join-badge">중복가입</span>' : ''}</div>
           <div>성별: ${esc(m.gender || '-')} · 닉네임: ${esc(m.nickname || '-')} · 출생년도: ${esc(m.birthYear || '-')} · 거주지: ${esc(m.dong || '-')}</div>
           <div>전화: ${esc(window.maskPhoneLast4(m.phone || '-'))}</div>
@@ -11782,6 +11880,9 @@ if (action === "delete") {
           </div>
         </div>`;
       }).join('')}`;
+    if (typeof applyMemberApprovalSearchFilter === 'function') {
+      applyMemberApprovalSearchFilter();
+    }
   }
   function makeMemberJsonBackupFileName() {
     const d = new Date();
@@ -13830,6 +13931,12 @@ if (action === "delete") {
       forceLoadMemberManageList();
       return;
     }
+    const memberApprovedToggleBtn = event.target.closest('#memberManagePanel #memberApprovedToggleBtn');
+    if (memberApprovedToggleBtn) {
+      event.preventDefault();
+      setMemberApprovedListVisible(!isMemberApprovedListVisible());
+      return;
+    }
     const memberManageMemberListBtn = event.target.closest('#memberManagePanel #memberManageMemberListBtn');
     if (memberManageMemberListBtn) {
       event.preventDefault();
@@ -15751,6 +15858,105 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
   window.addEventListener("load", scheduleResize);
   window.__resizeInfoGuideBox = scheduleResize;
+})();
+</script>
+
+
+
+<script id="member-approved-box-toggle-final-fix">
+(function(){
+  "use strict";
+  window.__memberApprovedListVisible = window.__memberApprovedListVisible === true;
+
+  function norm(value){
+    return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
+  }
+
+  function isPendingCard(card){
+    if (!card) return false;
+    if (card.classList && card.classList.contains("pending-member")) return true;
+    var text = card.textContent || "";
+    return /가입대기|승인대기|미승인/.test(text) && !isApprovedCard(card);
+  }
+
+  function isApprovedCard(card){
+    if (!card) return false;
+    if (card.classList && card.classList.contains("approved-member")) return true;
+    var text = card.textContent || "";
+    return /승인완료/.test(text);
+  }
+
+  function updateButton(){
+    var btn = document.getElementById("memberApprovedToggleBtn");
+    if (!btn) return;
+    var open = window.__memberApprovedListVisible === true;
+    btn.classList.toggle("is-open", open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.textContent = open ? "가입회원닫기" : "가입회원보기";
+  }
+
+  function applyApprovedBoxToggle(){
+    var panel = document.getElementById("memberManagePanel");
+    if (!panel) return;
+    var list = panel.querySelector("#memberApprovalList") || document.getElementById("memberApprovalList");
+    if (!list) return;
+
+    var input = panel.querySelector("#memberApprovalSearchInput") || document.getElementById("memberApprovalSearchInput");
+    var query = norm(input ? input.value : "");
+    var showApproved = window.__memberApprovedListVisible === true;
+    var cards = Array.prototype.slice.call(list.querySelectorAll(".member-approval-card"));
+    var visibleCount = 0;
+
+    cards.forEach(function(card){
+      var text = norm((card.dataset ? ((card.dataset.memberName || "") + " " + (card.dataset.memberCode || "")) : "") + " " + (card.textContent || ""));
+      var matched = !query || text.indexOf(query) !== -1;
+      var pending = isPendingCard(card);
+      var approved = isApprovedCard(card);
+
+      // 기본 화면: 신규회원 가입대기자만 표시.
+      // 가입회원보기 열림: 가입대기자 + 승인완료 회원만 표시.
+      var allowed = pending || (showApproved && approved);
+      card.style.display = (matched && allowed) ? "" : "none";
+      if (matched && allowed) visibleCount += 1;
+    });
+
+    var empty = panel.querySelector("#memberApprovalSearchEmpty") || document.getElementById("memberApprovalSearchEmpty");
+    if (empty) empty.classList.toggle("is-visible", !!query && cards.length > 0 && visibleCount === 0);
+    updateButton();
+  }
+
+  window.__applyApprovedBoxToggleFinalFix = applyApprovedBoxToggle;
+
+  document.addEventListener("click", function(event){
+    var btn = event.target && event.target.closest ? event.target.closest("#memberManagePanel #memberApprovedToggleBtn") : null;
+    if (!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    window.__memberApprovedListVisible = !(window.__memberApprovedListVisible === true);
+    applyApprovedBoxToggle();
+  }, true);
+
+  document.addEventListener("input", function(event){
+    if (event.target && event.target.id === "memberApprovalSearchInput") {
+      setTimeout(applyApprovedBoxToggle, 0);
+    }
+  }, true);
+
+  function startObserver(){
+    updateButton();
+    applyApprovedBoxToggle();
+    var list = document.querySelector("#memberManagePanel #memberApprovalList") || document.getElementById("memberApprovalList");
+    if (list && window.MutationObserver && !list.__approvedBoxToggleObserverAttached) {
+      list.__approvedBoxToggleObserverAttached = true;
+      new MutationObserver(function(){ setTimeout(applyApprovedBoxToggle, 0); }).observe(list, { childList:true, subtree:true });
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", startObserver);
+  window.addEventListener("load", startObserver);
+  setTimeout(startObserver, 300);
+  setTimeout(startObserver, 1200);
 })();
 </script>
 
