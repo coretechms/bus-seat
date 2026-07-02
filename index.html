@@ -3287,6 +3287,156 @@ body.member-mode .controls {
 }
 </style>
 
+
+
+<style id="member-manage-board-button-layout-fixed">
+/* 회원관리 보드 버튼 위치 수정
+   1행: 이름검색(20% 확대) / 로그관리 / 관리자
+   2행: 회원정보 / 가입회원보기(20% 확대)
+   실제 존재하는 ID 기준으로 적용 */
+#memberManagePanel .member-manage-topbar{
+  display:grid !important;
+  grid-template-columns:minmax(112px, 1.2fr) minmax(54px, auto) minmax(48px, auto) !important;
+  grid-template-areas:
+    "search log admin"
+    "info join join" !important;
+  gap:6px !important;
+  align-items:center !important;
+  width:100% !important;
+  max-width:100% !important;
+  overflow:visible !important;
+  margin-bottom:7px !important;
+}
+#memberManagePanel .member-manage-title-search,
+#memberManagePanel .member-manage-header-actions{
+  display:contents !important;
+}
+#memberManagePanel #memberApprovalSearchInput{
+  grid-area:search !important;
+  width:100% !important;
+  min-width:112px !important;
+  max-width:none !important;
+  height:24px !important;
+  min-height:24px !important;
+  padding:0 8px !important;
+  font-size:10px !important;
+  border-radius:10px !important;
+  box-sizing:border-box !important;
+}
+#memberManagePanel #memberLoginManageBtn{
+  grid-area:log !important;
+}
+#memberManagePanel #memberManageAdminToggleBtn{
+  grid-area:admin !important;
+}
+#memberManagePanel #memberManageMemberListBtn{
+  grid-area:info !important;
+  width:100% !important;
+  min-width:72px !important;
+}
+#memberManagePanel #memberApprovedToggleBtn{
+  grid-area:join !important;
+  width:100% !important;
+  min-width:96px !important;
+}
+#memberManagePanel #memberApprovalRefreshBtn{
+  display:none !important;
+}
+#memberManagePanel #memberManageMemberListBtn,
+#memberManagePanel #memberApprovedToggleBtn,
+#memberManagePanel #memberLoginManageBtn,
+#memberManagePanel #memberManageAdminToggleBtn{
+  height:24px !important;
+  min-height:24px !important;
+  padding:0 7px !important;
+  border-radius:10px !important;
+  font-size:10px !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:clip !important;
+  box-sizing:border-box !important;
+}
+#memberManagePanel #memberManageAdminGroupPanel{
+  grid-column:1 / -1 !important;
+  width:100% !important;
+  max-width:100% !important;
+  margin-top:2px !important;
+}
+#memberManagePanel #memberManageAdminGroupPanel[hidden]{
+  display:none !important;
+}
+@media(max-width:760px){
+  #memberManagePanel .member-manage-topbar{
+    grid-template-columns:minmax(104px, 1.2fr) minmax(50px, auto) minmax(44px, auto) !important;
+    gap:5px !important;
+  }
+  #memberManagePanel #memberApprovalSearchInput{
+    min-width:104px !important;
+    height:23px !important;
+    min-height:23px !important;
+    font-size:9px !important;
+    padding:0 6px !important;
+  }
+  #memberManagePanel #memberManageMemberListBtn,
+  #memberManagePanel #memberApprovedToggleBtn,
+  #memberManagePanel #memberLoginManageBtn,
+  #memberManagePanel #memberManageAdminToggleBtn{
+    height:23px !important;
+    min-height:23px !important;
+    padding:0 5px !important;
+    font-size:9px !important;
+  }
+  #memberManagePanel #memberManageMemberListBtn{min-width:68px !important;}
+  #memberManagePanel #memberApprovedToggleBtn{min-width:90px !important;}
+}
+</style>
+
+
+
+<style id="member-manage-search50-join-gap-fix">
+/* 요청 수정: 이름검색 칸 50% 축소 + 가입회원보기 버튼을 회원정보 옆 5글자 간격으로 배치 */
+#memberManagePanel .member-manage-topbar{
+  grid-template-columns:minmax(112px, 1.2fr) minmax(54px, auto) minmax(48px, auto) !important;
+  grid-template-areas:
+    "search log admin"
+    "info join join" !important;
+}
+#memberManagePanel #memberApprovalSearchInput{
+  width:50% !important;
+  min-width:52px !important;
+  max-width:50% !important;
+  justify-self:start !important;
+}
+#memberManagePanel #memberManageMemberListBtn{
+  grid-area:info !important;
+  justify-self:start !important;
+  width:auto !important;
+  min-width:72px !important;
+}
+#memberManagePanel #memberApprovedToggleBtn{
+  grid-area:join !important;
+  justify-self:start !important;
+  width:auto !important;
+  min-width:96px !important;
+  margin-left:5ch !important;
+}
+@media(max-width:760px){
+  #memberManagePanel .member-manage-topbar{
+    grid-template-columns:minmax(104px, 1.2fr) minmax(50px, auto) minmax(44px, auto) !important;
+  }
+  #memberManagePanel #memberApprovalSearchInput{
+    width:50% !important;
+    min-width:48px !important;
+    max-width:50% !important;
+  }
+  #memberManagePanel #memberApprovedToggleBtn{
+    margin-left:5ch !important;
+    min-width:90px !important;
+  }
+}
+</style>
+
 </head>
 <body class="membership-locked">
 
@@ -3309,11 +3459,11 @@ body.member-mode .controls {
 
       <h2 id="memberAuthTitle" class="member-auth-title">Geom_Am Mountain Members</h2>
       <div class="member-auth-row">
-        <label for="memberLoginNameInput">아이디</label>
+        <label for="memberLoginNameInput"> </label>
         <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
       </div>
       <div class="member-auth-row">
-        <label for="memberLoginPasswordInput">비밀번호</label>
+        <label for="memberLoginPasswordInput"> </label>
          <input id="memberLoginPasswordInput" type="tel" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" autocapitalize="off" autocorrect="off" spellcheck="false" style="-webkit-text-security: disc; text-security: disc;">
       </div>
 
@@ -6530,11 +6680,29 @@ function renderAll() {
         return;
       }
       if (state.mode === "admin") {
+        const nextAdminStatus = seat.name
+          ? normalizeSeatStatus(seat.status === "empty" ? "reserved" : seat.status)
+          : "reserved";
         if (adminSeatEditArmed !== seat.number) {
           adminSeatEditArmed = seat.number;
+          state.adminSeat = String(seat.number);
+          state.adminStatus = nextAdminStatus;
+          state.memberSeat = String(seat.number);
+          state.memberName = seat.name || "";
+          state.editingSeat = null;
+          state.editName = "";
+          renderAll();
           return;
         }
         adminSeatEditArmed = null;
+        state.adminSeat = String(seat.number);
+        state.adminStatus = nextAdminStatus;
+        state.memberSeat = String(seat.number);
+        state.memberName = seat.name || "";
+        state.editingSeat = seat.number;
+        state.editName = seat.name || "";
+        renderAll();
+        return;
       }
       state.adminSeat = String(seat.number);
       state.adminStatus = seat.name
