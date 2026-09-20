@@ -4188,9 +4188,9 @@ const firebaseConfig = {
       });
     }
 
-    async function confirmDuplicateNameAction(name) {
+    async function confirmDuplicateNameAction(name, excludeSeatNumber = null) {
       const normalizedName = normalizeName(name);
-      const duplicateSeats = getSameNameSeats(normalizedName);
+      const duplicateSeats = getSameNameSeats(normalizedName, excludeSeatNumber);
       if (duplicateSeats.length === 0) {
         return { type: "normal", name: normalizedName, sourceSeat: null };
       }
@@ -4203,7 +4203,7 @@ const firebaseConfig = {
         return { type: "move", name: normalizedName, sourceSeat, moveStatus };
       }
       if (choice === "duplicate") {
-        const uniqueName = buildDuplicateName(normalizedName);
+        const uniqueName = buildDuplicateName(normalizedName, excludeSeatNumber);
         return { type: "duplicate", name: uniqueName, sourceSeat: null, originalName: normalizedName };
       }
       return { type: "cancel", name: normalizedName, sourceSeat: null };
@@ -4214,10 +4214,10 @@ const firebaseConfig = {
       const now = Date.now();
       state.seats = state.seats.map((seat) => {
         if (sourceSeatNo && seat.number === sourceSeatNo) {
-          return { ...seat, name: "", status: "empty", memo: "", updatedAt: now, updatedBy: state.clientId };
+          return { ...seat, name: "", status: "empty", memo: "", updatedAt: now, updatedBy: state.clientId, ownerMemberCode: "" };
         }
         if (seat.number === Number(targetSeatNo)) {
-          return { ...seat, name: nextName, status: nextName ? nextStatus : "empty", memo: nextName ? (seat.memo || "") : "", updatedAt: now, updatedBy: state.clientId };
+          return { ...seat, name: nextName, status: nextName ? nextStatus : "empty", memo: nextName ? (seat.memo || "") : "", updatedAt: now, updatedBy: state.clientId, ownerMemberCode: nextName && state.mode === "member" ? getCurrentMemberSessionCode() : (nextName ? (seat.ownerMemberCode || "") : "") };
         }
         return seat;
       });
@@ -4231,6 +4231,7 @@ const firebaseConfig = {
         status: "empty",
         updatedAt: 0,
         updatedBy: "",
+        ownerMemberCode: "",
         memo: ""
       }));
     }
@@ -4243,6 +4244,7 @@ const firebaseConfig = {
           status: "empty",
           updatedAt: Date.now(),
           updatedBy: "system",
+          ownerMemberCode: "",
           memo: ""
         };
       });
@@ -4851,12 +4853,31 @@ function removeGuideColorFromSelection(editor) {
       return `${displayNo}번 ${seat.name ? `- ${seat.name}` : "- 빈자리"}`;
     }
 
+    function getCurrentMemberSessionCode() {
+      try {
+        const raw = sessionStorage.getItem("bus-seat-approved-member-session-v1");
+        if (!raw) return "";
+        const session = JSON.parse(raw);
+        return String(session?.code || "").trim();
+      } catch (error) {
+        return "";
+      }
+    }
+
+    function isOwnWaitingSeat(seat) {
+      if (!seat || state.mode !== "member" || seat.status !== "waiting" || !seat.name) return false;
+      const memberCode = getCurrentMemberSessionCode();
+      const ownerCode = String(seat.ownerMemberCode || "").trim();
+      return Boolean(memberCode && ownerCode && memberCode === ownerCode);
+    }
+
     function seatLocked(seat) {
       if (isBlockedSeat(seat.number)) return true;
       if (state.mode !== "member") return false;
       if (isAdminOnlySeatForMember(seat.number)) return true;
       if (seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_new_move" || seat.status === "paid_reserved") return true;
       if (!seat.name) return false;
+      if (isOwnWaitingSeat(seat)) return false;
       const duplicateRole = getDuplicateSeatRole(seat);
       return duplicateRole === "normal";
     }
@@ -4916,7 +4937,7 @@ function removeGuideColorFromSelection(editor) {
         const duplicateRole = getDuplicateSeatRole(seat);
         let disabled = false;
         if (state.mode === "member") {
-          const selectableNamedSeat = !!seat.name && duplicateRole !== "normal";
+          const selectableNamedSeat = !!seat.name && (duplicateRole !== "normal" || isOwnWaitingSeat(seat));
           disabled = blocked || isAdminOnlySeatForMember(seat.number) || (!!seat.name && !selectableNamedSeat);
         } else if (!(state.mode === "admin" && state.isAdminAuthenticated)) {
           disabled = blocked;
@@ -6098,6 +6119,7 @@ function renderAll() {
           status: nextName ? nextStatus : "empty",
           updatedAt: raw.updatedAt || 0,
           updatedBy: raw.updatedBy || "",
+          ownerMemberCode: String(raw.ownerMemberCode || ""),
           memo: nextName ? String(raw.memo || "") : "",
           hasSecurityMemo: nextName ? Boolean(raw.hasSecurityMemo) : false
         };
@@ -6430,6 +6452,7 @@ function renderAll() {
           [`seats/${seatNo}/status`]: name ? (options.status || "waiting") : "empty",
           [`seats/${seatNo}/updatedAt`]: now,
           [`seats/${seatNo}/updatedBy`]: state.clientId,
+          [`seats/${seatNo}/ownerMemberCode`]: name ? getCurrentMemberSessionCode() : "",
           "meta/updatedAt": now
         };
 
@@ -6448,6 +6471,7 @@ function renderAll() {
           updates[`seats/${sourceSeatNo}/status`] = "empty";
           updates[`seats/${sourceSeatNo}/updatedAt`] = now;
           updates[`seats/${sourceSeatNo}/updatedBy`] = state.clientId;
+          updates[`seats/${sourceSeatNo}/ownerMemberCode`] = "";
           updates[`seats/${sourceSeatNo}/memo`] = "";
         }
 
@@ -6476,6 +6500,7 @@ function renderAll() {
           status: "empty",
           updatedAt: Date.now(),
           updatedBy: state.clientId,
+          ownerMemberCode: "",
           memo: ""
         }, {
           label: "clearMemberSeatRemote",
@@ -6491,12 +6516,17 @@ function renderAll() {
 
     async function saveSeatAdmin(seatNo, name, status) {
       if (!state.db) return false;
-      const ok = await safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
+      // 관리자 수정 규칙:
+      // 1) 이름/상태만 수정하면 기존 회원 입력자(ownerMemberCode)는 그대로 유지
+      // 2) 관리자가 좌석을 완전히 비우면 ownerMemberCode도 삭제하여 새 회원이 입력 가능
+      const adminSeatUpdate = {
         name,
         status: name ? status : "empty",
         updatedAt: Date.now(),
         updatedBy: state.clientId
-      }, {
+      };
+      if (!name) adminSeatUpdate.ownerMemberCode = "";
+      const ok = await safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), adminSeatUpdate, {
         label: "saveSeatAdmin",
         permissionMessage: "관리자 좌석 저장 권한이 없습니다.",
         genericMessage: "관리자 좌석 저장 실패"
@@ -6511,7 +6541,7 @@ function renderAll() {
       if (!state.db) return false;
       const seatsObject = {};
       for (let i = 1; i <= getCapacity(); i += 1) {
-        seatsObject[String(i)] = { name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId, memo: "" };
+        seatsObject[String(i)] = { name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId, ownerMemberCode: "", memo: "" };
       }
       return safeUpdate(ref(state.db, ROOT_PATH), {
         busType: state.busType,
@@ -6618,6 +6648,7 @@ function renderAll() {
         updates[`seats/${seatNo}/status`] = "empty";
         updates[`seats/${seatNo}/updatedAt`] = now;
         updates[`seats/${seatNo}/updatedBy`] = "system-expired";
+        updates[`seats/${seatNo}/ownerMemberCode`] = "";
         updates[`seats/${seatNo}/memo`] = "";
       });
       updates["meta/updatedAt"] = now;
@@ -6673,7 +6704,7 @@ function renderAll() {
           return;
         }
         const duplicateRole = getDuplicateSeatRole(seat);
-        if (seat.name && duplicateRole === "normal") return;
+        if (seat.name && duplicateRole === "normal" && !isOwnWaitingSeat(seat)) return;
         state.memberSeat = String(seat.number);
         state.memberName = seat.name || "";
         state.editingSeat = seat.number;
@@ -6755,7 +6786,7 @@ function renderAll() {
       let sourceSeatNo = null;
 
       if (state.mode === "member" && name) {
-        const duplicateDecision = await confirmDuplicateNameAction(name);
+        const duplicateDecision = await confirmDuplicateNameAction(name, seatNumber);
         if (duplicateDecision.type === "cancel") {
           state.editingSeat = null;
           state.editName = "";
@@ -6829,7 +6860,7 @@ function renderAll() {
         return;
       }
       const prevSeats = state.seats.map((seat) => ({ ...seat }));
-      const duplicateDecision = await confirmDuplicateNameAction(name);
+      const duplicateDecision = await confirmDuplicateNameAction(name, seatNo);
       if (duplicateDecision.type === "cancel") {
         return;
       }
@@ -7390,7 +7421,7 @@ function renderAll() {
       const prevName = prevSeat?.name || "";
       const prevStatus = prevSeat?.status || "empty";
       const nextStatus = trimmedName ? normalizeSeatStatus(state.adminStatus) : "empty";
-      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: trimmedName, status: nextStatus, updatedAt: Date.now(), updatedBy: state.clientId } : seat);
+      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: trimmedName, status: nextStatus, updatedAt: Date.now(), updatedBy: state.clientId, ownerMemberCode: trimmedName ? (seat.ownerMemberCode || "") : "" } : seat);
       state.editingSeat = null;
       state.editName = "";
       renderAll();
@@ -7465,7 +7496,7 @@ function renderAll() {
       const prevSeat = state.seats.find((s) => s.number === seatNo);
       const prevName = prevSeat?.name || "";
       const prevStatus = prevSeat?.status || "empty";
-      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId } : seat);
+      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId, ownerMemberCode: "" } : seat);
       state.memberName = "";
       state.editName = "";
       state.adminStatus = "reserved";
