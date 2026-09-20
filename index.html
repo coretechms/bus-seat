@@ -3437,6 +3437,28 @@ body.member-mode .controls {
 }
 </style>
 
+
+<style id="member-guide-removed-seat-expand-patch">
+/* 회원입력 안내문구 박스 제거 공간을 좌석 UI 세로 높이에 환원 */
+body.member-mode .seat {
+  min-height: 43px !important;
+  height: 43px !important;
+}
+body.member-mode .alt-arrow-cell {
+  min-height: 43px !important;
+  height: 43px !important;
+}
+@media (min-width: 761px) {
+  body.member-mode .seat {
+    min-height: 53px !important;
+    height: 53px !important;
+  }
+  body.member-mode .alt-arrow-cell {
+    min-height: 53px !important;
+    height: 53px !important;
+  }
+}
+</style>
 </head>
 <body class="membership-locked">
 
@@ -3816,7 +3838,6 @@ body.member-mode .controls {
 
           <div class="mode-divider" style="margin-top:16px; padding-top:14px;">
             
-            <div id="busInfoLocked" class="notice">공지 등록</div>
             <div id="busInfoEditor" class="hidden" style="margin-top:12px;">
               <div class="grid-2 admin-settings-only">
                 <div>
@@ -3854,22 +3875,7 @@ body.member-mode .controls {
                 </div>
               </div>
               <div style="margin-top:8px;">
-                <button class="btn btn-outline" id="adminInfoGuideBtn" type="button" style="width:100%; height:28px;">안내문구</button>
-                <div id="adminInfoGuidePanel" class="hidden">
-                  <div class="info-seat-guide-label-row">
-                    <label for="infoSeatGuideText">안내문구</label>
-                    <button class="btn btn-outline admin-settings-only" id="adminNoticeCheckBlinkBtn" type="button" style="width:auto; min-width:62px; height:24px; padding:0 8px; border-radius:10px; font-size:11px; white-space:nowrap;">공지확인</button>
-                    <div class="info-seat-guide-format-buttons" aria-label="안내문구 선택 서식">
-                      <button class="btn btn-outline" id="infoGuideBoldBtn" type="button">굵게</button>
-                      <button class="btn btn-outline" id="infoGuideBlueBtn" type="button">파랑</button>
-                      <button class="btn btn-outline" id="infoGuideRedBtn" type="button">빨강</button>
-                      <button class="btn btn-outline" id="infoGuideBlinkBtn" type="button">깜빡임</button>
-                    </div>
-                  </div>
-                  <div id="infoSeatGuideText" class="info-seat-guide-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
-                </div>
-
-                <button class="btn btn-outline" id="adminMainMemoBtn" type="button" style="width:100%; height:28px; margin-top:8px;">메인메모</button>
+                <button class="btn btn-outline" id="adminMainMemoBtn" type="button" style="width:100%; height:28px; margin-top:0;">메인메모</button>
                 <div id="adminMainMemoPanel" class="hidden">
                   <div class="main-memo-label-row">
                     <label for="mainMemoText">메인 메모</label>
