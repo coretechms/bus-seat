@@ -16646,6 +16646,35 @@ body.admin-mode:not(.member-manage-mode) .controls {
 })();
 </script>
 
+<style id="member-mode-top-ui-vertical-fit-final">
+/* 회원 입력 모드: 상단 좌석 UI를 조금 위로 올리고 하단 메뉴박스 표시 공간 확보 */
+body.member-mode .app {
+  padding-top: 4px !important;
+}
+body.member-mode .shell {
+  height: calc(100dvh - 12px) !important;
+  max-height: calc(100dvh - 12px) !important;
+}
+body.member-mode .seat,
+body.member-mode .alt-arrow-cell {
+  min-height: 42px !important;
+  height: 42px !important;
+}
+@media (max-width: 760px) {
+  body.member-mode .shell {
+    height: calc(100dvh - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+  }
+}
+@media (min-width: 761px) {
+  body.member-mode .seat,
+  body.member-mode .alt-arrow-cell {
+    min-height: 52px !important;
+    height: 52px !important;
+  }
+}
+</style>
+
 <style id="member-mode-controls-no-scroll-final">
 /* 회원 입력 모드: 하단 조작 박스 높이를 내용에 맞추고 내부 세로 스크롤을 만들지 않음 */
 body.member-mode .controls {
