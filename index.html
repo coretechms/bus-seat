@@ -482,7 +482,7 @@
       .seat { min-height: 38px; height: 38px; }
       .seat-number { top: 3px; font-size: 10px; }
       .seat-inner { padding: 7px 2px 1px; }
-      .seat-name { width: 80%; font-size: 15px; }
+      .seat-name { width: 80%; font-size: 16px; }
       .alt-seat-layout .seat-number { top: 2px; }
       .alt-seat-layout .seat-inner { padding-top: 5px; }
       .alt-seat-layout .seat-name { margin-top: 5px; }
@@ -776,9 +776,9 @@
     }
 
   
-    /* 빈 자리/참석인원(summary)와 회비 계좌(account) 사이 간격 조금 증가 */
+    /* 계좌 행 이동 후 좌석표 하단의 불필요한 여백 제거 */
     .summary {
-      margin-bottom: 6px !important;
+      margin-bottom: 0 !important;
     }
 
   
@@ -1089,6 +1089,17 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+    }
+    .hiking-notice-box > .account {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      flex: 0 0 auto;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--seatFilled);
+      box-shadow: 0 2px 7px rgba(0,0,0,0.08);
     }
     .hiking-notice-head {
       display: flex;
@@ -3455,23 +3466,37 @@ body.member-mode .controls {
 <style id="member-guide-removed-seat-expand-patch">
 /* 회원입력 안내문구 박스 제거 공간을 좌석 UI 세로 높이에 환원 */
 body.member-mode .seat {
-  min-height: 43px !important;
-  height: 43px !important;
+  min-height: 45px !important;
+  height: 45px !important;
 }
 body.member-mode .alt-arrow-cell {
-  min-height: 43px !important;
-  height: 43px !important;
+  min-height: 45px !important;
+  height: 45px !important;
 }
 @media (min-width: 761px) {
   body.member-mode .seat {
-    min-height: 53px !important;
-    height: 53px !important;
+    min-height: 55px !important;
+    height: 55px !important;
   }
   body.member-mode .alt-arrow-cell {
-    min-height: 53px !important;
-    height: 53px !important;
+    min-height: 55px !important;
+    height: 55px !important;
   }
 }
+</style>
+<style id="fleet-two-vehicle-style">
+.fleet-switch {display:flex;gap:8px;margin:0 0 8px;justify-content:center;}
+.fleet-switch[hidden] {display:none !important;}
+.fleet-switch button {flex:1;max-width:220px;height:27px;min-height:27px;padding-top:0;padding-bottom:0;border:1px solid #9fb5ce;border-radius:10px;background:#f0f5fc;color:#14385c;font-weight:700;font-size:14px;cursor:pointer;}
+.fleet-switch button[aria-pressed="true"] {background:#0b2d58;color:#fff;border-color:#0b2d58;}
+.fleet-switch button[hidden] {display:none !important;}
+.fleet-switch button:disabled {opacity:.65;cursor:wait;}
+.fleet-current {display:none !important;text-align:center;font-size:14px;font-weight:700;color:#0b2d58;margin-bottom:8px;}
+#titleMain {display:none !important;}
+.fleet-settings {padding:10px;border:1px solid #bdcde0;border-radius:12px;margin-top:10px;background:#f2f7fc;}
+.fleet-setting-row {display:flex;gap:8px;align-items:center;}
+.fleet-setting-row select {flex:1;min-width:0;}
+.fleet-setting-row button {flex:0 0 auto;white-space:nowrap;}
 </style>
 </head>
 <body class="membership-locked">
@@ -3579,6 +3604,11 @@ body.member-mode .alt-arrow-cell {
     <div class="shell">
       <div class="board-wrap">
         <div class="board">
+          <div class="fleet-switch" role="group" aria-label="차량 선택" hidden>
+            <button id="fleetBus1Btn" type="button" aria-pressed="true">1호차</button>
+            <button id="fleetBus2Btn" type="button" aria-pressed="false" hidden>2호차</button>
+          </div>
+          <div id="fleetCurrentLabel" class="fleet-current" aria-live="polite">1호차</div>
           <div class="title" id="titleMain"></div>
           <div class="seat-layout">
             <div>
@@ -3596,11 +3626,6 @@ body.member-mode .alt-arrow-cell {
           <div class="summary">
             <div class="summary-empty">빈 자리 <span id="emptyCount">0</span> 명</div>
             <div class="summary-filled">참석인원 <span id="occupiedCount">0</span> 명</div>
-          </div>
-          <div class="account">
-            <div><span id="feeLabel"></span><span class="account-number" id="accountNumber"></span></div>
-            <div id="bankName"></div>
-            <div id="accountOwner"></div>
           </div>
         </div>
       </div>
@@ -3679,9 +3704,19 @@ body.member-mode .alt-arrow-cell {
             </div>
 
             <div id="adminSettingsPanel" class="admin-settings-panel" hidden>
+            <div class="fleet-settings">
+              <label for="fleetOperationSelect">운영 차량</label>
+              <div class="fleet-setting-row">
+                <select id="fleetOperationSelect">
+                  <option value="1">1호차만 운영</option>
+                  <option value="2">1호차 + 2호차 운영</option>
+                </select>
+                <button class="btn btn-primary" id="fleetOperationSaveBtn" type="button">운영 적용</button>
+              </div>
+            </div>
 
             <div id="resetInlineConfirm" class="hidden" style="margin-bottom:6px; padding:8px; border:1px solid #d32f2f; border-radius:16px; background:#fff5f5;">
-              <div style="font-size:12px; margin-bottom:6px; color:#b91c1c; font-weight:700;">전체 좌석을 모두 초기화하시겠습니까?</div>
+              <div style="font-size:12px; margin-bottom:6px; color:#b91c1c; font-weight:700;"><span id="fleetResetConfirmText">1호차 좌석을 모두 초기화하시겠습니까?</span></div>
               <div style="display:flex; gap:6px;">
                 <button class="btn btn-outline" id="resetInlineCancelBtn" type="button">아니오</button>
                 <button class="btn btn-danger" id="resetInlineConfirmBtn" type="button">예</button>
@@ -3719,7 +3754,11 @@ body.member-mode .alt-arrow-cell {
 
             <div id="systemAdminGatePanel" style="margin-top:10px;">
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; align-items:center;">
-                <button class="btn btn-danger" id="resetBtn" type="button">전체초기화</button>
+                <select id="resetVehicleSelect" aria-label="초기화할 차량 선택">
+                  <option value="">차량 초기화</option>
+                  <option value="1">1호차 초기화</option>
+                  <option value="2" id="resetVehicle2Option">2호차 초기화</option>
+                </select>
                 <button class="btn btn-primary" id="systemAdminEnterBtn" type="button">시스템관리자</button>
               </div>
               <div id="systemAdminPanel" class="hidden" style="margin-top:10px; border:1px solid #d4d4d4; border-radius:16px; padding:10px; background:#f8fafc;">
@@ -3927,6 +3966,11 @@ body.member-mode .alt-arrow-cell {
 
   <div class="hiking-notice-overlay hidden" id="hikingNoticeOverlay">
     <div class="hiking-notice-box" role="dialog" aria-modal="true" aria-labelledby="hikingNoticeTitle">
+      <div class="account">
+        <div><span id="feeLabel"></span><span class="account-number" id="accountNumber"></span></div>
+        <div id="bankName"></div>
+        <div id="accountOwner"></div>
+      </div>
       <div class="hiking-notice-head">
         <span class="hiking-notice-title-row">
           <span id="hikingNoticeTitle">산행공지</span>
@@ -3953,7 +3997,7 @@ body.member-mode .alt-arrow-cell {
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getDatabase, ref, onValue, get, set, update } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+    import { getDatabase, ref, onValue, get, set, update, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const firebaseConfig = {
@@ -4055,6 +4099,13 @@ const firebaseConfig = {
       isFirebaseReady: false,
       isSubscribed: false,
       canWrite: false,
+      activeVehicle: "1",
+      secondVehicleEnabled: false,
+      fleetPayload: null,
+      fleetLoaded: false,
+      fleetBusy: 0,
+      fleetConfigBusy: false,
+      securityMemoSources: {},
       busType: "40",
       seats: createEmptySeats("40"),
       busInfo: { ...defaultBusInfo },
@@ -4077,6 +4128,7 @@ const firebaseConfig = {
       clientId: crypto.randomUUID(),
       projectLabel: "프로젝트 미설정",
       pendingCancelSeat: null,
+      pendingResetVehicle: null,
       lastSavedSeat: null,
       waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
       nameEntryLocked: false,
@@ -4085,6 +4137,149 @@ const firebaseConfig = {
       hikingNotice: { text: "", locked: false, editing: true },
       securityMemos: {}
     };
+
+    // 1호차 keeps its legacy paths. Only 2호차 uses vehicles/2.
+    function getVehiclePath(vehicleId = state.activeVehicle) {
+      return vehicleId === "2" ? `${ROOT_PATH}/vehicles/2` : ROOT_PATH;
+    }
+
+    function projectVehiclePayload(root, vehicleId) {
+      if (vehicleId !== "2") return root || {};
+      const second = root?.vehicles?.["2"] || {};
+      return {
+        ...root,
+        busType: BUS_LAYOUTS[second.busType] ? second.busType : "40",
+        seats: second.seats || {},
+        waitingExpireHours: second.waitingExpireHours ?? DEFAULT_WAITING_EXPIRE_HOURS,
+        nameEntryLocked: Boolean(second.nameEntryLocked)
+      };
+    }
+
+    function getVehicleSecurityMemos(vehicleId) {
+      const primary = state.securityMemoSources["seatAdminMemos"] || {};
+      const legacy = state.securityMemoSources[`${ROOT_PATH}/seatAdminMemos`] || {};
+      if (vehicleId === "2") return { ...(legacy.bus2 || {}), ...(primary.bus2 || {}) };
+      return Object.fromEntries(Object.entries({ ...legacy, ...primary }).filter(([key]) => /^\d+$/.test(key)));
+    }
+
+    function clearVehicleSelection() {
+      state.editingSeat = null;
+      state.editName = "";
+      state.memberSeat = "";
+      state.memberName = "";
+      state.adminSeat = "";
+      state.adminStatus = "reserved";
+      state.pendingCancelSeat = null;
+      state.pendingResetVehicle = null;
+      state.lastSavedSeat = null;
+      state.inlineEditProtectUntil = 0;
+      adminSeatEditArmed = null;
+      byId("resetInlineConfirm")?.classList.add("hidden");
+    }
+
+    function vehicleSummary(vehicleId) {
+      const payload = projectVehiclePayload(state.fleetPayload || {}, vehicleId);
+      const busType = vehicleId === state.activeVehicle ? state.busType : (payload.busType || "40");
+      const layout = BUS_LAYOUTS[busType] || BUS_LAYOUTS["40"];
+      const seats = vehicleId === state.activeVehicle ? state.seats : Object.entries(payload.seats || {}).map(([number, seat]) => ({ ...seat, number: Number(number) }));
+      const named = seats.filter((seat) => seat.number > 0 && seat.number <= layout.renderCapacity && !layout.blockedSeats.includes(seat.number) && String(seat.name || "").trim()).length;
+      const capacity = layout.renderCapacity - layout.blockedSeats.length;
+      return { busType, named, remaining: Math.max(0, capacity - named) };
+    }
+
+    function renderFleetControls() {
+      const busy = Boolean(state.fleetBusy || state.fleetConfigBusy);
+      const fleetSwitch = document.querySelector(".fleet-switch");
+      if (fleetSwitch) fleetSwitch.hidden = !state.secondVehicleEnabled;
+      ["1", "2"].forEach((id) => {
+        const btn = byId(`fleetBus${id}Btn`);
+        if (!btn) return;
+        btn.hidden = id === "2" && !state.secondVehicleEnabled;
+        btn.disabled = busy || !state.fleetLoaded;
+        btn.setAttribute("aria-pressed", String(state.activeVehicle === id));
+        const summary = vehicleSummary(id);
+        btn.textContent = `${id}호차 · ${summary.busType}인승${summary.remaining === 0 ? " · 만차" : ""}`;
+      });
+      const current = byId("fleetCurrentLabel");
+      if (current) current.textContent = `${state.activeVehicle}호차 · ${state.busType}인승 · 빈 자리 ${vehicleSummary(state.activeVehicle).remaining}석`;
+      const operationSelect = byId("fleetOperationSelect");
+      if (operationSelect) {
+        operationSelect.disabled = busy || !state.isAdminAuthenticated || !state.fleetLoaded;
+        if (document.activeElement !== operationSelect && !state.fleetConfigBusy) operationSelect.value = state.secondVehicleEnabled ? "2" : "1";
+      }
+      const save = byId("fleetOperationSaveBtn");
+      if (save) save.disabled = busy || !state.isAdminAuthenticated || !state.fleetLoaded;
+      const resetSelect = byId("resetVehicleSelect");
+      const resetVehicle2Option = byId("resetVehicle2Option");
+      if (resetVehicle2Option) resetVehicle2Option.disabled = !state.secondVehicleEnabled;
+      if (resetSelect) {
+        resetSelect.disabled = busy || !state.isAdminAuthenticated || !state.fleetLoaded;
+        if (document.activeElement !== resetSelect) resetSelect.value = state.pendingResetVehicle || "";
+      }
+      const resetConfirm = byId("fleetResetConfirmText");
+      if (resetConfirm) resetConfirm.textContent = `${state.pendingResetVehicle || state.activeVehicle}호차 좌석을 모두 초기화하시겠습니까? 다른 차량의 좌석은 유지됩니다.`;
+    }
+
+    function switchVehicle(vehicleId) {
+      if (!["1", "2"].includes(vehicleId) || vehicleId === state.activeVehicle) return;
+      if (!state.fleetLoaded) { alert("좌석 자료를 불러온 뒤 차량을 선택하세요."); return; }
+      if (vehicleId === "2" && !state.secondVehicleEnabled) { alert("관리자가 2호차 운영을 추가한 뒤 이용할 수 있습니다."); return; }
+      if (state.fleetBusy || state.fleetConfigBusy || byId("seatMemoOverlay")) {
+        alert("현재 저장 또는 메모 작업을 마친 뒤 차량을 변경하세요."); return;
+      }
+      if (state.editingSeat) {
+        alert("입력 중인 좌석을 먼저 저장하거나 Esc 키로 입력을 종료한 뒤 차량을 변경하세요."); return;
+      }
+      clearVehicleSelection();
+      state.activeVehicle = vehicleId;
+      try { sessionStorage.setItem("bus-seat-active-vehicle-v1", vehicleId); } catch (error) {}
+      applySnapshotData(state.fleetPayload || {});
+    }
+
+    async function saveFleetOperation() {
+      if (!state.isAdminAuthenticated) { alert("관리자 인증 후 사용할 수 있습니다."); return; }
+      if (!state.db || !state.isFirebaseReady || !state.fleetLoaded) { alert("Firebase 연결 후 운영 차량을 설정하세요."); return; }
+      if (state.fleetBusy || state.fleetConfigBusy || state.editingSeat || byId("seatMemoOverlay")) {
+        alert("현재 좌석 입력 또는 저장을 마친 뒤 운영 차량을 변경하세요."); return;
+      }
+      const enableSecond = byId("fleetOperationSelect")?.value === "2";
+      if (enableSecond === state.secondVehicleEnabled) { renderFleetControls(); return; }
+      const message = enableSecond
+        ? "2호차를 추가로 운영할까요? 기존 1호차 좌석은 유지됩니다."
+        : "2호차 운영을 해제하고 1호차만 운영할까요? 2호차 입력 자료는 보존되며, 회원에게는 2호차가 표시되지 않습니다.";
+      if (!confirm(message)) { renderFleetControls(); return; }
+      state.fleetConfigBusy = true;
+      renderFleetControls();
+      try {
+        if (enableSecond) {
+          const initial = buildInitialPayload(state.busType);
+          const result = await runTransaction(ref(state.db, `${ROOT_PATH}/vehicles/2`), (current) => {
+            if (current && typeof current === "object" && BUS_LAYOUTS[current.busType] && current.seats) return current;
+            // Preserve any existing seats even if an older partial vehicle record exists.
+            return {
+              ...(current || {}),
+              busType: BUS_LAYOUTS[current?.busType] ? current.busType : state.busType,
+              seats: current?.seats || initial.seats,
+              waitingExpireHours: current?.waitingExpireHours ?? state.waitingExpireHours,
+              nameEntryLocked: Boolean(current?.nameEntryLocked),
+              meta: { ...(current?.meta || {}), createdAt: current?.meta?.createdAt || Date.now(), updatedAt: Date.now() }
+            };
+          }, { applyLocally: false });
+          if (!result.committed) throw new Error("2호차 자료를 준비하지 못했습니다.");
+        }
+        await update(ref(state.db, `${ROOT_PATH}/fleet`), { secondVehicleEnabled: enableSecond, updatedAt: Date.now() });
+        const snapshot = await get(ref(state.db, ROOT_PATH));
+        if (snapshot.exists()) applySnapshotData(snapshot.val());
+        setStatusMessage(enableSecond ? "2호차 운영을 추가했습니다. 상단에서 2호차를 선택하세요." : "1호차만 운영합니다. 2호차 자료는 보존되었습니다.", state.projectLabel);
+      } catch (error) {
+        console.error("운영 차량 설정 실패", error);
+        alert("운영 설정을 완료하지 못했습니다. 연결 상태와 Firebase의 2호차 저장 권한을 확인한 뒤 다시 시도하세요.");
+      } finally {
+        state.fleetConfigBusy = false;
+        if (byId("fleetOperationSelect")) byId("fleetOperationSelect").value = state.secondVehicleEnabled ? "2" : "1";
+        renderFleetControls();
+      }
+    }
 
     function byId(id) { return document.getElementById(id); }
     function getCurrentLayout() { return BUS_LAYOUTS[state.busType] || BUS_LAYOUTS["40"] || BUS_LAYOUTS["44"]; }
@@ -4788,6 +4983,8 @@ function removeGuideColorFromSelection(editor) {
         const selectedType = type || exportTypeEl?.value || "line";
         const records = this.buildRecords();
         const payload = {
+          vehicleId: state.activeVehicle,
+          vehicleLabel: `${state.activeVehicle}호차`,
           busType: state.busType,
           exportType: selectedType,
           line: this.toLine(records),
@@ -5065,6 +5262,7 @@ function removeGuideColorFromSelection(editor) {
     }
 
     function renderBoard() {
+      renderFleetControls();
       const titleMain = byId("titleMain");
       const feeLabel = byId("feeLabel");
       const accountNumber = byId("accountNumber");
@@ -5182,6 +5380,7 @@ function removeGuideColorFromSelection(editor) {
     }
 
     function renderPanels() {
+      renderFleetControls();
       const memberTab = byId("memberTab");
       const adminTab = byId("adminTab");
       const memberManageTab = byId("memberManageTab");
@@ -5316,9 +5515,11 @@ function removeGuideColorFromSelection(editor) {
     }
 
     async function saveSeatMemoRemote(seatNo, memo) {
+      const vehicleId = state.activeVehicle;
+      const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
       const normalized = String(memo || "").trim();
-      return safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
+      return safeUpdate(ref(state.db, `${vehiclePath}/seats/${seatNo}`), {
         memo: normalized,
         updatedAt: Date.now(),
         updatedBy: state.clientId
@@ -5330,6 +5531,8 @@ function removeGuideColorFromSelection(editor) {
     }
 
     async function saveSeatSecurityMemoRemote(seatNo, memo) {
+      const vehicleId = state.activeVehicle;
+      const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
       const normalized = String(memo || "").trim();
       const now = Date.now();
@@ -5346,8 +5549,8 @@ function removeGuideColorFromSelection(editor) {
       let memoSaved = false;
       let lastError = null;
       const securityMemoPaths = [
-        `seatAdminMemos/${seatKey}`,
-        `${ROOT_PATH}/seatAdminMemos/${seatKey}`
+        vehicleId === "1" ? `seatAdminMemos/${seatKey}` : `seatAdminMemos/bus2/${seatKey}`,
+        vehicleId === "1" ? `${ROOT_PATH}/seatAdminMemos/${seatKey}` : `${ROOT_PATH}/seatAdminMemos/bus2/${seatKey}`
       ];
 
       for (const path of securityMemoPaths) {
@@ -5385,7 +5588,7 @@ function removeGuideColorFromSelection(editor) {
       // 좌석의 빨간 M 표시용 플래그 저장은 선택 작업이다.
       // 이 작업이 권한 문제로 실패해도 보안메모 본문 저장은 성공으로 처리한다.
       try {
-        await update(ref(state.db, `${ROOT_PATH}/seats/${seatKey}`), {
+        await update(ref(state.db, `${vehiclePath}/seats/${seatKey}`), {
           hasSecurityMemo: Boolean(normalized),
           updatedAt: now,
           updatedBy: state.clientId
@@ -5411,7 +5614,7 @@ function removeGuideColorFromSelection(editor) {
         overlay.innerHTML = `
           <div class="yn-dialog seat-memo-dialog" role="dialog" aria-modal="true" aria-labelledby="seatMemoTitle">
             <div class="seat-memo-top">
-              <div class="yn-title" id="seatMemoTitle" style="margin-bottom:0;">${escapeHtml(title)} - ${escapeHtml(getSeatDisplayNumber(seat.number))}번 ${escapeHtml(seat.name || "")}</div>
+              <div class="yn-title" id="seatMemoTitle" style="margin-bottom:0;">${escapeHtml(title)} - ${state.activeVehicle}호차 ${escapeHtml(getSeatDisplayNumber(seat.number))}번 ${escapeHtml(seat.name || "")}</div>
               <button type="button" class="yn-btn seat-memo-delete-small" id="seatMemoDelete">일반삭제</button>
             </div>
             <div id="seatMemoHistory" class="seat-memo-history ${currentMemo ? "" : "seat-memo-empty"}">${currentMemo ? escapeHtml(currentMemo) : "기존 일반메모가 없습니다."}</div>
@@ -5999,7 +6202,7 @@ async function sha256Hex(value) {
           alert("복구할 busSeatApp 데이터가 없는 JSON 파일입니다.");
           return;
         }
-        const okConfirm = confirm("현재 Firebase DB 데이터를 JSON 파일 내용으로 복구할까요?\n\n기존 좌석/공지/회원가입 승인/비밀번호 설정이 백업 파일 기준으로 덮어쓰기 됩니다.");
+        const okConfirm = confirm("현재 Firebase DB 데이터를 JSON 파일 내용으로 복구할까요?\n\n1·2호차 전체 좌석/운영 설정/공지/회원가입 승인/비밀번호 설정이 백업 파일 기준으로 덮어쓰기 됩니다.");
         if (!okConfirm) return;
 
         const nextRoot = {
@@ -6126,6 +6329,27 @@ function renderAll() {
     }
 
     function applySnapshotData(payload) {
+      state.fleetPayload = payload || {};
+      state.secondVehicleEnabled = payload?.fleet?.secondVehicleEnabled === true;
+      if (!state.fleetLoaded) {
+        state.fleetLoaded = true;
+        try {
+          if (sessionStorage.getItem("bus-seat-active-vehicle-v1") === "2" && state.secondVehicleEnabled) state.activeVehicle = "2";
+        } catch (error) {}
+      }
+      if (state.activeVehicle === "2" && !state.secondVehicleEnabled) {
+        // Keep an in-flight save/dialog tied to its original vehicle until it completes.
+        if (state.fleetBusy || byId("seatMemoOverlay")) {
+          renderFleetControls();
+          return;
+        }
+        clearVehicleSelection();
+        state.activeVehicle = "1";
+        try { sessionStorage.setItem("bus-seat-active-vehicle-v1", "1"); } catch (error) {}
+      }
+      const rootPayload = state.fleetPayload;
+      payload = projectVehiclePayload(rootPayload, state.activeVehicle);
+      state.securityMemos = getVehicleSecurityMemos(state.activeVehicle);
       const nextBusType = payload?.busType || state.busType || "40";
       state.busType = BUS_LAYOUTS[nextBusType] ? nextBusType : "40";
       const seatsData = payload?.seats || {};
@@ -6187,7 +6411,16 @@ function renderAll() {
       }
 
       renderAll();
-      if (expiredSeatNumbers.length > 0) syncExpiredWaitingSeats(expiredSeatNumbers);
+      if (expiredSeatNumbers.length > 0) syncExpiredWaitingSeats(expiredSeatNumbers, state.activeVehicle);
+      const otherVehicle = state.activeVehicle === "1" ? "2" : "1";
+      if (otherVehicle === "1" || state.secondVehicleEnabled) {
+        const otherPayload = projectVehiclePayload(rootPayload, otherVehicle);
+        const expiry = Math.max(1, Number(otherPayload.waitingExpireHours) || DEFAULT_WAITING_EXPIRE_HOURS) * 3600000;
+        const expired = Object.entries(otherPayload.seats || {}).filter(([key, seat]) =>
+          /^\d+$/.test(key) && seat && seat.name && seat.status === "waiting" && seat.updatedAt && Date.now() - seat.updatedAt >= expiry
+        ).map(([key]) => Number(key));
+        if (expired.length) syncExpiredWaitingSeats(expired, otherVehicle);
+      }
     }
 
     function subscribeRealtime() {
@@ -6203,31 +6436,22 @@ function renderAll() {
       });
       window.setInterval(async () => {
         if (!state.db || !state.isFirebaseReady) return;
-        const snapshot = await get(rootRef);
-        const data = snapshot.val();
-        if (!data) return;
-        applySnapshotData(data);
-      }, 60000);
-      const applySecurityMemoSnapshot = (data) => {
-        const nextSecurityMemos = data && typeof data === "object" ? data : {};
-        state.securityMemos = { ...(state.securityMemos || {}), ...nextSecurityMemos };
-        state.seats = state.seats.map((seat) => {
-          const entry = state.securityMemos[String(seat.number)] || state.securityMemos[seat.number] || {};
-          const memoText = typeof entry === "string" ? entry : String(entry?.memo || "");
-          return { ...seat, hasSecurityMemo: Boolean(memoText.trim()) || Boolean(seat.hasSecurityMemo) };
-        });
-        renderAll();
-      };
-      ["seatAdminMemos", `${ROOT_PATH}/seatAdminMemos`].forEach((memoPath) => {
         try {
-          onValue(ref(state.db, memoPath), (snapshot) => {
-            applySecurityMemoSnapshot(snapshot.val() || {});
-          }, (error) => {
-            console.warn("seatAdminMemos read failed", memoPath, error);
+          const snapshot = await get(rootRef);
+          if (snapshot.exists()) applySnapshotData(snapshot.val());
+        } catch (error) { console.warn("좌석 갱신 실패", error); }
+      }, 60000);
+      ["seatAdminMemos", `${ROOT_PATH}/seatAdminMemos`].forEach((memoPath) => {
+        onValue(ref(state.db, memoPath), (snapshot) => {
+          state.securityMemoSources[memoPath] = snapshot.val() || {};
+          state.securityMemos = getVehicleSecurityMemos(state.activeVehicle);
+          state.seats = state.seats.map((seat) => {
+            const entry = state.securityMemos[String(seat.number)];
+            const memo = typeof entry === "string" ? entry : String(entry?.memo || "");
+            return { ...seat, hasSecurityMemo: entry === undefined ? seat.hasSecurityMemo : Boolean(memo.trim()) };
           });
-        } catch (error) {
-          console.warn("seatAdminMemos subscribe failed", memoPath, error);
-        }
+          renderAll();
+        }, (error) => console.warn("seatAdminMemos read failed", memoPath, error));
       });
       state.isSubscribed = true;
     }
@@ -6454,12 +6678,16 @@ function renderAll() {
     }
 
     async function readSeatRemote(seatNo) {
+      const vehicleId = state.activeVehicle;
+      const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return null;
-      const snapshot = await get(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`));
+      const snapshot = await get(ref(state.db, `${vehiclePath}/seats/${seatNo}`));
       return snapshot.exists() ? snapshot.val() : null;
     }
 
     async function saveMemberSeatRemote(seatNo, name, options = {}) {
+      const vehicleId = state.activeVehicle;
+      const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
       if (isBlockedSeat(seatNo) || isAdminOnlySeatForMember(seatNo)) {
         setStatusMessage("1~3번, 사용불가 칸은 회원 입력이 불가능합니다.", state.projectLabel);
@@ -6507,7 +6735,7 @@ function renderAll() {
           updates[`seats/${sourceSeatNo}/memo`] = "";
         }
 
-        return safeUpdate(ref(state.db, ROOT_PATH), updates, {
+        return safeUpdate(ref(state.db, vehiclePath), updates, {
           label: "saveMemberSeatRemote",
           permissionMessage: "회원 좌석 저장 권한이 없습니다.",
           genericMessage: "좌석 저장 실패"
@@ -6520,6 +6748,8 @@ function renderAll() {
     }
 
     async function clearMemberSeatRemote(seatNo) {
+      const vehicleId = state.activeVehicle;
+      const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
       try {
         const currentSeat = await readSeatRemote(seatNo);
@@ -6527,7 +6757,7 @@ function renderAll() {
           setStatusMessage("완납 좌석은 삭제할 수 없습니다.", state.projectLabel);
           return false;
         }
-        return safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), {
+        return safeUpdate(ref(state.db, `${vehiclePath}/seats/${seatNo}`), {
           name: "",
           status: "empty",
           updatedAt: Date.now(),
@@ -6547,6 +6777,8 @@ function renderAll() {
     }
 
     async function saveSeatAdmin(seatNo, name, status) {
+      const vehicleId = state.activeVehicle;
+      const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
       // 관리자 수정 규칙:
       // 1) 이름/상태만 수정하면 기존 회원 입력자(ownerMemberCode)는 그대로 유지
@@ -6558,25 +6790,31 @@ function renderAll() {
         updatedBy: state.clientId
       };
       if (!name) adminSeatUpdate.ownerMemberCode = "";
-      const ok = await safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), adminSeatUpdate, {
+      const ok = await safeUpdate(ref(state.db, `${vehiclePath}/seats/${seatNo}`), adminSeatUpdate, {
         label: "saveSeatAdmin",
         permissionMessage: "관리자 좌석 저장 권한이 없습니다.",
         genericMessage: "관리자 좌석 저장 실패"
       });
       if (!ok) return false;
-      if (!name) await safeUpdate(ref(state.db, `${ROOT_PATH}/seats/${seatNo}`), { memo: "" });
-      await safeUpdate(ref(state.db, `${ROOT_PATH}/meta`), { updatedAt: Date.now() });
+      if (!name) await safeUpdate(ref(state.db, `${vehiclePath}/seats/${seatNo}`), { memo: "" });
+      await safeUpdate(ref(state.db, `${vehiclePath}/meta`), { updatedAt: Date.now() });
       return true;
     }
 
-    async function resetAllSeatsRemote() {
+    async function resetAllSeatsRemote(vehicleId = state.activeVehicle) {
+      const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
+      const vehiclePayload = projectVehiclePayload(state.fleetPayload || {}, vehicleId);
+      const vehicleBusType = vehicleId === state.activeVehicle
+        ? state.busType
+        : (BUS_LAYOUTS[vehiclePayload?.busType] ? vehiclePayload.busType : "40");
       const seatsObject = {};
-      for (let i = 1; i <= getCapacity(); i += 1) {
+      const renderCapacity = BUS_LAYOUTS[vehicleBusType]?.renderCapacity || 44;
+      for (let i = 1; i <= renderCapacity; i += 1) {
         seatsObject[String(i)] = { name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId, ownerMemberCode: "", memo: "" };
       }
-      return safeUpdate(ref(state.db, ROOT_PATH), {
-        busType: state.busType,
+      return safeUpdate(ref(state.db, vehiclePath), {
+        busType: vehicleBusType,
         seats: seatsObject,
         "meta/updatedAt": Date.now()
       }, {
@@ -6648,8 +6886,10 @@ function renderAll() {
     }
 
     async function saveWaitingExpireHoursRemote(nextHours) {
+      const vehicleId = state.activeVehicle;
+      const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
-      return safeUpdate(ref(state.db, ROOT_PATH), {
+      return safeUpdate(ref(state.db, vehiclePath), {
         waitingExpireHours: nextHours,
         "meta/updatedAt": Date.now()
       }, {
@@ -6660,8 +6900,10 @@ function renderAll() {
     }
 
     async function saveNameEntryLockRemote(isLocked) {
+      const vehicleId = state.activeVehicle;
+      const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
-      return safeUpdate(ref(state.db, ROOT_PATH), {
+      return safeUpdate(ref(state.db, vehiclePath), {
         nameEntryLocked: Boolean(isLocked),
         "meta/updatedAt": Date.now()
       }, {
@@ -6671,55 +6913,37 @@ function renderAll() {
       });
     }
 
-    async function syncExpiredWaitingSeats(seatNumbers) {
-      if (!state.db || !state.isFirebaseReady || !Array.isArray(seatNumbers) || seatNumbers.length === 0) return;
-      const updates = {};
-      const now = Date.now();
-      seatNumbers.forEach((seatNo) => {
-        updates[`seats/${seatNo}/name`] = "";
-        updates[`seats/${seatNo}/status`] = "empty";
-        updates[`seats/${seatNo}/updatedAt`] = now;
-        updates[`seats/${seatNo}/updatedBy`] = "system-expired";
-        updates[`seats/${seatNo}/ownerMemberCode`] = "";
-        updates[`seats/${seatNo}/memo`] = "";
-      });
-      updates["meta/updatedAt"] = now;
-      await safeUpdate(ref(state.db, ROOT_PATH), updates, {
-        label: "syncExpiredWaitingSeats",
-        permissionMessage: "만료 좌석 자동 삭제 권한이 없습니다.",
-        genericMessage: "만료 좌석 자동 삭제 실패"
-      });
+    const fleetExpiryInFlight = new Set();
+    async function syncExpiredWaitingSeats(seatNumbers, vehicleId = state.activeVehicle) {
+      if (!state.db || !state.isFirebaseReady || !Array.isArray(seatNumbers)) return;
+      const vehiclePath = getVehiclePath(vehicleId);
+      const data = projectVehiclePayload(state.fleetPayload || {}, vehicleId);
+      const expiry = Math.max(1, Number(data.waitingExpireHours) || DEFAULT_WAITING_EXPIRE_HOURS) * 3600000;
+      await Promise.all(seatNumbers.map(async (seatNo) => {
+        const key = `${vehicleId}:${seatNo}`;
+        if (fleetExpiryInFlight.has(key)) return;
+        fleetExpiryInFlight.add(key);
+        try {
+          await runTransaction(ref(state.db, `${vehiclePath}/seats/${seatNo}`), (seat) => {
+            if (!seat?.name || seat.status !== "waiting" || !seat.updatedAt || Date.now() - seat.updatedAt < expiry) return;
+            return { ...seat, name: "", status: "empty", ownerMemberCode: "", memo: "", updatedAt: Date.now(), updatedBy: "system-expired" };
+          }, { applyLocally: false });
+        } catch (error) { console.warn("만료 좌석 처리 실패", key, error); }
+        finally { fleetExpiryInFlight.delete(key); }
+      }));
     }
 
     async function saveBusTypeRemote(nextBusType) {
-      if (!state.db) return false;
-      const currentSnapshot = await get(ref(state.db, ROOT_PATH));
-      const currentData = currentSnapshot.exists() ? currentSnapshot.val() : {};
-      const payload = buildInitialPayload(nextBusType);
-      const nextPayload = {
-        /* 중요: 버스 타입 변경 시 busSeatApp 전체를 새 payload로 덮어쓰면
-           busSeatApp/membership 회원가입 데이터가 삭제될 수 있다.
-           기존 루트 데이터를 먼저 펼친 뒤 좌석 관련 값만 교체해서 회원관리 데이터를 보존한다. */
-        ...(currentData || {}),
+      if (!state.db || !BUS_LAYOUTS[nextBusType]) return false;
+      const vehiclePath = getVehiclePath();
+      return safeUpdate(ref(state.db, vehiclePath), {
         busType: nextBusType,
-        seats: payload.seats,
-        busInfo: { ...defaultBusInfo, ...(currentData.busInfo || state.busInfo || {}) },
-        adminPassword: currentData.adminPassword || state.adminPassword || DEFAULT_ADMIN_PASSWORD,
-        tripPlanPassword: currentData.tripPlanPassword || state.tripPlanPassword || DEFAULT_ADMIN_PASSWORD,
-        systemAdminPassword: currentData.systemAdminPassword || state.systemAdminPassword || DEFAULT_SYSTEM_ADMIN_PASSWORD,
-        adminPasswordHash: currentData.adminPasswordHash || state.adminPasswordHash || getLocalAdminPasswordHash() || "",
-        tripPlanPasswordHash: currentData.tripPlanPasswordHash || state.tripPlanPasswordHash || getLocalTripPlanPasswordHash() || "",
-        systemAdminPasswordHash: currentData.systemAdminPasswordHash || state.systemAdminPasswordHash || getLocalSystemAdminPasswordHash() || "",
-        recoveryCodeHash: currentData.recoveryCodeHash || state.recoveryCodeHash || getLocalRecoveryCodeHash() || "",
-        waitingExpireHours: Number(currentData.waitingExpireHours ?? state.waitingExpireHours ?? DEFAULT_WAITING_EXPIRE_HOURS) || DEFAULT_WAITING_EXPIRE_HOURS,
-        nameEntryLocked: Boolean(currentData.nameEntryLocked ?? state.nameEntryLocked),
-        membership: currentData.membership || {},
-        meta: { ...(currentData?.meta || {}), createdAt: currentData?.meta?.createdAt || Date.now(), updatedAt: Date.now() }
-      };
-      return safeSet(ref(state.db, ROOT_PATH), nextPayload, {
-        label: "saveBusTypeRemotePreserveMembership",
-        permissionMessage: "버스 모드 저장 권한이 없습니다.",
-        genericMessage: "버스 모드 저장 실패"
+        seats: buildInitialPayload(nextBusType).seats,
+        "meta/updatedAt": Date.now()
+      }, {
+        label: "saveBusTypeRemote",
+        permissionMessage: "선택 차량 정원 변경 권한이 없습니다.",
+        genericMessage: "선택 차량 정원 변경 실패"
       });
     }
 
@@ -7392,7 +7616,7 @@ function renderAll() {
         flashSaveVisuals(null, "saveBusTypeBtn");
         return;
       }
-      const confirmed = confirm(`${nextBusType}인승 모드로 변경하면 현재 좌석 정보가 초기화됩니다. 진행할까요?`);
+      const confirmed = confirm(`${state.activeVehicle}호차를 ${nextBusType}인승으로 변경하면 해당 차량의 좌석 정보가 초기화됩니다. 다른 차량은 유지됩니다. 진행할까요?`);
       if (!confirmed) {
         renderPanels();
         return;
@@ -7554,6 +7778,8 @@ function renderAll() {
     }
 
     async function handleAdminMarkNamedPaid() {
+      const vehicleId = state.activeVehicle;
+      const vehiclePath = getVehiclePath(vehicleId);
       if (!state.isAdminAuthenticated) {
         alert("관리자 인증 후 사용할 수 있습니다.");
         return;
@@ -7580,7 +7806,7 @@ function renderAll() {
         updates[`seats/${seat.number}/updatedBy`] = state.clientId;
       });
       updates["meta/updatedAt"] = now;
-      const ok = await safeUpdate(ref(state.db, ROOT_PATH), updates, {
+      const ok = await safeUpdate(ref(state.db, vehiclePath), updates, {
         label: "handleAdminMarkNamedPaid",
         permissionMessage: "이름만 남기기 권한이 없습니다.",
         genericMessage: "이름만 남기기 실패"
@@ -7594,21 +7820,43 @@ function renderAll() {
       flashButton("adminMarkNamedPaidBtn");
     }
 
-    async function executeReset() {
+    async function executeReset(vehicleId = state.pendingResetVehicle || state.activeVehicle) {
       if (!state.isFirebaseReady) {
         alert("Firebase 설정값을 먼저 넣어주세요.");
         return;
       }
-      state.seats = state.seats.map((seat) => ({ ...seat, name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId }));
-      state.memberName = "";
-      state.memberSeat = "";
-      state.adminSeat = "";
-      state.adminStatus = "reserved";
-      state.editingSeat = null;
-      state.editName = "";
-      renderAll();
-      const ok = await resetAllSeatsRemote();
-      if (!ok) alert("전체 초기화 권한이 없습니다.");
+      if (vehicleId === "2" && !state.secondVehicleEnabled) {
+        alert("2호차 운영을 먼저 추가한 뒤 초기화하세요.");
+        return;
+      }
+      const isCurrentVehicle = vehicleId === state.activeVehicle;
+      const previous = isCurrentVehicle ? {
+        seats: state.seats.map((seat) => ({ ...seat })),
+        memberName: state.memberName,
+        memberSeat: state.memberSeat,
+        adminSeat: state.adminSeat,
+        adminStatus: state.adminStatus,
+        editingSeat: state.editingSeat,
+        editName: state.editName
+      } : null;
+      if (isCurrentVehicle) {
+        state.seats = state.seats.map((seat) => ({ ...seat, name: "", status: "empty", updatedAt: Date.now(), updatedBy: state.clientId }));
+        state.memberName = "";
+        state.memberSeat = "";
+        state.adminSeat = "";
+        state.adminStatus = "reserved";
+        state.editingSeat = null;
+        state.editName = "";
+        renderAll();
+      }
+      const ok = await resetAllSeatsRemote(vehicleId);
+      if (!ok) {
+        if (previous) Object.assign(state, previous);
+        renderAll();
+        alert(`${vehicleId}호차 초기화 권한이 없거나 저장에 실패했습니다.`);
+        return;
+      }
+      setStatusMessage(`${vehicleId}호차 좌석을 초기화했습니다.`, state.projectLabel);
     }
 
     function bindIfPresent(id, event, handler) {
@@ -7622,7 +7870,7 @@ function renderAll() {
       const canvas = await html2canvas(target, { backgroundColor: null, scale: 2, useCORS: true });
       const link = document.createElement("a");
       link.href = canvas.toDataURL("image/png");
-      link.download = "bus-seat-capture.png";
+      link.download = `bus-seat-${state.activeVehicle}호차-${state.busType}인승.png`;
       link.click();
     }
 
@@ -7810,6 +8058,13 @@ function renderAll() {
     }
 
     function bindStaticEvents() {
+      byId("fleetBus1Btn")?.addEventListener("click", () => switchVehicle("1"));
+      byId("fleetBus2Btn")?.addEventListener("click", () => switchVehicle("2"));
+      byId("fleetOperationSaveBtn")?.addEventListener("click", saveFleetOperation);
+      // A vehicle click must not blur/auto-save an unfinished seat into another vehicle.
+      ["fleetBus1Btn", "fleetBus2Btn", "fleetOperationSaveBtn"].forEach((id) => {
+        byId(id)?.addEventListener("pointerdown", (event) => event.preventDefault());
+      });
       bindMemberAdminSwipe();
       bindIfPresent("memberTab", "click", () => switchMode("member"));
       bindIfPresent("adminTab", "click", () => switchMode("admin"));
@@ -7892,7 +8147,7 @@ function renderAll() {
         const inline = byId("inlineSeatInput");
         if (inline && inline.value !== rawValue) inline.value = rawValue;
       });
-      bindIfPresent("adminMemberName", "keydown", async (e) => {
+      bindIfPresent("adminMemberName", "keydown", guardVehicleWorkflow(async (e) => {
         if (e.key === "Enter" && !e.isComposing) {
           e.preventDefault();
 
@@ -7953,7 +8208,7 @@ function renderAll() {
             nameInput.select();
           }
         }
-      });
+      }));
       bindIfPresent("adminStatus", "change", (e) => { state.adminStatus = e.target.value; });
       bindIfPresent("adminSaveBtnTop", "click", handleAdminSave);
       bindIfPresent("adminClearSeatBtn", "click", handleAdminClearSeat);
@@ -7961,8 +8216,22 @@ function renderAll() {
       bindIfPresent("adminMarkSelectedPaidBtn", "click", handleAdminMarkSelectedPaid);
       bindIfPresent("saveBusTypeBtn", "click", handleSaveBusType);
       bindIfPresent("toggleNameEntryLockBtn", "click", handleToggleNameEntryLock);
-      bindIfPresent("resetBtn", "click", () => {
-        if (!state.isAdminAuthenticated) { alert("관리자 인증 후 사용할 수 있습니다."); return; }
+      bindIfPresent("resetVehicleSelect", "change", (event) => {
+        const vehicleId = String(event.target.value || "");
+        if (!vehicleId) return;
+        if (!state.isAdminAuthenticated) {
+          alert("관리자 인증 후 사용할 수 있습니다.");
+          event.target.value = "";
+          return;
+        }
+        if (vehicleId === "2" && !state.secondVehicleEnabled) {
+          alert("2호차 운영을 먼저 추가한 뒤 초기화하세요.");
+          event.target.value = "";
+          return;
+        }
+        state.pendingResetVehicle = vehicleId;
+        const message = byId("fleetResetConfirmText");
+        if (message) message.textContent = `${vehicleId}호차 좌석을 모두 초기화하시겠습니까? 다른 차량의 좌석은 유지됩니다.`;
         const box = byId("resetInlineConfirm");
         if (box) box.classList.remove("hidden");
       });
@@ -8039,8 +8308,20 @@ function renderAll() {
       bindIfPresent("infoGuideRedBtn", "click", () => applyInfoGuideFormat("red"));
       bindIfPresent("infoGuideBlinkBtn", "click", () => applyInfoGuideFormat("blink"));
       bindIfPresent("adminNoticeCheckBlinkBtn", "click", toggleNoticeCheckBlink);
-      bindIfPresent("resetInlineCancelBtn", "click", () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); });
-      bindIfPresent("resetInlineConfirmBtn", "click", async () => { const box = byId("resetInlineConfirm"); if (box) box.classList.add("hidden"); await executeReset(); });
+      bindIfPresent("resetInlineCancelBtn", "click", () => {
+        const box = byId("resetInlineConfirm");
+        if (box) box.classList.add("hidden");
+        state.pendingResetVehicle = null;
+        renderFleetControls();
+      });
+      bindIfPresent("resetInlineConfirmBtn", "click", async () => {
+        const vehicleId = state.pendingResetVehicle;
+        const box = byId("resetInlineConfirm");
+        if (box) box.classList.add("hidden");
+        if (vehicleId) await executeReset(vehicleId);
+        state.pendingResetVehicle = null;
+        renderFleetControls();
+      });
       bindIfPresent("captureBoardBtn", "click", async () => {
         const confirmed = await showRecoveryConfirmDialog("좌석을 캡처하시겠습니까?", "좌석캡처 확인");
         if (!confirmed) return;
@@ -8097,7 +8378,7 @@ function renderAll() {
         return;
       }
       subscribeRealtime();
-      window.setInterval(() => { renderBoard(); }, 30000);
+      window.setInterval(() => { if (!state.editingSeat && !state.fleetBusy) renderBoard(); }, 30000);
       try {
         const initialized = await ensureInitialData();
         setStatusMessage(initialized ? "실시간 연결됨" : "읽기 전용 연결", state.projectLabel);
@@ -8143,6 +8424,35 @@ function renderAll() {
       autoResizeNameExportText();
       await initFirebase();
     }
+    // Keep vehicle context stable until each asynchronous workflow (including a dialog) finishes.
+    function guardVehicleWorkflow(fn) {
+      return async function(...args) {
+        state.fleetBusy += 1;
+        renderFleetControls();
+        try { return await fn.apply(this, args); }
+        finally {
+          state.fleetBusy -= 1;
+          if (!state.fleetBusy && state.activeVehicle === "2" && !state.secondVehicleEnabled && !byId("seatMemoOverlay")) {
+            applySnapshotData(state.fleetPayload || {});
+          }
+          renderFleetControls();
+        }
+      };
+    }
+    handleInlineSave = guardVehicleWorkflow(handleInlineSave);
+    handleMemberSave = guardVehicleWorkflow(handleMemberSave);
+    executeMemberCancel = guardVehicleWorkflow(executeMemberCancel);
+    handleAdminSave = guardVehicleWorkflow(handleAdminSave);
+    handleAdminMarkSelectedPaid = guardVehicleWorkflow(handleAdminMarkSelectedPaid);
+    handleAdminClearSeat = guardVehicleWorkflow(handleAdminClearSeat);
+    handleAdminMarkNamedPaid = guardVehicleWorkflow(handleAdminMarkNamedPaid);
+    executeReset = guardVehicleWorkflow(executeReset);
+    handleSaveBusType = guardVehicleWorkflow(handleSaveBusType);
+    handleSaveWaitingExpireHours = guardVehicleWorkflow(handleSaveWaitingExpireHours);
+    handleToggleNameEntryLock = guardVehicleWorkflow(handleToggleNameEntryLock);
+    showSeatMemoDialog = guardVehicleWorkflow(showSeatMemoDialog);
+    handleJsonRestoreFile = guardVehicleWorkflow(handleJsonRestoreFile);
+    captureBoardArea = guardVehicleWorkflow(captureBoardArea);
     // ===== Safe bridge: expose original seat memo functions without changing them =====
     try {
       window.__seatMemoBridge = window.__seatMemoBridge || {};
@@ -16336,6 +16646,34 @@ body.admin-mode:not(.member-manage-mode) .controls {
 })();
 </script>
 
+<style id="member-mode-controls-no-scroll-final">
+/* 회원 입력 모드: 하단 조작 박스 높이를 내용에 맞추고 내부 세로 스크롤을 만들지 않음 */
+body.member-mode .controls {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+  overflow-x: hidden !important;
+  padding-bottom: 0 !important;
+  -webkit-overflow-scrolling: auto !important;
+  overscroll-behavior: none !important;
+  touch-action: auto !important;
+}
+body.member-mode .controls > .card {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+body.member-mode .controls::-webkit-scrollbar {
+  display: none !important;
+}
+body.member-mode .help-text:empty {
+  display: none !important;
+}
+</style>
 </body>
 </html>
 <script id="member-manage-back-to-member-mode-final-patch">
