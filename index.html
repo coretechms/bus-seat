@@ -482,7 +482,7 @@
       .seat { min-height: 38px; height: 38px; }
       .seat-number { top: 3px; font-size: 10px; }
       .seat-inner { padding: 7px 2px 1px; }
-      .seat-name { width: 80%; font-size: 15px; }
+      .seat-name { width: 80%; font-size: 16px; }
       .alt-seat-layout .seat-number { top: 2px; }
       .alt-seat-layout .seat-inner { padding-top: 5px; }
       .alt-seat-layout .seat-name { margin-top: 5px; }
@@ -1631,6 +1631,20 @@ body:not(.membership-locked) .member-current-badge {
 #boardImageModeBtn,
 #memberTopLogoutBtn {
   flex: 0 0 auto !important;
+}
+
+/* 회원 입력 화면: 상단 기능 버튼을 낮추고 화면반전/로그아웃 행에 더 가깝게 배치 */
+body.member-mode .card-title-row {
+  margin-bottom: 2px !important;
+}
+body.member-mode #memberQuickButtonRow {
+  margin-top: 2px !important;
+}
+body.member-mode #memberQuickButtonRow .btn {
+  height: 24px !important;
+  min-height: 24px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 
@@ -3756,13 +3770,10 @@ body.member-mode .alt-arrow-cell {
           <div id="memberManagePanel" class="hidden" style="margin-top:10px;">
             <div style="border:1px solid #cfd8ff; border-radius:16px; padding:10px; background:#f7f9ff;">
               <div class="member-manage-topbar">
-
-                <div class="member-manage-title-search">
-                  <input id="memberApprovalSearchInput" type="search" autocomplete="off" placeholder="이름검색" aria-label="회원 이름 검색" />
+                <div class="member-manage-header-actions member-manage-main-actions">
+                  <button class="btn btn-outline" id="memberManageCloseBtn" type="button">나가기</button>
                   <button class="btn btn-outline" id="memberManageMemberListBtn" type="button" title="회원정보 페이지로 이동">회원정보</button>
-                  <button class="btn btn-outline" id="memberApprovedToggleBtn" type="button" aria-expanded="false">가입회원보기</button>
-                </div>
-                <div class="member-manage-header-actions">
+                  <button class="btn btn-outline" id="memberApprovedToggleBtn" type="button" aria-expanded="false">회원보기</button>
                   <button class="btn btn-outline" id="memberLoginManageBtn" type="button">로그관리</button>
                   <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button">새로고침</button>
                   <button class="btn btn-outline" id="memberManageAdminToggleBtn" type="button" aria-expanded="false">관리자</button>
@@ -3776,6 +3787,9 @@ body.member-mode .alt-arrow-cell {
                     <button class="btn btn-outline" id="memberPasswordResetBtn" type="button" title="회원관리 목록에서 선택한 가입회원 1명의 비밀번호만 전화번호 끝4자리+0 기준으로 초기화">비번초기화</button>
                   </div>
                   <input id="memberJsonRestoreFileInput" type="file" accept="application/json,.json" class="hidden" />
+                </div>
+                <div class="member-manage-title-search member-manage-search-row">
+                  <input id="memberApprovalSearchInput" type="search" autocomplete="off" placeholder="이름검색" aria-label="회원 이름 검색" />
                 </div>
               </div>
               <div style="font-size:11px; color:#555; line-height:1.5; margin-bottom:8px;">
@@ -11054,7 +11068,7 @@ function renderAll() {
     if (btn) {
       btn.classList.toggle("is-open", !!visible);
       btn.setAttribute("aria-expanded", visible ? "true" : "false");
-      btn.textContent = visible ? "가입회원닫기" : "가입회원보기";
+      btn.textContent = visible ? "회원닫기" : "회원보기";
     }
     applyMemberApprovalSearchFilter();
   }
@@ -11170,7 +11184,7 @@ function renderAll() {
 
   const memberApprovedToggleBtn = byId("memberApprovedToggleBtn");
   if (memberApprovedToggleBtn) {
-    memberApprovedToggleBtn.textContent = isMemberApprovedListVisible() ? "가입회원닫기" : "가입회원보기";
+    memberApprovedToggleBtn.textContent = isMemberApprovedListVisible() ? "회원닫기" : "회원보기";
     memberApprovedToggleBtn.setAttribute("aria-expanded", isMemberApprovedListVisible() ? "true" : "false");
   }
 
@@ -16117,7 +16131,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
     var open = window.__memberApprovedListVisible === true;
     btn.classList.toggle("is-open", open);
     btn.setAttribute("aria-expanded", open ? "true" : "false");
-    btn.textContent = open ? "가입회원닫기" : "가입회원보기";
+    btn.textContent = open ? "회원닫기" : "회원보기";
   }
 
   function applyApprovedBoxToggle(){
@@ -16642,6 +16656,158 @@ body.admin-mode:not(.admin-settings-open) .admin-settings-only {
 }
 body.admin-mode:not(.admin-settings-open) #adminSettingsPanel {
   display: none !important;
+}
+/* 관리자 기본 화면: 상단 버튼 행과 메인메모 버튼 사이의 불필요한 여백 제거 */
+body.admin-mode:not(.admin-settings-open) .mode-divider {
+  margin-top: 4px !important;
+  padding-top: 0 !important;
+}
+body.admin-mode:not(.admin-settings-open) #busInfoEditor {
+  margin-top: 0 !important;
+}
+body.admin-mode:not(.admin-settings-open) #busInfoEditor > div:last-child {
+  margin-top: 2px !important;
+}
+
+/* 회원관리 모드 최종 구조: 실제 HTML을 1행 버튼 묶음과 2행 검색 묶음으로 분리 */
+body.member-manage-mode #memberManagePanel .member-manage-topbar {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 5px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+body.member-manage-mode #memberManagePanel .member-manage-main-actions {
+  order: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+  position: relative !important;
+}
+body.member-manage-mode #memberManagePanel .member-manage-search-row {
+  order: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+body.member-manage-mode #memberApprovalSearchInput {
+  flex: 0 0 12em !important;
+  box-sizing: border-box !important;
+  width: 12em !important;
+  min-width: 12em !important;
+  max-width: 12em !important;
+  margin: 0 !important;
+}
+body.member-manage-mode #memberApprovalRefreshBtn {
+  display: none !important;
+}
+body.member-manage-mode #memberManageCloseBtn,
+body.member-manage-mode #memberManageMemberListBtn,
+body.member-manage-mode #memberApprovedToggleBtn,
+body.member-manage-mode #memberLoginManageBtn,
+body.member-manage-mode #memberManageAdminToggleBtn {
+  position: static !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  margin: 0 !important;
+  padding: 0 6px !important;
+  border-radius: 10px !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+@media (max-width: 760px) {
+  body.member-manage-mode #memberManagePanel .member-manage-topbar {
+    gap: 4px !important;
+  }
+  body.member-manage-mode #memberManagePanel .member-manage-main-actions {
+    gap: 5px !important;
+  }
+  body.member-manage-mode #memberApprovalSearchInput,
+  body.member-manage-mode #memberManageCloseBtn,
+  body.member-manage-mode #memberManageMemberListBtn,
+  body.member-manage-mode #memberApprovedToggleBtn,
+  body.member-manage-mode #memberLoginManageBtn,
+  body.member-manage-mode #memberManageAdminToggleBtn {
+    height: 22px !important;
+    min-height: 22px !important;
+    padding-left: 3px !important;
+    padding-right: 3px !important;
+    font-size: 8px !important;
+  }
+}
+
+/* 나가기는 좌측에 분리하고, 회원보기 양옆은 더 가깝게 배치 */
+body.member-manage-mode #memberManagePanel .member-manage-main-actions > #memberManageCloseBtn {
+  margin-right: auto !important;
+  box-sizing: border-box !important;
+  width: calc(3.9em + 18.2px) !important;
+}
+body.member-manage-mode #memberManagePanel .member-manage-main-actions > #memberApprovedToggleBtn {
+  margin-left: -4px !important;
+  margin-right: -4px !important;
+}
+@media (max-width: 760px) {
+  body.member-manage-mode #memberManagePanel .member-manage-main-actions > #memberManageCloseBtn {
+    width: calc(3.9em + 10.4px) !important;
+  }
+  body.member-manage-mode #memberManagePanel .member-manage-main-actions > #memberApprovedToggleBtn {
+    margin-left: -2px !important;
+    margin-right: -2px !important;
+  }
+}
+
+/* 로그관리 내부 상단 버튼도 글자 수 비율과 동일한 세로 크기로 통일 */
+body.member-manage-mode #loginManagePanel .login-manage-actions {
+  display: grid !important;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr) !important;
+  column-gap: 2ch !important;
+  row-gap: 0 !important;
+  width: min(76%, 360px) !important;
+}
+body.member-manage-mode #loginManageBackBtn,
+body.member-manage-mode #loginLogRefreshBtn,
+body.member-manage-mode #loginLogDownloadBtn,
+body.member-manage-mode #loginLogDeleteBtn {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  padding: 0 6px !important;
+  border-radius: 10px !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+@media (max-width: 760px) {
+  body.member-manage-mode #loginManagePanel .login-manage-actions {
+    column-gap: 2ch !important;
+    width: 78% !important;
+  }
+  body.member-manage-mode #loginManageBackBtn,
+  body.member-manage-mode #loginLogRefreshBtn,
+  body.member-manage-mode #loginLogDownloadBtn,
+  body.member-manage-mode #loginLogDeleteBtn {
+    height: 22px !important;
+    min-height: 22px !important;
+    padding: 0 2px !important;
+    font-size: 8px !important;
+  }
 }
 body.admin-mode.admin-settings-open #adminSettingsPanel {
   display: block !important;
