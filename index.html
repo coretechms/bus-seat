@@ -3287,7 +3287,7 @@ body.member-mode .controls {
 <style id="loginMemoIconRefreshPositionPatch">
 /* 요청 수정: 로그인 화면 배치
    - refresh 버튼: 메인메모 박스 위
-   - 밴드/카페 아이콘: 메인메모 박스 아래 */
+   - 밴드/카페 아이콘: 메인메모 박스 위, 오른쪽 정렬 */
 .member-auth-gate > .member-login-refresh-row {
   width: min(300px, 92vw) !important;
   display: flex !important;
@@ -3295,11 +3295,14 @@ body.member-mode .controls {
   margin: 0 auto 4px !important;
 }
 .member-auth-gate > .member-login-top-links {
-  width: min(300px, 86vw) !important;
-  margin: -18px auto 8px !important;
+  width: min(300px, 92vw) !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  margin: 0 auto 6px !important;
 }
 #memberLoginMainMemoBox {
-  margin-bottom: 22px !important;
+  margin-bottom: 8px !important;
 }
 @media (max-width: 430px) {
   .member-auth-gate > .member-login-refresh-row {
@@ -3307,10 +3310,11 @@ body.member-mode .controls {
     margin: 0 auto 4px !important;
   }
   .member-auth-gate > .member-login-top-links {
-    margin: -14px auto 8px !important;
+    width: min(300px, 92vw) !important;
+    margin: 0 auto 5px !important;
   }
   #memberLoginMainMemoBox {
-    margin-bottom: 18px !important;
+    margin-bottom: 7px !important;
   }
 }
 </style>
@@ -3522,7 +3526,6 @@ body.member-mode .alt-arrow-cell {
     <div class="member-login-refresh-row">
       <button id="memberLoginRefreshBtn" type="button" aria-label="새로고침">refresh</button>
     </div>
-    <div id="memberLoginMainMemoBox" aria-live="polite"></div>
     <div class="member-login-top-links" aria-label="상단 바로가기 로고">
       <a id="memberLoginLogoLink1" class="member-login-top-logo-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="상단 로고 1 링크">
         <img src="band_icon_180.png" alt="밴드" />
@@ -3531,6 +3534,7 @@ body.member-mode .alt-arrow-cell {
         <img src="cafe_icon_180.png" alt="카페" />
       </a>
     </div>
+    <div id="memberLoginMainMemoBox" aria-live="polite"></div>
     <div class="member-auth-box" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
 
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
@@ -15752,18 +15756,17 @@ body.admin-mode:not(.member-manage-mode) .controls {
     margin: 0 auto 4px !important;
   }
 
-  /* 메인메모 박스 아래에 밴드/카페 아이콘 배치 */
+  /* 메인메모 박스 위에 밴드/카페 아이콘을 오른쪽 정렬 */
   .member-auth-gate > #memberLoginMainMemoBox {
     margin: 0 auto 8px !important;
   }
   .member-auth-gate > .member-login-top-links {
-    width: min(300px, 86vw) !important;
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
+    width: min(300px, 92vw) !important;
+    display: flex !important;
     align-items: center !important;
-    justify-items: center !important;
-    gap: 78px !important;
-    margin: 0 auto 8px !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    margin: 0 auto 6px !important;
     position: relative !important;
     z-index: 2 !important;
   }
@@ -15791,9 +15794,9 @@ body.admin-mode:not(.member-manage-mode) .controls {
       margin: 0 auto 4px !important;
     }
     .member-auth-gate > .member-login-top-links {
-      width: min(270px, 86vw) !important;
-      gap: 70px !important;
-      margin: 0 auto 8px !important;
+      width: min(300px, 92vw) !important;
+      gap: 7px !important;
+      margin: 0 auto 5px !important;
     }
     .member-auth-box .member-login-logo {
       margin: 0 auto 8px !important;
@@ -15836,7 +15839,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
     if (refresh && memo && refresh.parentNode !== gate) gate.insertBefore(refresh, memo);
     if (refresh && memo && refresh.nextElementSibling !== memo) gate.insertBefore(refresh, memo);
-    if (links && memo && links.previousElementSibling !== memo) memo.insertAdjacentElement("afterend", links);
+    if (links && memo && links.nextElementSibling !== memo) gate.insertBefore(links, memo);
     if (authBox && logo && logo.parentNode !== authBox) authBox.insertBefore(logo, authBox.firstChild);
     if (authBox && logo && authBox.firstElementChild !== logo) authBox.insertBefore(logo, authBox.firstChild);
 
@@ -15873,15 +15876,14 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
 <!-- ===== 밴드/카페 아이콘 사라짐 복구 패치 ===== -->
 <style id="login-band-cafe-force-visible-style">
-  /* 메인메모 아래 밴드/카페 아이콘을 항상 표시 */
+  /* 메인메모 위 밴드/카페 아이콘을 항상 표시하고 오른쪽 정렬 */
   .member-auth-gate > .member-login-top-links {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
+    display: flex !important;
     align-items: center !important;
-    justify-items: center !important;
-    width: min(300px, 86vw) !important;
-    gap: 78px !important;
-    margin: 0 auto 8px !important;
+    justify-content: flex-end !important;
+    width: min(300px, 92vw) !important;
+    gap: 8px !important;
+    margin: 0 auto 6px !important;
     visibility: visible !important;
     opacity: 1 !important;
     height: auto !important;
@@ -15913,8 +15915,8 @@ body.admin-mode:not(.member-manage-mode) .controls {
   }
   @media (max-width: 430px) {
     .member-auth-gate > .member-login-top-links {
-      width: min(270px, 86vw) !important;
-      gap: 70px !important;
+      width: min(300px, 92vw) !important;
+      gap: 7px !important;
       min-height: 54px !important;
     }
     .member-auth-gate > .member-login-top-links .member-login-top-logo-link,
@@ -16005,8 +16007,8 @@ body.admin-mode:not(.member-manage-mode) .controls {
     band.href = normalizeUrl(input1 ? input1.value : band.getAttribute("href"));
     cafe.href = normalizeUrl(input2 ? input2.value : cafe.getAttribute("href"));
 
-    if (links.parentNode !== gate) memo.insertAdjacentElement("afterend", links);
-    if (links.previousElementSibling !== memo) memo.insertAdjacentElement("afterend", links);
+    if (links.parentNode !== gate) gate.insertBefore(links, memo);
+    if (links.nextElementSibling !== memo) gate.insertBefore(links, memo);
   }
 
   if (document.readyState === "loading") {
