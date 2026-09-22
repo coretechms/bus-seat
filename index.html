@@ -17023,6 +17023,21 @@ body.member-mode .help-text:empty {
   display: none !important;
 }
 </style>
+<!-- ===== 축소 인승 배치: 선택되지 않은 좌석만 배경에 가깝게 표시 ===== -->
+<style id="reduced-layout-unavailable-seat-color-style">
+  /* 샘플(#EEECE0)보다 살짝 돋보이는 아주 연한 크림·살색. 실제 사용 좌석 색상은 변경하지 않음. */
+  .seat.unavailable {
+    background: #e9e5d8 !important;
+    border-color: rgba(174, 158, 132, 0.18) !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+  }
+  .seat.unavailable .seat-number,
+  .seat.unavailable .seat-name,
+  .seat.unavailable .status-pill {
+    color: #e9e5d8 !important;
+  }
+</style>
 </body>
 </html>
 <script id="member-manage-back-to-member-mode-final-patch">
