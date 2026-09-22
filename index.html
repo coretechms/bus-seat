@@ -229,17 +229,19 @@
       border-radius: 14px;
       overflow: hidden;
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       border: 1px solid var(--line);
     }
     .summary > div {
-      padding: 4px 12px;
+      padding: 6px 8px;
       text-align: center;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
+      white-space: nowrap;
     }
     .summary-empty { background: var(--yellow); color: var(--blue); }
     .summary-filled { background: var(--deepBlue); color: #fff; }
+    .summary-total { background: #0b7a28; color: #fff; }
     .account {
       display: grid;
       border-radius: 0 0 14px 14px;
@@ -424,7 +426,7 @@
       .seat-layout { grid-template-columns: 1fr 42px 1fr; }
       .driver-box-wrap { padding: 8px 24px 0; }
       .driver-box { height: 30px; font-size: 12px; letter-spacing: 0.35em; }
-      .summary > div { font-size: 14px; padding: 6px 16px; }
+      .summary > div { font-size: 15px; padding: 7px 12px; }
       .account { font-size: 15px; }
       .account > div { padding: 6px 12px; }
       .account-number { margin-left: 32px; font-size: 16px; }
@@ -487,7 +489,8 @@
       .alt-seat-layout .seat-inner { padding-top: 5px; }
       .alt-seat-layout .seat-name { margin-top: 5px; }
       .inline-input { width: 92%; height: 22px; font-size: 11px; }
-      .summary > div, .account, .account-number { font-size: 10px; }
+      .summary > div { font-size: 11px; padding: 5px 3px; }
+      .account, .account-number { font-size: 10px; }
       .account > div { padding: 4px 4px; }
       .controls { padding-right: 2px; gap: 10px; }
       .card { padding: 10px; border-radius: 18px; }
@@ -3624,8 +3627,9 @@ body.member-mode .alt-arrow-cell {
             </div>
           </div>
           <div class="summary">
-            <div class="summary-empty">빈 자리 <span id="emptyCount">0</span> 명</div>
+            <div class="summary-empty">빈자리 <span id="emptyCount">0</span> 명</div>
             <div class="summary-filled">참석인원 <span id="occupiedCount">0</span> 명</div>
+            <div class="summary-total">총인원 <span id="totalCount">0</span> 명</div>
           </div>
         </div>
       </div>
@@ -4268,7 +4272,9 @@ const firebaseConfig = {
         }
         await update(ref(state.db, `${ROOT_PATH}/fleet`), { secondVehicleEnabled: enableSecond, updatedAt: Date.now() });
         const snapshot = await get(ref(state.db, ROOT_PATH));
-        if (snapshot.exists()) applySnapshotData(snapshot.val());
+        // 운영 차량 설정 직후에는 전체 스냅샷을 화면에만 반영한다.
+        // 이 재조회가 1호차의 기존 입력대기 좌석 자동삭제를 촉발하지 않도록 한다.
+        if (snapshot.exists()) applySnapshotData(snapshot.val(), { skipExpiry: true });
         setStatusMessage(enableSecond ? "2호차 운영을 추가했습니다. 상단에서 2호차를 선택하세요." : "1호차만 운영합니다. 2호차 자료는 보존되었습니다.", state.projectLabel);
       } catch (error) {
         console.error("운영 차량 설정 실패", error);
@@ -5271,6 +5277,7 @@ function removeGuideColorFromSelection(editor) {
       const rightGrid = byId("rightGrid");
       const occupiedCountEl = byId("occupiedCount");
       const emptyCountEl = byId("emptyCount");
+      const totalCountEl = byId("totalCount");
 
       if (titleMain) titleMain.textContent = state.busInfo.titleMain;
       if (feeLabel) feeLabel.textContent = `${state.busInfo.feeLabel} `;
@@ -5317,8 +5324,11 @@ function removeGuideColorFromSelection(editor) {
 
       const occupiedCount = state.seats.filter((s) => s.name).length;
       const emptyCount = state.seats.filter((s) => !isBlockedSeat(s.number) && !s.name).length;
+      const totalOccupiedCount = vehicleSummary("1").named +
+        (state.secondVehicleEnabled ? vehicleSummary("2").named : 0);
       if (occupiedCountEl) occupiedCountEl.textContent = String(occupiedCount);
       if (emptyCountEl) emptyCountEl.textContent = String(emptyCount);
+      if (totalCountEl) totalCountEl.textContent = String(totalOccupiedCount);
 
       bindSeatEvents();
 
@@ -6327,7 +6337,7 @@ function renderAll() {
       });
     }
 
-    function applySnapshotData(payload) {
+    function applySnapshotData(payload, options = {}) {
       state.fleetPayload = payload || {};
       state.secondVehicleEnabled = payload?.fleet?.secondVehicleEnabled === true;
       if (!state.fleetLoaded) {
@@ -6363,9 +6373,11 @@ function renderAll() {
         const rawName = raw.name || "";
         let nextName = rawName;
         let nextStatus = rawName ? (raw.status || "waiting") : "empty";
-        if (rawName && nextStatus === "waiting" && raw.updatedAt && now - raw.updatedAt >= expireMs) {
-          nextName = "";
-          nextStatus = "empty";
+        // 자동삭제 대상은 DB에 상태가 명시적으로 waiting인 좌석만 인정한다.
+        // 구버전 좌석처럼 status가 없는 이름을 waiting으로 간주해 숨기지 않는다.
+        // 또한 서버 트랜잭션이 확인되기 전에 화면에서 이름을 먼저 지우지 않는다.
+        if (!options.skipExpiry && !state.fleetBusy && !state.fleetConfigBusy &&
+            rawName && raw.status === "waiting" && raw.updatedAt && now - raw.updatedAt >= expireMs) {
           expiredSeatNumbers.push(i + 1);
         }
         return {
@@ -6410,16 +6422,12 @@ function renderAll() {
       }
 
       renderAll();
-      if (expiredSeatNumbers.length > 0) syncExpiredWaitingSeats(expiredSeatNumbers, state.activeVehicle);
-      const otherVehicle = state.activeVehicle === "1" ? "2" : "1";
-      if (otherVehicle === "1" || state.secondVehicleEnabled) {
-        const otherPayload = projectVehiclePayload(rootPayload, otherVehicle);
-        const expiry = Math.max(1, Number(otherPayload.waitingExpireHours) || DEFAULT_WAITING_EXPIRE_HOURS) * 3600000;
-        const expired = Object.entries(otherPayload.seats || {}).filter(([key, seat]) =>
-          /^\d+$/.test(key) && seat && seat.name && seat.status === "waiting" && seat.updatedAt && Date.now() - seat.updatedAt >= expiry
-        ).map(([key]) => Number(key));
-        if (expired.length) syncExpiredWaitingSeats(expired, otherVehicle);
+      if (!options.skipExpiry && !state.fleetBusy && !state.fleetConfigBusy && expiredSeatNumbers.length > 0) {
+        syncExpiredWaitingSeats(expiredSeatNumbers, state.activeVehicle);
       }
+      // 다른 차량의 만료 좌석은 여기서 정리하지 않는다.
+      // 특히 2호차 선택/운영 시작이 1호차 좌석 삭제의 계기가 되지 않도록
+      // 자동삭제는 현재 화면에 표시 중인 차량에서만 실행한다.
     }
 
     function subscribeRealtime() {
@@ -11801,6 +11809,10 @@ if (action === "delete") {
     box.classList.remove("signup-open", "change-open");
     if (mode === "signup") box.classList.add("signup-open");
     if (mode === "change") box.classList.add("change-open");
+    // 로그인 부속 요소(메인메모/바로가기 아이콘)의 화면별 표시를
+    // CSS에서 안정적으로 구분할 수 있도록 body에도 현재 화면 상태를 기록한다.
+    document.body.classList.toggle("member-signup-open", mode === "signup");
+    document.body.classList.toggle("member-password-change-open", mode === "change");
   }
 
 
@@ -14654,6 +14666,52 @@ if (action === "delete") {
   });
 })();
 </script>
+
+<!-- ===== 로그인/회원가입/비밀번호변경 화면 부속 요소 표시 최종 규칙 ===== -->
+<style id="member-auth-auxiliary-visibility-final-style">
+  /* 로그인 화면을 포함한 회원 인증 화면에서 refresh 버튼은 항상 숨김 */
+  #memberAuthGate > .member-login-refresh-row,
+  #memberLoginRefreshBtn {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* 회원가입 및 비밀번호 변경 화면에서는 메인 메모 숨김 */
+  body.member-signup-open #memberLoginMainMemoBox,
+  body.member-password-change-open #memberLoginMainMemoBox {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* 회원가입 및 비밀번호 변경 화면에서는 밴드/카페 아이콘 숨김 */
+  body.member-signup-open #memberAuthGate > .member-login-top-links,
+  body.member-password-change-open #memberAuthGate > .member-login-top-links {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
+</style>
 
 
 <!-- patched: join same name + same phone = existing; same name + different phone/birth/dong = new memberList row -->
