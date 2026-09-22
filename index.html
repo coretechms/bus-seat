@@ -3539,7 +3539,7 @@ body.member-mode .alt-arrow-cell {
 
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
-      <h2 id="memberAuthTitle" class="member-auth-title">Mountain Members</h2>
+      <h2 id="memberAuthTitle" class="member-auth-title">   </h2>
       <div class="member-auth-row">
         <label for="memberLoginNameInput"> </label>
         <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
@@ -3554,7 +3554,6 @@ body.member-mode .alt-arrow-cell {
         <button id="memberPasswordChangeOpenBtn" type="button">비밀번호변경</button>
         <button id="memberLoginBtn" type="button">로그인</button>
       </div>
-
       <div id="memberPasswordChangePanel" class="member-password-change-panel">
         <div class="member-auth-row">
           <label for="memberChangeNameInput">아이디</label>
@@ -16063,8 +16062,8 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
   body.member-signup-open .member-auth-box {
     margin: 0 auto 10px !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
+    padding-top: 10px !important;
+    padding-bottom: 12px !important;
   }
 
   body.member-signup-open .member-auth-box .member-login-logo {
@@ -16080,31 +16079,40 @@ body.admin-mode:not(.member-manage-mode) .controls {
   }
 
   body.member-signup-open .member-auth-row {
-    margin-bottom: 4px !important;
-    gap: 5px !important;
+    margin-bottom: 7px !important;
+    gap: 7px !important;
   }
 
   body.member-signup-open .member-auth-row input,
   body.member-signup-open .member-auth-row select {
-    height: 26px !important;
-    font-size: 11px !important;
+    height: 33px !important;
+    min-height: 33px !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    font-size: 13px !important;
+  }
+
+  body.member-signup-open #memberSignupPanel .member-auth-row label {
+    font-size: 13px !important;
+    line-height: 1.25 !important;
   }
 
   body.member-signup-open .member-auth-actions,
   body.member-signup-open .member-signup-actions {
-    margin-top: 5px !important;
-    gap: 5px !important;
+    margin-top: 8px !important;
+    gap: 7px !important;
   }
 
   body.member-signup-open .member-auth-actions button,
   body.member-signup-open .member-signup-actions button {
-    height: 28px !important;
-    font-size: 11px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    font-size: 13px !important;
   }
 
   body.member-signup-open .member-signup-panel {
-    margin-top: 6px !important;
-    padding-top: 6px !important;
+    margin-top: 8px !important;
+    padding-top: 10px !important;
   }
 
   body.member-signup-open .member-auth-message {
@@ -16124,7 +16132,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
     }
     body.member-signup-open .member-auth-box {
       width: min(330px, 94vw) !important;
-      padding: 7px 10px 8px !important;
+      padding: 9px 11px 12px !important;
     }
     body.member-signup-open .member-auth-box .member-login-logo {
       width: 66px !important;
@@ -16136,16 +16144,23 @@ body.admin-mode:not(.member-manage-mode) .controls {
       margin-bottom: 5px !important;
     }
     body.member-signup-open .member-auth-row {
-      grid-template-columns: 58px auto !important;
-      margin-bottom: 3px !important;
+      grid-template-columns: 62px auto !important;
+      margin-bottom: 6px !important;
+      gap: 6px !important;
     }
     body.member-signup-open .member-auth-row label {
-      font-size: 11px !important;
+      font-size: 12px !important;
     }
     body.member-signup-open .member-auth-row input,
     body.member-signup-open .member-auth-row select {
-      height: 25px !important;
-      font-size: 11px !important;
+      height: 31px !important;
+      min-height: 31px !important;
+      font-size: 12px !important;
+    }
+    body.member-signup-open .member-signup-actions button {
+      height: 33px !important;
+      min-height: 33px !important;
+      font-size: 12px !important;
     }
   }
 </style>
