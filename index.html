@@ -3539,7 +3539,7 @@ body.member-mode .alt-arrow-cell {
 
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
-      <h2 id="memberAuthTitle" class="member-auth-title">   </h2>
+      <h2 id="memberAuthTitle" class="member-auth-title">- -</h2>
       <div class="member-auth-row">
         <label for="memberLoginNameInput"> </label>
         <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
@@ -3744,6 +3744,7 @@ body.member-mode .alt-arrow-cell {
                   <option value="44">44인승</option>
                   <option value="40">40인승</option>
                   <option value="31">31인승</option>
+                  <option value="28">28인승</option>
                   <option value="24">24인승</option>
                 </select>
                 <button class="btn btn-outline" id="saveBusType1Btn" type="button">1호차 변경</button>
@@ -3754,6 +3755,7 @@ body.member-mode .alt-arrow-cell {
                   <option value="44">44인승</option>
                   <option value="40">40인승</option>
                   <option value="31">31인승</option>
+                  <option value="28">28인승</option>
                   <option value="24">24인승</option>
                 </select>
                 <button class="btn btn-outline" id="saveBusType2Btn" type="button">2호차 변경</button>
@@ -4087,6 +4089,25 @@ const firebaseConfig = {
           1:1,2:2,4:3,5:4,6:5,8:6,9:7,10:8,12:9,13:10,14:11,16:12,17:13,18:14,
           20:15,21:16,22:17,24:18,25:19,26:20,28:21,29:22,30:23,32:24,33:25,
           34:26,36:27,37:28,38:29,39:30,40:31
+        }
+      },
+      "28": {
+        capacity: 44,
+        renderCapacity: 44,
+        leftPairs: [[1,2],[5,6],[9,10],[13,14],[17,18],[21,22],[25,26],[29,30],[33,34],[37,38],[41,42]],
+        rightPairs: [[3,4],[7,8],[11,12],[15,16],[19,20],[23,24],[27,28],[31,32],[35,36],[39,40],[43,44]],
+        blockedSeats: [3,7,11,15,19,23,27,31,37,38,39,40,41,42,43,44],
+        goodsText: "",
+        seatNumberMap: {
+          1:1,2:2,4:3,
+          5:4,6:5,8:6,
+          9:7,10:8,12:9,
+          13:10,14:11,16:12,
+          17:13,18:14,20:15,
+          21:16,22:17,24:18,
+          25:19,26:20,28:21,
+          29:22,30:23,32:24,
+          33:25,34:26,35:27,36:28
         }
       },
       "24": {
@@ -5070,10 +5091,14 @@ function removeGuideColorFromSelection(editor) {
         { name: "40 좌석 수", pass: createEmptySeats("40").length === 40 },
         { name: "40인승 마지막 좌석 40번", pass: getSeatDisplayNumberFor("40", 40) === 40 },
         { name: "31 표시용 좌석 수", pass: createEmptySeats("31").length === 44 },
+        { name: "28 표시용 좌석 수", pass: createEmptySeats("28").length === 44 },
         { name: "24 표시용 좌석 수", pass: createEmptySeats("24").length === 44 },
         { name: "44인승 막힘 좌석 4번", pass: isBlockedSeatFor("44", 4) === true },
         { name: "31인승 막힘 좌석 3번", pass: isBlockedSeatFor("31", 3) === true },
         { name: "31인승 4번 표시번호는 3", pass: getSeatDisplayNumberFor("31", 4) === 3 },
+        { name: "28인승 실제 좌석 수", pass: BUS_LAYOUTS["28"].renderCapacity - BUS_LAYOUTS["28"].blockedSeats.length === 28 },
+        { name: "28인승 36번 표시번호는 28", pass: getSeatDisplayNumberFor("28", 36) === 28 },
+        { name: "28인승 이후 좌석 차단", pass: isBlockedSeatFor("28", 37) === true },
         { name: "24인승 막힘 좌석 33번", pass: isBlockedSeatFor("24", 33) === true },
         { name: "24인승 32번 표시번호는 24", pass: getSeatDisplayNumberFor("24", 32) === 24 },
         { name: "HTML escape 동작", pass: escapeHtml("<a>") === "&lt;a&gt;" },
@@ -5085,6 +5110,7 @@ function removeGuideColorFromSelection(editor) {
         { name: "firebaseConfig 유효성", pass: validateFirebaseConfig().ok },
         { name: "초기 payload 44 좌석", pass: Object.keys(buildInitialPayload("44").seats).length === 44 },
         { name: "초기 payload 40 좌석", pass: Object.keys(buildInitialPayload("40").seats).length === 40 },
+        { name: "초기 payload 28 좌석", pass: Object.keys(buildInitialPayload("28").seats).length === 44 },
         { name: "초기 payload 24 좌석", pass: Object.keys(buildInitialPayload("24").seats).length === 44 },
         { name: "SeatNameBridge 존재", pass: typeof SeatNameBridge.sync === "function" }
       ];
