@@ -3539,7 +3539,7 @@ body.member-mode .alt-arrow-cell {
 
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
-      <h2 id="memberAuthTitle" class="member-auth-title">- -</h2>
+      <h2 id="memberAuthTitle" class="member-auth-title">  </h2>
       <div class="member-auth-row">
         <label for="memberLoginNameInput"> </label>
         <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
@@ -4398,20 +4398,43 @@ const firebaseConfig = {
       return status || "empty";
     }
 
-    function getSameNameSeats(name, excludeSeatNumber = null) {
-      const normalizedName = normalizeName(name);
-      if (!normalizedName) return [];
-      return state.seats
-        .filter((seat) => seat.number !== Number(excludeSeatNumber) && normalizeName(seat.name) === normalizedName)
-        .sort((a, b) => ((a.updatedAt || 0) - (b.updatedAt || 0)) || (a.number - b.number));
+    function getVehicleSeatsForDuplicateCheck(vehicleId) {
+      vehicleId = String(vehicleId || "1");
+      const seats = vehicleId === state.activeVehicle
+        ? state.seats
+        : Object.entries(projectVehiclePayload(state.fleetPayload || {}, vehicleId)?.seats || {})
+            .map(([number, seat]) => ({ ...(seat || {}), number: Number(number) }));
+      return (Array.isArray(seats) ? seats : []).map((seat) => ({
+        ...seat,
+        number: Number(seat.number),
+        vehicleId
+      }));
     }
 
-    function buildDuplicateName(baseName, excludeSeatNumber = null) {
+    function getAllFleetSeatsForDuplicateCheck() {
+      const vehicleIds = state.secondVehicleEnabled ? ["1", "2"] : ["1"];
+      return vehicleIds.flatMap((vehicleId) => getVehicleSeatsForDuplicateCheck(vehicleId));
+    }
+
+    function isSameFleetSeat(seat, vehicleId, seatNumber) {
+      return String(seat?.vehicleId || "1") === String(vehicleId || state.activeVehicle)
+        && Number(seat?.number) === Number(seatNumber);
+    }
+
+    function getSameNameSeats(name, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle) {
+      const normalizedName = normalizeName(name);
+      if (!normalizedName) return [];
+      return getAllFleetSeatsForDuplicateCheck()
+        .filter((seat) => !isSameFleetSeat(seat, excludeVehicleId, excludeSeatNumber) && normalizeName(seat.name) === normalizedName)
+        .sort((a, b) => ((a.updatedAt || 0) - (b.updatedAt || 0)) || String(a.vehicleId).localeCompare(String(b.vehicleId)) || (a.number - b.number));
+    }
+
+    function buildDuplicateName(baseName, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle) {
       const normalizedBase = normalizeName(baseName);
       if (!normalizedBase) return "";
       const taken = new Set(
-        state.seats
-          .filter((seat) => seat.number !== Number(excludeSeatNumber))
+        getAllFleetSeatsForDuplicateCheck()
+          .filter((seat) => !isSameFleetSeat(seat, excludeVehicleId, excludeSeatNumber))
           .map((seat) => normalizeName(seat.name))
           .filter(Boolean)
       );
@@ -4457,22 +4480,24 @@ const firebaseConfig = {
       });
     }
 
-    async function confirmDuplicateNameAction(name, excludeSeatNumber = null) {
+    async function confirmDuplicateNameAction(name, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle) {
       const normalizedName = normalizeName(name);
-      const duplicateSeats = getSameNameSeats(normalizedName, excludeSeatNumber);
+      const duplicateSeats = getSameNameSeats(normalizedName, excludeSeatNumber, excludeVehicleId);
       if (duplicateSeats.length === 0) {
         return { type: "normal", name: normalizedName, sourceSeat: null };
       }
+      const firstDuplicate = duplicateSeats[0];
+      const duplicateLocation = `${firstDuplicate.vehicleId}호차 ${getSeatDisplayNumberFor(getVehicleBusTypeSetting(firstDuplicate.vehicleId), firstDuplicate.number)}번`;
       const choice = await showThreeOptionDialog(`동일 이름 "${normalizedName}" 이(가) 있습니다.
-자리이동 인가요?`, " ");
+${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       if (choice === "move") {
-        const sourceSeat = duplicateSeats[0];
+        const sourceSeat = firstDuplicate;
         const sourceStatus = normalizeSeatStatus(sourceSeat?.status || "empty");
         const moveStatus = sourceStatus === "waiting" ? "waiting" : (sourceStatus === "paid_new" ? "paid_new_move" : "waiting_alt");
         return { type: "move", name: normalizedName, sourceSeat, moveStatus };
       }
       if (choice === "duplicate") {
-        const uniqueName = buildDuplicateName(normalizedName, excludeSeatNumber);
+        const uniqueName = buildDuplicateName(normalizedName, excludeSeatNumber, excludeVehicleId);
         return { type: "duplicate", name: uniqueName, sourceSeat: null, originalName: normalizedName };
       }
       return { type: "cancel", name: normalizedName, sourceSeat: null };
@@ -4480,9 +4505,10 @@ const firebaseConfig = {
 
     function applyNameAssignmentLocal(targetSeatNo, nextName, nextStatus, options = {}) {
       const sourceSeatNo = Number(options.sourceSeatNo || 0);
+      const sourceVehicleId = String(options.sourceVehicleId || state.activeVehicle);
       const now = Date.now();
       state.seats = state.seats.map((seat) => {
-        if (sourceSeatNo && seat.number === sourceSeatNo) {
+        if (sourceSeatNo && sourceVehicleId === state.activeVehicle && seat.number === sourceSeatNo) {
           return { ...seat, name: "", status: "empty", memo: "", updatedAt: now, updatedBy: state.clientId, ownerMemberCode: "" };
         }
         if (seat.number === Number(targetSeatNo)) {
@@ -4963,12 +4989,12 @@ function removeGuideColorFromSelection(editor) {
 
     function getDuplicateSeatRole(seat) {
       if (!seat || !seat.name) return "normal";
-      const sameNameSeats = state.seats
+      const sameNameSeats = getAllFleetSeatsForDuplicateCheck()
         .filter((s) => normalizeName(s.name) === normalizeName(seat.name))
-        .sort((a, b) => ((a.updatedAt || 0) - (b.updatedAt || 0)) || (a.number - b.number));
+        .sort((a, b) => ((a.updatedAt || 0) - (b.updatedAt || 0)) || String(a.vehicleId).localeCompare(String(b.vehicleId)) || (a.number - b.number));
       if (sameNameSeats.length < 2) return "normal";
-      if (sameNameSeats[0].number === seat.number) return "old";
-      if (sameNameSeats[sameNameSeats.length - 1].number === seat.number) return "new";
+      if (isSameFleetSeat(sameNameSeats[0], state.activeVehicle, seat.number)) return "old";
+      if (isSameFleetSeat(sameNameSeats[sameNameSeats.length - 1], state.activeVehicle, seat.number)) return "new";
       return "normal";
     }
 
@@ -6854,7 +6880,9 @@ function renderAll() {
       try {
         const normalizedTargetName = normalizeName(name);
         const sourceSeatNo = Number(options.clearSourceSeatNo || 0);
-        const isMoveRequest = sourceSeatNo > 0 && sourceSeatNo !== Number(seatNo);
+        const sourceVehicleId = String(options.clearSourceVehicleId || vehicleId);
+        const isMoveRequest = sourceSeatNo > 0
+          && (sourceVehicleId !== vehicleId || sourceSeatNo !== Number(seatNo));
         const currentSeat = await readSeatRemote(seatNo, vehicleId);
         const currentName = currentSeat?.name || "";
         const currentStatus = normalizeSeatStatus(currentSeat?.status || "empty");
@@ -6886,28 +6914,49 @@ function renderAll() {
         }
 
         if (isMoveRequest) {
-          const sourceSeat = await readSeatRemote(sourceSeatNo, vehicleId);
+          const sourceSeat = await readSeatRemote(sourceSeatNo, sourceVehicleId);
           const sourceName = normalizeName(sourceSeat?.name || "");
           if (!sourceName || sourceName !== normalizedTargetName) {
             setStatusMessage("자리이동 대상 원본 좌석을 확인하세요.", state.projectLabel);
             return false;
           }
-          updates[`seats/${sourceSeatNo}/name`] = "";
-          updates[`seats/${sourceSeatNo}/status`] = "empty";
-          updates[`seats/${sourceSeatNo}/updatedAt`] = now;
-          updates[`seats/${sourceSeatNo}/updatedBy`] = state.clientId;
-          updates[`seats/${sourceSeatNo}/ownerMemberCode`] = "";
-          updates[`seats/${sourceSeatNo}/memo`] = "";
+          if (sourceVehicleId === vehicleId) {
+            updates[`seats/${sourceSeatNo}/name`] = "";
+            updates[`seats/${sourceSeatNo}/status`] = "empty";
+            updates[`seats/${sourceSeatNo}/updatedAt`] = now;
+            updates[`seats/${sourceSeatNo}/updatedBy`] = state.clientId;
+            updates[`seats/${sourceSeatNo}/ownerMemberCode`] = "";
+            updates[`seats/${sourceSeatNo}/memo`] = "";
+          }
         }
 
-        const saved = await safeUpdate(ref(state.db, vehiclePath), updates, {
+        let saveRef = ref(state.db, vehiclePath);
+        let saveUpdates = updates;
+        if (isMoveRequest && sourceVehicleId !== vehicleId) {
+          const targetPrefix = vehicleId === "2" ? "vehicles/2/" : "";
+          const sourcePrefix = sourceVehicleId === "2" ? "vehicles/2/" : "";
+          saveRef = ref(state.db, ROOT_PATH);
+          saveUpdates = {};
+          Object.entries(updates).forEach(([path, value]) => {
+            saveUpdates[`${targetPrefix}${path}`] = value;
+          });
+          saveUpdates[`${sourcePrefix}seats/${sourceSeatNo}/name`] = "";
+          saveUpdates[`${sourcePrefix}seats/${sourceSeatNo}/status`] = "empty";
+          saveUpdates[`${sourcePrefix}seats/${sourceSeatNo}/updatedAt`] = now;
+          saveUpdates[`${sourcePrefix}seats/${sourceSeatNo}/updatedBy`] = state.clientId;
+          saveUpdates[`${sourcePrefix}seats/${sourceSeatNo}/ownerMemberCode`] = "";
+          saveUpdates[`${sourcePrefix}seats/${sourceSeatNo}/memo`] = "";
+          saveUpdates[`${sourcePrefix}meta/updatedAt`] = now;
+        }
+
+        const saved = await safeUpdate(saveRef, saveUpdates, {
           label: "saveMemberSeatRemote",
           permissionMessage: "회원 좌석 저장 권한이 없습니다.",
           genericMessage: "좌석 저장 실패"
         });
         if (saved) {
           setMemberOwnedSeat(vehicleId, seatNo, Boolean(name));
-          if (isMoveRequest) setMemberOwnedSeat(vehicleId, sourceSeatNo, false);
+          if (isMoveRequest) setMemberOwnedSeat(sourceVehicleId, sourceSeatNo, false);
         }
         return saved;
       } catch (error) {
@@ -7208,6 +7257,7 @@ function renderAll() {
       let finalName = name;
       let finalStatus = name ? (state.mode === "member" ? "waiting" : normalizeSeatStatus(prevStatus === "empty" ? "reserved" : prevStatus)) : "empty";
       let sourceSeatNo = null;
+      let sourceVehicleId = state.activeVehicle;
 
       if (state.mode === "member" && name) {
         const duplicateDecision = await confirmDuplicateNameAction(name, seatNumber);
@@ -7220,13 +7270,14 @@ function renderAll() {
         finalName = duplicateDecision.name;
         if (duplicateDecision.type === "move") {
           sourceSeatNo = duplicateDecision.sourceSeat?.number || null;
+          sourceVehicleId = String(duplicateDecision.sourceSeat?.vehicleId || state.activeVehicle);
           finalStatus = duplicateDecision.moveStatus || "waiting_alt";
         } else {
           finalStatus = "waiting";
         }
       }
 
-      applyNameAssignmentLocal(seatNumber, finalName, finalStatus, { sourceSeatNo });
+      applyNameAssignmentLocal(seatNumber, finalName, finalStatus, { sourceSeatNo, sourceVehicleId });
       state.memberSeat = String(seatNumber);
       state.memberName = finalName;
       state.editingSeat = null;
@@ -7237,7 +7288,11 @@ function renderAll() {
         return;
       }
       if (state.mode === "member") {
-        const committed = await saveMemberSeatRemote(seatNumber, finalName, { status: finalStatus, clearSourceSeatNo: sourceSeatNo });
+        const committed = await saveMemberSeatRemote(seatNumber, finalName, {
+          status: finalStatus,
+          clearSourceSeatNo: sourceSeatNo,
+          clearSourceVehicleId: sourceVehicleId
+        });
         if (!committed) {
           state.seats = prevSeats;
           renderAll();
@@ -7290,10 +7345,13 @@ function renderAll() {
       }
       const finalName = duplicateDecision.name;
       const sourceSeatNo = duplicateDecision.type === "move" ? (duplicateDecision.sourceSeat?.number || null) : null;
+      const sourceVehicleId = duplicateDecision.type === "move"
+        ? String(duplicateDecision.sourceSeat?.vehicleId || state.activeVehicle)
+        : state.activeVehicle;
       const finalStatus = finalName
         ? (duplicateDecision.type === "move" ? (duplicateDecision.moveStatus || "waiting_alt") : "waiting")
         : "empty";
-      applyNameAssignmentLocal(seatNo, finalName, finalStatus, { sourceSeatNo });
+      applyNameAssignmentLocal(seatNo, finalName, finalStatus, { sourceSeatNo, sourceVehicleId });
       state.memberName = finalName;
       state.editingSeat = null;
       state.editName = "";
@@ -7303,7 +7361,11 @@ function renderAll() {
         setStatusMessage("Firebase 미연결 - 화면에만 저장", state.projectLabel);
         return;
       }
-      const committed = await saveMemberSeatRemote(seatNo, finalName, { status: finalStatus, clearSourceSeatNo: sourceSeatNo });
+      const committed = await saveMemberSeatRemote(seatNo, finalName, {
+        status: finalStatus,
+        clearSourceSeatNo: sourceSeatNo,
+        clearSourceVehicleId: sourceVehicleId
+      });
       if (!committed) {
         state.seats = prevSeats;
         renderAll();
