@@ -4452,6 +4452,31 @@ const firebaseConfig = {
         const existing = document.getElementById("threeOptionDialogOverlay");
         if (existing) existing.remove();
 
+        const editingBubble = byId("seatNameBubble");
+        const mobileBubble = !!editingBubble && window.matchMedia("(max-width: 760px)").matches;
+        let updateVisibleArea = null;
+        if (mobileBubble) {
+          const input = editingBubble.querySelector("#inlineSeatInput");
+          if (input) {
+            input.dataset.detaching = "1";
+            state.inlineEditProtectUntil = 0;
+            input.blur(); // 모바일 키보드를 내려 두 창이 모두 보일 공간을 확보한다.
+          }
+          document.body.classList.add("duplicate-seat-dialog-open");
+          updateVisibleArea = () => {
+            if (!document.body.classList.contains("duplicate-seat-dialog-open")) return;
+            const viewport = window.visualViewport;
+            document.body.style.setProperty("--duplicate-visible-top", `${viewport?.offsetTop || 0}px`);
+            document.body.style.setProperty("--duplicate-visible-height", `${viewport?.height || window.innerHeight}px`);
+          };
+          updateVisibleArea();
+          window.visualViewport?.addEventListener("resize", updateVisibleArea);
+          window.visualViewport?.addEventListener("scroll", updateVisibleArea);
+          window.addEventListener("resize", updateVisibleArea);
+          window.setTimeout(updateVisibleArea, 180);
+          window.setTimeout(updateVisibleArea, 450);
+        }
+
         const overlay = document.createElement("div");
         overlay.className = "tri-overlay";
         overlay.id = "threeOptionDialogOverlay";
@@ -4469,6 +4494,14 @@ const firebaseConfig = {
         document.body.appendChild(overlay);
 
         const cleanup = (value) => {
+          if (mobileBubble) {
+            document.body.classList.remove("duplicate-seat-dialog-open");
+            document.body.style.removeProperty("--duplicate-visible-top");
+            document.body.style.removeProperty("--duplicate-visible-height");
+            window.visualViewport?.removeEventListener("resize", updateVisibleArea);
+            window.visualViewport?.removeEventListener("scroll", updateVisibleArea);
+            window.removeEventListener("resize", updateVisibleArea);
+          }
           overlay.remove();
           resolve(value);
         };
@@ -5537,11 +5570,42 @@ function removeGuideColorFromSelection(editor) {
           window.addEventListener("resize", refreshBubblePosition);
           document.addEventListener("scroll", refreshBubblePosition, true);
         }
+        if (!window.seatNameBubbleOutsideBound) {
+          window.seatNameBubbleOutsideBound = true;
+          const closeOnOutside = (event) => {
+            const currentBubble = byId("seatNameBubble");
+            if (!currentBubble || !state.editingSeat) return;
+            if (byId("threeOptionDialogOverlay")) return;
+            const target = event.target;
+            // 말풍선과 모든 좌석은 바깥 클릭으로 취급하지 않는다.
+            if (currentBubble.contains(target) || target.closest?.(".seat")) return;
+            const seatNo = Number(state.editingSeat);
+            const currentInput = currentBubble.querySelector("#inlineSeatInput");
+            if (currentInput) currentInput.dataset.detaching = "1";
+            state.inlineEditProtectUntil = 0;
+            currentBubble.remove();
+            if (state.mode === "admin" && target.closest?.("#adminStatus")) {
+              // 상태 선택 자체가 저장하므로 이전 상태로 별도 저장하지 않는다.
+              state.editingSeat = null;
+              state.editName = "";
+              return;
+            }
+            // 기존의 포커스 이탈 저장 흐름을 한 번만 실행한다.
+            void handleInlineSave(seatNo);
+          };
+          document.addEventListener("pointerdown", closeOnOutside, true);
+          if (!window.PointerEvent) {
+            document.addEventListener("mousedown", closeOnOutside, true);
+            document.addEventListener("touchstart", closeOnOutside, true);
+          }
+        }
         const inline = byId("inlineSeatInput");
         if (!inline) return;
         inline.value = state.editName;
-        inline.focus();
-        inline.select();
+        if (!document.body.classList.contains("duplicate-seat-dialog-open")) {
+          inline.focus();
+          inline.select();
+        }
         inline.addEventListener("click", (e) => e.stopPropagation());
         inline.addEventListener("input", (e) => {
           e.target.value = e.target.value.replace(/\s+/g, "");
@@ -5560,7 +5624,7 @@ function removeGuideColorFromSelection(editor) {
           if (inline.dataset.detaching === "1") return;
           const seatNoAtBlur = Number(state.editingSeat || 0);
           const protectUntil = Number(state.inlineEditProtectUntil || 0);
-          if (state.mode === "member" && seatNoAtBlur && Date.now() < protectUntil) {
+          if ((state.mode === "member" || state.mode === "admin") && seatNoAtBlur && Date.now() < protectUntil) {
             // 보호시간 안의 순간 터치는 편집 종료/저장으로 처리하지 않고 입력창으로 복귀
             window.setTimeout(() => {
               if (Number(state.editingSeat || 0) !== seatNoAtBlur) return;
@@ -7272,6 +7336,7 @@ function renderAll() {
         state.memberName = seat.name || "";
         state.editingSeat = seat.number;
         state.editName = seat.name || "";
+        state.inlineEditProtectUntil = Date.now() + 3000;
         renderAll();
         return;
       }
@@ -7988,7 +8053,7 @@ function renderAll() {
       state.editName = "";
       renderAll();
       if (!state.isFirebaseReady) {
-        flashSaveVisuals(seatNo, "adminSaveBtnBottom");
+        flashSaveVisuals(seatNo, null);
         setStatusMessage("Firebase 미연결 - 화면에만 저장", state.projectLabel);
         return;
       }
@@ -7999,7 +8064,7 @@ function renderAll() {
         alert("관리 상태 저장 권한이 없습니다.");
         return;
       }
-      flashSaveVisuals(seatNo, "adminSaveBtnBottom");
+      flashSaveVisuals(seatNo, null);
     }
 
     async function handleAdminMarkSelectedPaid() {
@@ -8515,10 +8580,8 @@ function renderAll() {
       }));
       bindIfPresent("adminStatus", "change", (e) => {
         state.adminStatus = e.target.value;
-        // PC: 상태 선택 즉시 저장. 모바일: 아래 상태저장 버튼을 눌렀을 때 저장.
-        if (!window.matchMedia("(max-width: 760px)").matches) {
-          void handleAdminSave();
-        }
+        // PC와 모바일 모두 상태 선택 즉시 저장한다.
+        void handleAdminSave();
       });
       bindIfPresent("adminSaveBtnTop", "click", handleAdminSave);
       bindIfPresent("adminSaveBtnBottom", "click", handleAdminSave);
@@ -17648,7 +17711,7 @@ body.member-mode #boardImageModeBtn {
     gap: 4px;
   }
   #adminSaveBtnBottom {
-    display: inline-flex !important;
+    display: none !important;
     font-size: 10px !important;
     padding-left: 2px !important;
     padding-right: 2px !important;
@@ -17746,6 +17809,38 @@ body.member-mode #boardImageModeBtn {
 @media (max-width: 760px) {
   .seat-name-bubble { height: 138px; padding: 11px; }
   .seat-name-bubble #inlineSeatInput { height: 78px; font-size: clamp(25px, 8vw, 35px); }
+}
+
+/* 모바일 동명이인 확인: 키보드가 내려간 화면에 말풍선과 선택창을 세로로 배치 */
+@media (max-width: 760px) {
+  body.duplicate-seat-dialog-open #seatNameBubble {
+    top: calc(var(--duplicate-visible-top, 0px) + 10px) !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+    z-index: 10002;
+    pointer-events: none;
+  }
+  body.duplicate-seat-dialog-open #seatNameBubble::before,
+  body.duplicate-seat-dialog-open #seatNameBubble::after {
+    display: none;
+  }
+  body.duplicate-seat-dialog-open #threeOptionDialogOverlay {
+    inset: auto 0 auto 0;
+    top: calc(var(--duplicate-visible-top, 0px) + 154px);
+    height: max(0px, calc(var(--duplicate-visible-height, 100dvh) - 154px));
+    min-height: 0;
+    box-sizing: border-box;
+    padding: 8px 12px 16px;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    z-index: 10001;
+  }
+  body.duplicate-seat-dialog-open #threeOptionDialogOverlay .tri-dialog {
+    box-sizing: border-box;
+    width: min(460px, 100%);
+    flex: 0 0 auto;
+  }
 }
 </style>
 <script id="seat-unregistered-member-blink-patch">
