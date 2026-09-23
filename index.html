@@ -4400,9 +4400,12 @@ const firebaseConfig = {
       return status || "empty";
     }
 
-    function getVehicleSeatsForDuplicateCheck(vehicleId) {
+    function getVehicleSeatsForDuplicateCheck(vehicleId, rootPayload = null) {
       vehicleId = String(vehicleId || "1");
-      const seats = vehicleId === state.activeVehicle
+      const seats = rootPayload
+        ? Object.entries(projectVehiclePayload(rootPayload, vehicleId)?.seats || {})
+            .map(([number, seat]) => ({ ...(seat || {}), number: Number(number) }))
+        : vehicleId === state.activeVehicle
         ? state.seats
         : Object.entries(projectVehiclePayload(state.fleetPayload || {}, vehicleId)?.seats || {})
             .map(([number, seat]) => ({ ...(seat || {}), number: Number(number) }));
@@ -4413,9 +4416,11 @@ const firebaseConfig = {
       }));
     }
 
-    function getAllFleetSeatsForDuplicateCheck() {
-      const vehicleIds = state.secondVehicleEnabled ? ["1", "2"] : ["1"];
-      return vehicleIds.flatMap((vehicleId) => getVehicleSeatsForDuplicateCheck(vehicleId));
+    function getAllFleetSeatsForDuplicateCheck(rootPayload = null) {
+      const hasSecondVehicle = state.secondVehicleEnabled || state.activeVehicle === "2" ||
+        rootPayload?.fleet?.secondVehicleEnabled === true;
+      const vehicleIds = hasSecondVehicle ? ["1", "2"] : ["1"];
+      return vehicleIds.flatMap((vehicleId) => getVehicleSeatsForDuplicateCheck(vehicleId, rootPayload));
     }
 
     function isSameFleetSeat(seat, vehicleId, seatNumber) {
@@ -4423,19 +4428,19 @@ const firebaseConfig = {
         && Number(seat?.number) === Number(seatNumber);
     }
 
-    function getSameNameSeats(name, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle) {
+    function getSameNameSeats(name, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle, fleetSeats = getAllFleetSeatsForDuplicateCheck()) {
       const normalizedName = normalizeName(name);
       if (!normalizedName) return [];
-      return getAllFleetSeatsForDuplicateCheck()
+      return fleetSeats
         .filter((seat) => !isSameFleetSeat(seat, excludeVehicleId, excludeSeatNumber) && normalizeName(seat.name) === normalizedName)
         .sort((a, b) => ((a.updatedAt || 0) - (b.updatedAt || 0)) || String(a.vehicleId).localeCompare(String(b.vehicleId)) || (a.number - b.number));
     }
 
-    function buildDuplicateName(baseName, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle) {
+    function buildDuplicateName(baseName, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle, fleetSeats = getAllFleetSeatsForDuplicateCheck()) {
       const normalizedBase = normalizeName(baseName);
       if (!normalizedBase) return "";
       const taken = new Set(
-        getAllFleetSeatsForDuplicateCheck()
+        fleetSeats
           .filter((seat) => !isSameFleetSeat(seat, excludeVehicleId, excludeSeatNumber))
           .map((seat) => normalizeName(seat.name))
           .filter(Boolean)
@@ -4517,7 +4522,16 @@ const firebaseConfig = {
 
     async function confirmDuplicateNameAction(name, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle) {
       const normalizedName = normalizeName(name);
-      const duplicateSeats = getSameNameSeats(normalizedName, excludeSeatNumber, excludeVehicleId);
+      let fleetSeats = getAllFleetSeatsForDuplicateCheck();
+      if (state.db && state.isFirebaseReady) {
+        try {
+          const currentFleet = await get(ref(state.db, ROOT_PATH));
+          if (currentFleet.exists()) fleetSeats = getAllFleetSeatsForDuplicateCheck(currentFleet.val());
+        } catch (error) {
+          console.warn("1·2호차 동명이인 최신 조회 실패; 현재 화면 자료 사용", error);
+        }
+      }
+      const duplicateSeats = getSameNameSeats(normalizedName, excludeSeatNumber, excludeVehicleId, fleetSeats);
       if (duplicateSeats.length === 0) {
         return { type: "normal", name: normalizedName, sourceSeat: null };
       }
@@ -4532,7 +4546,7 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
         return { type: "move", name: normalizedName, sourceSeat, moveStatus };
       }
       if (choice === "duplicate") {
-        const uniqueName = buildDuplicateName(normalizedName, excludeSeatNumber, excludeVehicleId);
+        const uniqueName = buildDuplicateName(normalizedName, excludeSeatNumber, excludeVehicleId, fleetSeats);
         return { type: "duplicate", name: uniqueName, sourceSeat: null, originalName: normalizedName };
       }
       return { type: "cancel", name: normalizedName, sourceSeat: null };
@@ -7127,10 +7141,44 @@ function renderAll() {
       }
     }
 
-    async function saveSeatAdmin(seatNo, name, status) {
+    async function saveSeatAdmin(seatNo, name, status, options = {}) {
       const vehicleId = state.activeVehicle;
       const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
+      const sourceSeatNo = Number(options.clearSourceSeatNo || 0);
+      const sourceVehicleId = String(options.clearSourceVehicleId || vehicleId);
+      if (sourceSeatNo && (sourceVehicleId !== vehicleId || sourceSeatNo !== Number(seatNo))) {
+        const sourceSeat = await readSeatRemote(sourceSeatNo, sourceVehicleId);
+        if (normalizeName(sourceSeat?.name || "") !== normalizeName(options.originalName || name)) {
+          setStatusMessage("자리이동 원본 좌석의 이름을 다시 확인하세요.", state.projectLabel);
+          return false;
+        }
+        const now = Date.now();
+        const targetPrefix = vehicleId === "2" ? "vehicles/2/" : "";
+        const sourcePrefix = sourceVehicleId === "2" ? "vehicles/2/" : "";
+        const updates = {
+          [`${targetPrefix}seats/${seatNo}/name`]: name,
+          [`${targetPrefix}seats/${seatNo}/status`]: name ? status : "empty",
+          [`${targetPrefix}seats/${seatNo}/updatedAt`]: now,
+          [`${targetPrefix}seats/${seatNo}/updatedBy`]: state.clientId,
+          [`${targetPrefix}seats/${seatNo}/ownerMemberCode`]: sourceSeat.ownerMemberCode || "",
+          [`${targetPrefix}meta/updatedAt`]: now,
+          [`${sourcePrefix}seats/${sourceSeatNo}/name`]: "",
+          [`${sourcePrefix}seats/${sourceSeatNo}/status`]: "empty",
+          [`${sourcePrefix}seats/${sourceSeatNo}/updatedAt`]: now,
+          [`${sourcePrefix}seats/${sourceSeatNo}/updatedBy`]: state.clientId,
+          [`${sourcePrefix}seats/${sourceSeatNo}/ownerMemberCode`]: "",
+          [`${sourcePrefix}seats/${sourceSeatNo}/memo`]: "",
+          [`${sourcePrefix}meta/updatedAt`]: now
+        };
+        const moved = await safeUpdate(ref(state.db, ROOT_PATH), updates, {
+          label: "saveSeatAdmin:moveAcrossFleet",
+          permissionMessage: "1·2호차 자리이동 저장 권한이 없습니다.",
+          genericMessage: "자리이동 저장 실패"
+        });
+        if (moved) setMemberOwnedSeat(sourceVehicleId, sourceSeatNo, false);
+        return moved;
+      }
       // 관리자 수정 규칙:
       // 1) 이름/상태만 수정하면 기존 회원 입력자(ownerMemberCode)는 그대로 유지
       // 2) 관리자가 좌석을 완전히 비우면 ownerMemberCode도 삭제하여 새 회원이 입력 가능
@@ -7384,7 +7432,8 @@ function renderAll() {
       let sourceSeatNo = null;
       let sourceVehicleId = state.activeVehicle;
 
-      if (state.mode === "member" && name) {
+      if (name && (state.mode === "member" ||
+          (state.mode === "admin" && normalizeName(name) !== normalizeName(prevName)))) {
         const duplicateDecision = await confirmDuplicateNameAction(name, seatNumber);
         if (duplicateDecision.type === "cancel") {
           state.editingSeat = null;
@@ -7428,8 +7477,14 @@ function renderAll() {
         return;
       }
       if (state.isAdminAuthenticated) {
-        const nextStatus = finalName ? normalizeSeatStatus((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus) : "empty";
-        const ok = await saveSeatAdmin(seatNumber, finalName, nextStatus);
+        const nextStatus = finalName ? (sourceSeatNo
+          ? finalStatus
+          : normalizeSeatStatus((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus)) : "empty";
+        const ok = await saveSeatAdmin(seatNumber, finalName, nextStatus, {
+          clearSourceSeatNo: sourceSeatNo,
+          clearSourceVehicleId: sourceVehicleId,
+          originalName: name
+        });
         if (!ok) {
           state.seats = prevSeats;
           renderAll();
