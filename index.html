@@ -4461,6 +4461,7 @@ const firebaseConfig = {
         const mobileBubble = !!editingBubble && window.matchMedia("(max-width: 760px)").matches;
         let updateVisibleArea = null;
         if (mobileBubble) {
+          document.body.classList.toggle("duplicate-seat-dialog-tall", editingBubble.classList.contains("has-status-action"));
           const input = editingBubble.querySelector("#inlineSeatInput");
           if (input) {
             input.dataset.detaching = "1";
@@ -4501,6 +4502,7 @@ const firebaseConfig = {
         const cleanup = (value) => {
           if (mobileBubble) {
             document.body.classList.remove("duplicate-seat-dialog-open");
+            document.body.classList.remove("duplicate-seat-dialog-tall");
             document.body.style.removeProperty("--duplicate-visible-top");
             document.body.style.removeProperty("--duplicate-visible-height");
             window.visualViewport?.removeEventListener("resize", updateVisibleArea);
@@ -5555,7 +5557,11 @@ function removeGuideColorFromSelection(editor) {
         const bubble = document.createElement("div");
         bubble.id = "seatNameBubble";
         bubble.className = "seat-name-bubble";
-        bubble.innerHTML = '<div class="bubble-heading"><span class="bubble-seat-number"></span><span class="bubble-caption">이름 입력</span></div><input id="inlineSeatInput" type="text" aria-label="좌석 이름 입력" placeholder="이름입력" autocomplete="off" />';
+        const editingSeatData = state.seats.find((seat) => seat.number === Number(state.editingSeat));
+        const showStatusAction = state.mode === "admin" && !!editingSeatData?.name;
+        if (showStatusAction) bubble.classList.add("has-status-action");
+        bubble.innerHTML = '<div class="bubble-heading"><span class="bubble-seat-number"></span><span class="bubble-caption">이름 입력</span></div><input id="inlineSeatInput" type="text" aria-label="좌석 이름 입력" placeholder="이름입력" autocomplete="off" />' +
+          (showStatusAction ? '<select id="bubbleStatusSelect" aria-label="좌석 상태 선택"><option value="paid">완납</option><option value="waiting">입금대기</option><option value="reserved">이름만 표기</option><option value="paid_new">완납/신입</option><option value="paid_reserved">완납/예약완료</option></select>' : '');
         bubble.querySelector(".bubble-seat-number").textContent = `${getSeatDisplayNumber(state.editingSeat)}번 좌석`;
         document.body.appendChild(bubble);
         const positionBubble = () => {
@@ -5565,11 +5571,12 @@ function removeGuideColorFromSelection(editor) {
           const width = Math.min(300, window.innerWidth - 24);
           const seatCenterX = rect.left + rect.width / 2;
           const left = Math.max(12, Math.min(seatCenterX - width / 2, window.innerWidth - width - 12));
-          const above = rect.top >= 170 || rect.bottom + 175 > window.innerHeight;
+          const bubbleOffset = showStatusAction ? 222 : 170;
+          const above = rect.top >= bubbleOffset || rect.bottom + bubbleOffset + 5 > window.innerHeight;
           bubble.classList.toggle("below", !above);
           bubble.style.width = `${width}px`;
           bubble.style.left = `${left}px`;
-          bubble.style.top = `${above ? Math.max(8, rect.top - 170) : rect.bottom + 34}px`;
+          bubble.style.top = `${above ? Math.max(8, rect.top - bubbleOffset) : rect.bottom + 34}px`;
           // 꼬리의 꼭짓점을 좌석 박스의 정확한 가로 중앙에 맞춘다.
           bubble.style.setProperty("--tail-x", `${seatCenterX - left}px`);
         };
@@ -5621,6 +5628,21 @@ function removeGuideColorFromSelection(editor) {
           inline.select();
         }
         inline.addEventListener("click", (e) => e.stopPropagation());
+        const statusAction = bubble.querySelector("#bubbleStatusSelect");
+        if (statusAction) {
+          statusAction.value = ["paid", "waiting", "reserved", "paid_new", "paid_reserved"].includes(state.adminStatus)
+            ? state.adminStatus : "reserved";
+          const protectFromBlurSave = () => {
+            inline.dataset.detaching = "1";
+            state.inlineEditProtectUntil = 0;
+          };
+          statusAction.addEventListener("pointerdown", protectFromBlurSave);
+          statusAction.addEventListener("change", (event) => {
+            event.stopPropagation();
+            protectFromBlurSave();
+            void handleAdminSetNamedSeatStatus(event.target.value);
+          });
+        }
         inline.addEventListener("input", (e) => {
           e.target.value = e.target.value.replace(/\s+/g, "");
           const rawValue = e.target.value;
@@ -8122,7 +8144,9 @@ function renderAll() {
       flashSaveVisuals(seatNo, null);
     }
 
-    async function handleAdminMarkSelectedPaid() {
+    async function handleAdminSetNamedSeatStatus(requestedStatus) {
+      const nextStatus = String(requestedStatus || "");
+      if (!["paid", "waiting", "reserved", "paid_new", "paid_reserved"].includes(nextStatus)) return;
       if (!state.isAdminAuthenticated) {
         alert("관리자 인증 후 사용할 수 있습니다.");
         return;
@@ -8133,36 +8157,67 @@ function renderAll() {
         return;
       }
       if (!seatNo) {
-        alert("완납 처리할 좌석을 먼저 선택하세요.");
+        alert("상태를 변경할 좌석을 먼저 선택하세요.");
         return;
       }
       const prevSeat = state.seats.find((s) => s.number === seatNo);
       const prevName = prevSeat?.name || "";
       const prevStatus = prevSeat?.status || "empty";
+      const prevSeats = state.seats.map((seat) => ({ ...seat }));
       const nextName = String(state.memberName || prevName || "").trim();
       if (!nextName) {
-        alert("이름이 있는 좌석만 완납 처리할 수 있습니다.");
+        alert("이름이 있는 좌석만 상태를 변경할 수 있습니다.");
         return;
       }
-      state.adminStatus = "paid";
-      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: nextName, status: "paid", updatedAt: Date.now(), updatedBy: state.clientId } : seat);
+      const validation = validatePassengerName(nextName);
+      if (!validation.ok) {
+        await showNoticeDialog(validation.alert);
+        return;
+      }
+      let finalName = validation.normalized;
+      let sourceSeatNo = null;
+      let sourceVehicleId = state.activeVehicle;
+      if (normalizeName(finalName) !== normalizeName(prevName)) {
+        const duplicateDecision = await confirmDuplicateNameAction(finalName, seatNo);
+        if (duplicateDecision.type === "cancel") {
+          renderAll();
+          return;
+        }
+        finalName = duplicateDecision.name;
+        if (duplicateDecision.type === "move") {
+          sourceSeatNo = duplicateDecision.sourceSeat?.number || null;
+          sourceVehicleId = String(duplicateDecision.sourceSeat?.vehicleId || state.activeVehicle);
+        }
+      }
+      state.adminStatus = nextStatus;
+      applyNameAssignmentLocal(seatNo, finalName, nextStatus, { sourceSeatNo, sourceVehicleId });
+      state.memberName = finalName;
       state.editingSeat = null;
       state.editName = "";
       renderAll();
       if (!state.isFirebaseReady || !state.db) {
-        flashSaveVisuals(seatNo, "adminMarkSelectedPaidBtn");
-        setStatusMessage("Firebase 미연결 - 현재 화면에서만 완납 처리", state.projectLabel);
+        flashSaveVisuals(seatNo, null);
+        setStatusMessage("Firebase 미연결 - 현재 화면에서만 상태 변경", state.projectLabel);
         return;
       }
-      const ok = await saveSeatAdmin(seatNo, nextName, "paid");
+      const ok = await saveSeatAdmin(seatNo, finalName, nextStatus, {
+        clearSourceSeatNo: sourceSeatNo,
+        clearSourceVehicleId: sourceVehicleId,
+        originalName: nextName
+      });
       if (!ok) {
-        state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: prevName, status: prevStatus } : seat);
+        state.seats = prevSeats;
+        state.memberName = prevName;
         state.adminStatus = normalizeSeatStatus(prevStatus === "empty" ? "reserved" : prevStatus);
         renderAll();
-        alert("완납 처리 권한이 없거나 저장에 실패했습니다.");
+        alert("상태 변경 권한이 없거나 저장에 실패했습니다.");
         return;
       }
-      flashSaveVisuals(seatNo, "adminMarkSelectedPaidBtn");
+      flashSaveVisuals(seatNo, null);
+    }
+
+    async function handleAdminMarkSelectedPaid() {
+      return handleAdminSetNamedSeatStatus("paid");
     }
 
     async function handleAdminClearSeat() {
@@ -8873,7 +8928,7 @@ function renderAll() {
     handleMemberSave = guardVehicleWorkflow(handleMemberSave);
     executeMemberCancel = guardVehicleWorkflow(executeMemberCancel);
     handleAdminSave = guardVehicleWorkflow(handleAdminSave);
-    handleAdminMarkSelectedPaid = guardVehicleWorkflow(handleAdminMarkSelectedPaid);
+    handleAdminSetNamedSeatStatus = guardVehicleWorkflow(handleAdminSetNamedSeatStatus);
     handleAdminClearSeat = guardVehicleWorkflow(handleAdminClearSeat);
     handleAdminMarkNamedPaid = guardVehicleWorkflow(handleAdminMarkNamedPaid);
     executeReset = guardVehicleWorkflow(executeReset);
@@ -17785,6 +17840,22 @@ body.member-mode #boardImageModeBtn {
   border-radius: 24px;
   box-shadow: 0 10px 24px rgba(27, 62, 57, .20), 0 2px 5px rgba(27, 62, 57, .08);
 }
+.seat-name-bubble.has-status-action { height: 190px; }
+.seat-name-bubble #bubbleStatusSelect {
+  display: block;
+  width: 100%;
+  height: 42px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid #20745f;
+  border-radius: 15px;
+  background: #227c63;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.seat-name-bubble #bubbleStatusSelect:focus { outline: 2px solid #9fd2c2; outline-offset: 2px; }
 .seat-name-bubble .bubble-heading {
   height: 34px;
   display: flex;
@@ -17863,6 +17934,7 @@ body.member-mode #boardImageModeBtn {
 .seat-name-bubble.below::after { top: -29px; background: #fff; }
 @media (max-width: 760px) {
   .seat-name-bubble { height: 138px; padding: 11px; }
+  .seat-name-bubble.has-status-action { height: 190px; }
   .seat-name-bubble #inlineSeatInput { height: 78px; font-size: clamp(25px, 8vw, 35px); }
 }
 
@@ -17895,6 +17967,10 @@ body.member-mode #boardImageModeBtn {
     box-sizing: border-box;
     width: min(460px, 100%);
     flex: 0 0 auto;
+  }
+  body.duplicate-seat-dialog-open.duplicate-seat-dialog-tall #threeOptionDialogOverlay {
+    top: calc(var(--duplicate-visible-top, 0px) + 206px);
+    height: max(0px, calc(var(--duplicate-visible-height, 100dvh) - 206px));
   }
 }
 </style>
