@@ -31,6 +31,42 @@
       } catch (error) {}
     })();
   </script>
+  <script>
+    /* 관리자 화면에서 모바일 뒤로가기가 회원 입력 화면으로 전환되지 않도록 유지한다. */
+    (function () {
+      function isAdminScreen() {
+        var panel = document.getElementById("adminPanel");
+        return !!(document.body && document.body.classList.contains("admin-mode") &&
+          panel && !panel.classList.contains("hidden") &&
+          typeof window.__busSeatIsAdminAuthenticated === "function" &&
+          window.__busSeatIsAdminAuthenticated());
+      }
+
+      function ensureAdminBackState() {
+        if (!isAdminScreen()) return;
+        try {
+          var current = history.state || {};
+          if (current.busSeatAdminBackGuard) return;
+          if (!current.busSeatAdminBackBase) {
+            history.replaceState({ busSeatAdminBackBase: true }, "", location.href);
+          }
+          history.pushState({ busSeatAdminBackGuard: true }, "", location.href);
+        } catch (error) {}
+      }
+
+      window.__busSeatEnsureAdminBackState = ensureAdminBackState;
+      window.addEventListener("popstate", function (event) {
+        if (!isAdminScreen()) return;
+        var overlay = document.getElementById("hikingNoticeOverlay");
+        if (overlay && !overlay.classList.contains("hidden") &&
+            typeof window.__busSeatCloseHikingNoticeDialog === "function") {
+          window.__busSeatCloseHikingNoticeDialog();
+        }
+        ensureAdminBackState();
+        event.stopImmediatePropagation();
+      }, true);
+    })();
+  </script>
   <style>
     :root {
       --bg: #dcdcdc;
@@ -4764,6 +4800,26 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       }
     }
 
+    function insertSingleHikingNoticeLineBreak(editor) {
+      const selection = window.getSelection?.();
+      if (!editor || !selection || !selection.rangeCount) return false;
+      const range = selection.getRangeAt(0);
+      if (!(editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer)) return false;
+      // 편집기의 기본 Enter는 div/p를 만들 수 있으므로 한 줄 줄바꿈으로 고정한다.
+      try {
+        if (document.execCommand?.("insertLineBreak", false, null)) return true;
+      } catch (_) {}
+      range.deleteContents();
+      const br = document.createElement("br");
+      range.insertNode(br);
+      const nextRange = document.createRange();
+      nextRange.setStartAfter(br);
+      nextRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+      return true;
+    }
+
     async function saveInfoGuideEditorValue(editor) {
       if (!editor) return;
       state.busInfo.seatGuideText = sanitizeGuideEditorHtml(editor.innerHTML);
@@ -6581,6 +6637,9 @@ async function sha256Hex(value) {
 function renderAll() {
       renderBoard();
       renderPanels();
+      if (state.mode === "admin" && state.isAdminAuthenticated) {
+        window.__busSeatEnsureAdminBackState?.();
+      }
       const captureBtn = byId("captureBoardBtn");
       if (captureBtn) {
         const showCapture = (state.mode === "admin");
@@ -6895,6 +6954,7 @@ function renderAll() {
       if (overlay) overlay.classList.add("hidden");
       hikingNoticeHistoryPushed = false;
     }
+    window.__busSeatCloseHikingNoticeDialog = closeHikingNoticeDialog;
 
     function updateNoticeCheckBlinkButtons() {
       const shouldBlink = Boolean(state.noticeCheckBlink);
@@ -8753,7 +8813,12 @@ function renderAll() {
       bindIfPresent("hikingNoticeBlinkBtn", "click", () => applyHikingNoticeFormat("blink"));
       bindIfPresent("hikingNoticeText", "keydown", (e) => {
         if (state.hikingNotice.locked) return;
-        handleGuideEditorKeydown(e, saveHikingNoticeEditorValue);
+        if (e.key !== "Enter" || e.isComposing) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (insertSingleHikingNoticeLineBreak(e.currentTarget)) {
+          window.setTimeout(() => saveHikingNoticeEditorValue(e.currentTarget), 0);
+        }
       });
       bindIfPresent("hikingNoticeText", "input", (e) => {
         if (state.hikingNotice.locked) return;
@@ -15644,6 +15709,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
   }
 
   function syncHistoryToScreen(){
+    if (document.body.classList.contains("admin-mode")) return;
     var screen = currentScreen();
     if (screen === "member") {
       replaceWithMemberBase();
@@ -17325,6 +17391,7 @@ body.member-mode .help-text:empty {
   }
 
   function ensureMemberBaseState(){
+    if (document.body.classList.contains("admin-mode")) return;
     try {
       var s = history.state || {};
       if (!s.busSeatBackFlowBase && s.busSeatScreen !== "member") {
