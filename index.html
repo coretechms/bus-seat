@@ -3709,13 +3709,16 @@ body.member-mode .alt-arrow-cell {
               <button class="btn btn-outline" id="adminCaptureProxyBtn" type="button" style="width:100%;">캡처</button>
               <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="width:100%;">관리자종료</button>
               <button class="btn btn-primary" id="adminSaveBtnTop" type="button" style="width:100%;">상태저장</button>
-              <select id="adminStatus" aria-label="좌석 상태 선택">
-                <option value="paid">완납</option>
-                <option value="waiting">입금대기</option>
-                <option value="reserved">이름만 표기</option>
-                <option value="paid_new">완납/신입</option>
-                <option value="paid_reserved">완납/예약완료</option>
-              </select>
+              <div class="admin-status-box">
+                <select id="adminStatus" aria-label="좌석 상태 선택">
+                  <option value="paid">완납</option>
+                  <option value="waiting">입금대기</option>
+                  <option value="reserved">이름만 표기</option>
+                  <option value="paid_new">완납/신입</option>
+                  <option value="paid_reserved">완납/예약완료</option>
+                </select>
+                <button class="btn btn-primary" id="adminSaveBtnBottom" type="button">상태저장</button>
+              </div>
               <button class="btn btn-outline" id="adminSettingsToggleBtn" type="button" style="width:100%;" aria-expanded="false">설정</button>
             </div>
 
@@ -4225,7 +4228,6 @@ const firebaseConfig = {
       state.pendingResetVehicle = null;
       state.lastSavedSeat = null;
       state.inlineEditProtectUntil = 0;
-      adminSeatEditArmed = null;
       byId("resetInlineConfirm")?.classList.add("hidden");
     }
 
@@ -5334,9 +5336,7 @@ function removeGuideColorFromSelection(editor) {
           <div class="seat-name-hit-zone" aria-hidden="true"></div>
           <div class="seat-inner">
             ${!isEditing ? status : ""}
-            ${isEditing
-              ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" oninput="this.value=this.value.replace(/\\s+/g,'')" />`
-              : `<div class="seat-name ${offsetClass} ${nameColorClass}">${escapeHtml(seat.name)}</div>`}
+            <div class="seat-name ${offsetClass} ${nameColorClass}">${escapeHtml(seat.name)}</div>
           </div>
         </button>`;
     }
@@ -5347,6 +5347,17 @@ function removeGuideColorFromSelection(editor) {
         let longPressTriggered = false;
         let startX = 0;
         let startY = 0;
+        let pointerActive = false;
+        let pointerMoved = false;
+        let suppressClickUntil = 0;
+
+        const insideSeatEditArea = (x, y) => {
+          const rect = btn.getBoundingClientRect();
+          const insetX = rect.width * 0.1;
+          const insetY = rect.height * 0.1;
+          return x >= rect.left + insetX && x <= rect.right - insetX &&
+            y >= rect.top + insetY && y <= rect.bottom - insetY;
+        };
 
         const clearPressTimer = () => {
           if (pressTimer) window.clearTimeout(pressTimer);
@@ -5354,6 +5365,10 @@ function removeGuideColorFromSelection(editor) {
         };
 
         const beginPress = (event) => {
+          pointerActive = true;
+          pointerMoved = false;
+          startX = event.clientX;
+          startY = event.clientY;
           const seatNo = Number(btn.dataset.seat);
           const seat = state.seats.find((s) => s.number === seatNo);
           longPressTriggered = false;
@@ -5376,6 +5391,8 @@ function removeGuideColorFromSelection(editor) {
         };
 
         const movePress = (event) => {
+          if (pointerActive && (Math.abs(event.clientX - startX) > 10 ||
+              Math.abs(event.clientY - startY) > 10)) pointerMoved = true;
           if (!pressTimer) return;
           const currentX = event.clientX ?? (event.touches?.[0]?.clientX || 0);
           const currentY = event.clientY ?? (event.touches?.[0]?.clientY || 0);
@@ -5384,9 +5401,18 @@ function removeGuideColorFromSelection(editor) {
 
         btn.addEventListener("pointerdown", beginPress);
         btn.addEventListener("pointermove", movePress);
-        btn.addEventListener("pointerup", clearPressTimer);
-        btn.addEventListener("pointercancel", clearPressTimer);
-        btn.addEventListener("pointerleave", clearPressTimer);
+        btn.addEventListener("pointerup", (event) => {
+          clearPressTimer();
+          if (!pointerActive) return;
+          pointerActive = false;
+          // click 이벤트를 기다리지 않고 손을 떼는 순간 입력창을 연다.
+          suppressClickUntil = Date.now() + 650;
+          if (pointerMoved || longPressTriggered || !insideSeatEditArea(event.clientX, event.clientY)) return;
+          const seat = state.seats.find((s) => s.number === Number(btn.dataset.seat));
+          handleSeatClick(seat);
+        });
+        btn.addEventListener("pointercancel", () => { pointerActive = false; clearPressTimer(); });
+        btn.addEventListener("pointerleave", () => { pointerActive = false; clearPressTimer(); });
         btn.addEventListener("click", (event) => {
           if (longPressTriggered) {
             event.preventDefault();
@@ -5394,8 +5420,11 @@ function removeGuideColorFromSelection(editor) {
             longPressTriggered = false;
             return;
           }
+          if (event.detail !== 0 && Date.now() < suppressClickUntil) return;
           const seatNo = Number(btn.dataset.seat);
           const seat = state.seats.find((s) => s.number === seatNo);
+          // PointerEvent 미지원 환경과 키보드 활성화에서는 click을 사용한다.
+          if (event.detail !== 0 && !insideSeatEditArea(event.clientX, event.clientY)) return;
           handleSeatClick(seat);
         });
       });
@@ -5467,13 +5496,55 @@ function removeGuideColorFromSelection(editor) {
 
       bindSeatEvents();
 
+      // 좌석 영역의 overflow에 잘리지 않도록 말풍선은 문서 최상위에 놓는다.
+      const oldBubble = byId("seatNameBubble");
+      if (oldBubble) {
+        const oldInput = oldBubble.querySelector("#inlineSeatInput");
+        if (oldInput) oldInput.dataset.detaching = "1";
+        oldBubble.remove();
+      }
+
       if (state.editingSeat) {
+        const bubble = document.createElement("div");
+        bubble.id = "seatNameBubble";
+        bubble.className = "seat-name-bubble";
+        bubble.innerHTML = '<div class="bubble-heading"><span class="bubble-seat-number"></span><span class="bubble-caption">이름 입력</span></div><input id="inlineSeatInput" type="text" aria-label="좌석 이름 입력" placeholder="이름입력" autocomplete="off" />';
+        bubble.querySelector(".bubble-seat-number").textContent = `${getSeatDisplayNumber(state.editingSeat)}번 좌석`;
+        document.body.appendChild(bubble);
+        const positionBubble = () => {
+          const seatEl = byId(`seat-btn-${state.editingSeat}`);
+          if (!seatEl || !bubble.isConnected) return;
+          const rect = seatEl.getBoundingClientRect();
+          const width = Math.min(300, window.innerWidth - 24);
+          const seatCenterX = rect.left + rect.width / 2;
+          const left = Math.max(12, Math.min(seatCenterX - width / 2, window.innerWidth - width - 12));
+          const above = rect.top >= 170 || rect.bottom + 175 > window.innerHeight;
+          bubble.classList.toggle("below", !above);
+          bubble.style.width = `${width}px`;
+          bubble.style.left = `${left}px`;
+          bubble.style.top = `${above ? Math.max(8, rect.top - 170) : rect.bottom + 34}px`;
+          // 꼬리의 꼭짓점을 좌석 박스의 정확한 가로 중앙에 맞춘다.
+          bubble.style.setProperty("--tail-x", `${seatCenterX - left}px`);
+        };
+        positionBubble();
+        bubble.positionBubble = positionBubble;
+        if (!window.seatNameBubblePositionBound) {
+          window.seatNameBubblePositionBound = true;
+          const refreshBubblePosition = () => {
+            const current = byId("seatNameBubble");
+            if (current && current.positionBubble) current.positionBubble();
+          };
+          window.addEventListener("resize", refreshBubblePosition);
+          document.addEventListener("scroll", refreshBubblePosition, true);
+        }
         const inline = byId("inlineSeatInput");
         if (!inline) return;
+        inline.value = state.editName;
         inline.focus();
         inline.select();
         inline.addEventListener("click", (e) => e.stopPropagation());
         inline.addEventListener("input", (e) => {
+          e.target.value = e.target.value.replace(/\s+/g, "");
           const rawValue = e.target.value;
           state.editName = rawValue;
           state.memberName = rawValue;
@@ -5486,6 +5557,7 @@ function removeGuideColorFromSelection(editor) {
           if (adminNameInput && adminNameInput.value !== rawValue) adminNameInput.value = rawValue;
         });
         inline.addEventListener("blur", () => {
+          if (inline.dataset.detaching === "1") return;
           const seatNoAtBlur = Number(state.editingSeat || 0);
           const protectUntil = Number(state.inlineEditProtectUntil || 0);
           if (state.mode === "member" && seatNoAtBlur && Date.now() < protectUntil) {
@@ -7193,18 +7265,7 @@ function renderAll() {
         const nextAdminStatus = seat.name
           ? normalizeSeatStatus(seat.status === "empty" ? "reserved" : seat.status)
           : "reserved";
-        if (adminSeatEditArmed !== seat.number) {
-          adminSeatEditArmed = seat.number;
-          state.adminSeat = String(seat.number);
-          state.adminStatus = nextAdminStatus;
-          state.memberSeat = String(seat.number);
-          state.memberName = seat.name || "";
-          state.editingSeat = null;
-          state.editName = "";
-          renderAll();
-          return;
-        }
-        adminSeatEditArmed = null;
+        // 관리자도 안쪽 80%를 한 번 누르면 바로 이름 입력 말풍선을 연다.
         state.adminSeat = String(seat.number);
         state.adminStatus = nextAdminStatus;
         state.memberSeat = String(seat.number);
@@ -7225,7 +7286,6 @@ function renderAll() {
       renderAll();
     }
 
-    let adminSeatEditArmed = null;
     let inlineSeatSaveBusy = false;
 
     async function handleInlineSave(seatNumber) {
@@ -7928,7 +7988,7 @@ function renderAll() {
       state.editName = "";
       renderAll();
       if (!state.isFirebaseReady) {
-        flashSaveVisuals(seatNo, "adminSaveBtnTop");
+        flashSaveVisuals(seatNo, "adminSaveBtnBottom");
         setStatusMessage("Firebase 미연결 - 화면에만 저장", state.projectLabel);
         return;
       }
@@ -7939,7 +7999,7 @@ function renderAll() {
         alert("관리 상태 저장 권한이 없습니다.");
         return;
       }
-      flashSaveVisuals(seatNo, "adminSaveBtnTop");
+      flashSaveVisuals(seatNo, "adminSaveBtnBottom");
     }
 
     async function handleAdminMarkSelectedPaid() {
@@ -8453,8 +8513,15 @@ function renderAll() {
           }
         }
       }));
-      bindIfPresent("adminStatus", "change", (e) => { state.adminStatus = e.target.value; });
+      bindIfPresent("adminStatus", "change", (e) => {
+        state.adminStatus = e.target.value;
+        // PC: 상태 선택 즉시 저장. 모바일: 아래 상태저장 버튼을 눌렀을 때 저장.
+        if (!window.matchMedia("(max-width: 760px)").matches) {
+          void handleAdminSave();
+        }
+      });
       bindIfPresent("adminSaveBtnTop", "click", handleAdminSave);
+      bindIfPresent("adminSaveBtnBottom", "click", handleAdminSave);
       bindIfPresent("adminClearSeatBtn", "click", handleAdminClearSeat);
       bindIfPresent("adminMarkNamedPaidBtn", "click", handleAdminMarkNamedPaid);
       bindIfPresent("adminMarkSelectedPaidBtn", "click", handleAdminMarkSelectedPaid);
@@ -17535,6 +17602,151 @@ body.admin-mode.admin-settings-open #adminSettingsPanel {
   }
 }
 
+/* 관리자 버튼 세 개 같은 너비; 모바일에만 완납 박스 아래 상태저장 표시 */
+.admin-compact-action-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+.admin-compact-action-row #adminLogoutBtn,
+.admin-compact-action-row #adminSaveBtnTop {
+  display: none !important;
+}
+.admin-compact-action-row #adminCaptureProxyBtn,
+.admin-compact-action-row #adminStatus,
+.admin-compact-action-row #adminSettingsToggleBtn {
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+.admin-compact-action-row > #adminCaptureProxyBtn,
+.admin-compact-action-row > #adminSettingsToggleBtn {
+  align-self: start;
+}
+.admin-status-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.admin-status-box #adminStatus {
+  width: 100%;
+}
+#adminSaveBtnBottom {
+  display: none !important;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+body.member-mode #boardImageModeBtn {
+  display: none !important;
+}
+@media (max-width: 760px) {
+  .admin-compact-action-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+  }
+  .admin-status-box {
+    gap: 4px;
+  }
+  #adminSaveBtnBottom {
+    display: inline-flex !important;
+    font-size: 10px !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+}
+
+/* 좌석 번호가 표시되는 이름 입력 말풍선 */
+.seat-name-bubble {
+  position: fixed;
+  z-index: 10000;
+  box-sizing: border-box;
+  height: 138px;
+  padding: 12px;
+  background: linear-gradient(150deg, #ffffff, #f2f8f5);
+  border: 1px solid #93aaa5;
+  border-radius: 24px;
+  box-shadow: 0 10px 24px rgba(27, 62, 57, .20), 0 2px 5px rgba(27, 62, 57, .08);
+}
+.seat-name-bubble .bubble-heading {
+  height: 34px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 3px;
+}
+.seat-name-bubble .bubble-seat-number {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #e2f2eb;
+  color: #16634e;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.seat-name-bubble .bubble-caption {
+  padding: 5px 3px 0 0;
+  color: #61746e;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.seat-name-bubble #inlineSeatInput {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 76px;
+  margin: 0;
+  border: 1.5px solid #9dbbb0;
+  border-radius: 20px;
+  background: #fff;
+  color: #182c28;
+  font-size: clamp(25px, 6vw, 35px);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  padding: 0 10px;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: manipulation;
+}
+.seat-name-bubble #inlineSeatInput::placeholder { color: #536a61; opacity: 1; font-weight: 500; }
+.seat-name-bubble #inlineSeatInput:focus {
+  border-color: #24856b;
+  box-shadow: 0 0 0 3px rgba(36, 133, 107, .12);
+}
+.seat-name-bubble::before,
+.seat-name-bubble::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--tail-x, 50%) - 22px);
+  width: 44px;
+  height: 34px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  pointer-events: none;
+}
+.seat-name-bubble::before { top: calc(100% - 1px); background: #93aaa5; }
+.seat-name-bubble::after {
+  top: calc(100% - 3px);
+  left: calc(var(--tail-x, 50%) - 20px);
+  width: 40px;
+  height: 30px;
+  background: #f2f8f5;
+}
+.seat-name-bubble.below::before,
+.seat-name-bubble.below::after {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.seat-name-bubble.below::before { top: -33px; }
+.seat-name-bubble.below::after { top: -29px; background: #fff; }
+@media (max-width: 760px) {
+  .seat-name-bubble { height: 138px; padding: 11px; }
+  .seat-name-bubble #inlineSeatInput { height: 78px; font-size: clamp(25px, 8vw, 35px); }
+}
 </style>
 <script id="seat-unregistered-member-blink-patch">
 (function(){
