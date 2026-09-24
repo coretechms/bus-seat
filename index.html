@@ -17,6 +17,83 @@
   <link rel="icon" type="image/png" sizes="192x192" href="geomam-icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="geomam-icon-512.png" />
 <title>검암산악회</title>
+  <script id="seat-bubble-back-flow">
+    (function () {
+      var backCount = 0;
+      var guardKey = "busSeatSeatScreenBackGuard";
+      function isSeatScreen() {
+        var body = document.body;
+        if (!body || body.classList.contains("membership-locked") ||
+            body.classList.contains("member-manage-mode")) return false;
+        var gate = document.getElementById("memberAuthGate");
+        if (gate && !gate.classList.contains("is-hidden") &&
+            getComputedStyle(gate).display !== "none") return false;
+        return body.classList.contains("member-mode") || body.classList.contains("admin-mode");
+      }
+      function armBackGuard() {
+        if (!isSeatScreen()) return;
+        try {
+          if (history.state && history.state[guardKey]) return;
+          history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href);
+        } catch (_) {}
+      }
+      function closeApp() {
+        if (!window.confirm("앱을 종료하시겠습니까?")) return;
+        try {
+          if (navigator.app && typeof navigator.app.exitApp === "function") {
+            navigator.app.exitApp(); return;
+          }
+          if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App &&
+              typeof window.Capacitor.Plugins.App.exitApp === "function") {
+            window.Capacitor.Plugins.App.exitApp(); return;
+          }
+        } catch (_) {}
+        // 웹 브라우저는 스크립트로 열린 탭만 닫을 수 있다.
+        if (history.length > 2) history.go(-(history.length - 1));
+        else window.close();
+      }
+      window.addEventListener("popstate", function (event) {
+        if (!isSeatScreen()) return;
+        event.stopImmediatePropagation();
+        try {
+          history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href);
+        } catch (_) {}
+        var bubble = document.getElementById("seatNameBubble");
+        if (bubble && typeof window.__busSeatCloseSeatBubble === "function") {
+          window.__busSeatCloseSeatBubble();
+          backCount = 1;
+          return;
+        }
+        var notice = document.getElementById("hikingNoticeOverlay");
+        if (notice && !notice.classList.contains("hidden")) {
+          if (typeof window.__busSeatCloseHikingNoticeDialog === "function")
+            window.__busSeatCloseHikingNoticeDialog();
+          return;
+        }
+        backCount += 1;
+        if (backCount === 1) return;
+        if (backCount === 2) {
+          if (typeof window.__busSeatSwitchMode === "function") window.__busSeatSwitchMode("member");
+          armBackGuard();
+          return;
+        }
+        backCount = 2;
+        closeApp();
+      }, true);
+      window.__busSeatArmSeatBackGuard = armBackGuard;
+      window.__busSeatResetSeatBackCount = function () { backCount = 0; armBackGuard(); };
+      document.addEventListener("DOMContentLoaded", function () {
+        armBackGuard();
+        setTimeout(armBackGuard, 500);
+        if (window.MutationObserver) {
+          new MutationObserver(armBackGuard).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+          var gate = document.getElementById("memberAuthGate");
+          if (gate) new MutationObserver(armBackGuard).observe(gate, { attributes: true, attributeFilter: ["class", "style"] });
+        }
+      });
+      window.addEventListener("pageshow", armBackGuard);
+    })();
+  </script>
   <script>
     /* 새로고침 순간 회원 로그인 화면이 깜빡이지 않도록 관리자/회원관리 세션을 HTML 로딩 초기에 감지 */
     (function () {
@@ -5729,8 +5806,12 @@ function removeGuideColorFromSelection(editor) {
             if (!currentBubble || !state.editingSeat) return;
             if (byId("threeOptionDialogOverlay")) return;
             const target = event.target;
-            // 말풍선과 모든 좌석은 바깥 클릭으로 취급하지 않는다.
-            if (currentBubble.contains(target) || target.closest?.(".seat")) return;
+            // 좌석 클릭으로 입력창 포커스가 사라져도 blur가 먼저 말풍선을 저장하지 않게 한다.
+            if (target.closest?.(".seat")) {
+              currentBubble.querySelector("#inlineSeatInput")?.setAttribute("data-detaching", "1");
+              return;
+            }
+            if (currentBubble.contains(target)) return;
             const seatNo = Number(state.editingSeat);
             const currentInput = currentBubble.querySelector("#inlineSeatInput");
             if (currentInput) currentInput.dataset.detaching = "1";
@@ -5754,10 +5835,7 @@ function removeGuideColorFromSelection(editor) {
         const inline = byId("inlineSeatInput");
         if (!inline) return;
         inline.value = state.editName;
-        if (!document.body.classList.contains("duplicate-seat-dialog-open")) {
-          inline.focus();
-          inline.select();
-        }
+        // 좌석 선택만으로 키보드를 열지 않는다. 입력창을 직접 누르면 브라우저가 포커스한다.
         inline.addEventListener("click", (e) => e.stopPropagation());
         const statusAction = bubble.querySelector("#bubbleStatusSelect");
         if (statusAction) {
@@ -5820,6 +5898,18 @@ function removeGuideColorFromSelection(editor) {
         });
       }
     }
+
+    // 같은 좌석 재선택 / 빈 배경 / 뒤로가기 모두 한 곳에서 말풍선을 닫는다.
+    window.__busSeatCloseSeatBubble = function () {
+      const seatNo = Number(state.editingSeat || 0);
+      if (!seatNo) return;
+      const bubble = byId("seatNameBubble");
+      const input = bubble?.querySelector("#inlineSeatInput");
+      if (input) input.dataset.detaching = "1";
+      if (bubble) bubble.remove();
+      state.inlineEditProtectUntil = 0;
+      return handleInlineSave(seatNo);
+    };
 
     function toggleHidden(id, hidden) {
       const el = byId(id);
@@ -7505,6 +7595,21 @@ function renderAll() {
 
     function handleSeatClick(seat) {
       if (!seat) return;
+      if (Number(state.editingSeat) === Number(seat.number) && byId("seatNameBubble")) {
+        window.__busSeatCloseSeatBubble();
+        return;
+      }
+      if (state.editingSeat && byId("seatNameBubble")) {
+        Promise.resolve(window.__busSeatCloseSeatBubble()).then(() => {
+          if (!state.editingSeat) {
+            const nextSeat = state.seats.find((s) => s.number === Number(seat.number));
+            if (nextSeat) handleSeatClick(nextSeat);
+          }
+        });
+        // 다른 좌석은 이전 이름 저장이 끝난 뒤 선택한다.
+        return;
+      }
+      window.__busSeatResetSeatBackCount?.();
       if (isBlockedSeat(seat.number) || (state.mode === "member" && isAdminOnlySeatForMember(seat.number))) return;
       if (state.mode === "member") {
         if (state.nameEntryLocked) {
@@ -8529,6 +8634,8 @@ function renderAll() {
 
     function switchMode(nextMode) {
       if (nextMode !== "member" && nextMode !== "admin" && nextMode !== "memberManage") return;
+      if (nextMode === "member" || nextMode === "admin")
+        window.setTimeout(() => window.__busSeatArmSeatBackGuard?.(), 0);
       if (nextMode === "memberManage" && !state.isAdminAuthenticated) {
         alert("회원관리는 관리자 로그인 후 사용할 수 있습니다.");
         nextMode = "admin";
