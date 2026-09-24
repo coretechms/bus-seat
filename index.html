@@ -24,7 +24,6 @@
       var mobileGuardArmed = false;
       var mobileExiting = false;
       var nativeBackAt = 0;
-      var backHintTimer = 0;
       function isMobile() {
         return window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
       }
@@ -66,8 +65,6 @@
         } catch (_) {}
       }
       function closeApp() {
-        clearTimeout(backHintTimer);
-        document.getElementById("busSeatBackHint")?.remove();
         if (!window.confirm("앱을 종료하시겠습니까?")) {
           backCount = 0;
           return;
@@ -92,24 +89,6 @@
         if (history.length > 2) history.go(-(history.length - 1));
         else window.close();
       }
-      function showBackHint() {
-        var hint = document.getElementById("busSeatBackHint");
-        if (!hint) {
-          hint = document.createElement("div");
-          hint.id = "busSeatBackHint";
-          hint.setAttribute("role", "status");
-          hint.style.cssText = "position:fixed;left:50%;bottom:34px;transform:translateX(-50%);" +
-            "z-index:2147483647;background:rgba(17,24,39,.92);color:#fff;" +
-            "padding:10px 16px;border-radius:999px;font-size:13px;font-weight:700;" +
-            "white-space:nowrap;pointer-events:none;box-shadow:0 4px 18px rgba(0,0,0,.28)";
-          document.body.appendChild(hint);
-        }
-        hint.textContent = backCount === 1
-          ? "뒤로가기를 2번 더 누르면 종료를 확인합니다."
-          : "뒤로가기를 1번 더 누르면 종료를 확인합니다.";
-        clearTimeout(backHintTimer);
-        backHintTimer = setTimeout(function () { hint.remove(); }, 2200);
-      }
       function handleMobileBack(alreadyPopped) {
         if (mobileExiting) return;
         if (alreadyPopped) {
@@ -117,7 +96,6 @@
           try { history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href); } catch (_) {}
         } else armBackGuard();
         backCount += 1;
-        if (backCount <= 2) showBackHint();
         if (backCount === 1) {
           if (document.getElementById("seatNameBubble")) window.__busSeatCloseSeatBubble?.();
           else {
