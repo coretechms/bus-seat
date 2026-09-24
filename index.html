@@ -17,170 +17,213 @@
   <link rel="icon" type="image/png" sizes="192x192" href="geomam-icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="geomam-icon-512.png" />
 <title>검암산악회</title>
-  <script id="seat-bubble-back-flow">
+  <script id="unified-mobile-back-controller">
+    /* =========================================================
+       통합 뒤로가기 컨트롤러
+       모바일 동작 규칙
+       1회 : 어떤 화면이든 회원 입력 모드로 이동
+       2회 : 화면 동작 없음
+       3회 : 앱 종료 여부 확인
+       - 횟수 안내 토스트 없음
+       - popstate / Cordova backbutton / Capacitor backButton을 한 곳에서 처리
+       - 동일 물리 입력이 중복 이벤트로 들어오면 1회만 계산
+       ========================================================= */
     (function () {
+      if (window.__busSeatUnifiedBackControllerApplied) return;
+      window.__busSeatUnifiedBackControllerApplied = true;
+
       var backCount = 0;
-      var guardKey = "busSeatSeatScreenBackGuard";
-      var mobileGuardArmed = false;
-      var mobileExiting = false;
-      var nativeBackAt = 0;
+      var exiting = false;
+      var lastHandledAt = 0;
+      var guardKey = "busSeatUnifiedBackGuard";
+      var DEDUPE_MS = 650;
+
       function isMobile() {
         return window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
       }
-      // 다른 화면 코드가 이력을 교체해도 모바일 뒤로가기용 표식을 유지한다.
-      var originalPushState = history.pushState.bind(history);
-      var originalReplaceState = history.replaceState.bind(history);
-      history.pushState = function (nextState, title, url) {
-        if (isMobile() && !mobileExiting)
-          nextState = Object.assign({}, nextState || {}, { [guardKey]: true });
-        return originalPushState(nextState, title, url);
-      };
-      history.replaceState = function (nextState, title, url) {
-        if (isMobile() && !mobileExiting && history.state?.[guardKey])
-          nextState = Object.assign({}, nextState || {}, { [guardKey]: true });
-        return originalReplaceState(nextState, title, url);
-      };
-      function isSeatScreen() {
-        var body = document.body;
-        if (!body || body.classList.contains("membership-locked") ||
-            body.classList.contains("member-manage-mode")) return false;
-        var gate = document.getElementById("memberAuthGate");
-        if (gate && !gate.classList.contains("is-hidden") &&
-            getComputedStyle(gate).display !== "none") return false;
-        return body.classList.contains("member-mode") || body.classList.contains("admin-mode");
-      }
-      function armBackGuard() {
-        if (isMobile()) {
-          if (mobileGuardArmed && history.state?.[guardKey]) return;
-          try {
-            history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href);
-            mobileGuardArmed = true;
-          } catch (_) {}
-          return;
+
+      function loginGateVisible() {
+        try {
+          var gate = document.getElementById("memberAuthGate");
+          if (!document.body || !document.body.classList.contains("membership-locked")) return false;
+          if (!gate || gate.classList.contains("is-hidden")) return false;
+          var style = window.getComputedStyle ? window.getComputedStyle(gate) : null;
+          return !(style && (style.display === "none" || style.visibility === "hidden"));
+        } catch (_) {
+          return false;
         }
-        if (!isSeatScreen()) return;
+      }
+
+      function armBackGuard() {
+        if (exiting) return;
         try {
           if (history.state && history.state[guardKey]) return;
           history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href);
         } catch (_) {}
       }
-      function closeApp() {
-        if (!window.confirm("앱을 종료하시겠습니까?")) {
-          backCount = 0;
-          return;
-        }
-        mobileExiting = true;
-        try {
-          if (navigator.app && typeof navigator.app.exitApp === "function") {
-            navigator.app.exitApp(); return;
-          }
-          if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App &&
-              typeof window.Capacitor.Plugins.App.exitApp === "function") {
-            window.Capacitor.Plugins.App.exitApp(); return;
-          }
-        } catch (_) {}
-        // 웹 브라우저는 스크립트로 열린 탭만 닫을 수 있다.
-        if (isMobile()) {
-          try { window.close(); } catch (_) {}
-          // 일반 브라우저는 탭 닫기를 차단할 수 있다. 로그인 화면이 나타나지 않도록 종료한다.
-          window.setTimeout(() => { if (!window.closed) location.replace("about:blank"); }, 120);
-          return;
-        }
-        if (history.length > 2) history.go(-(history.length - 1));
-        else window.close();
+
+      function closeTransientUi() {
+        try { window.__busSeatCloseSeatBubble?.(); } catch (_) {}
+        try { window.__busSeatCloseHikingNoticeDialog?.(); } catch (_) {}
+        try { document.getElementById("hikingNoticeOverlay")?.classList.add("hidden"); } catch (_) {}
       }
-      function handleMobileBack(alreadyPopped) {
-        if (mobileExiting) return;
-        if (alreadyPopped) {
-          // 한 단계 뒤로 이동한 이력 위에 즉시 보호 항목을 다시 쌓는다.
-          try { history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href); } catch (_) {}
-        } else armBackGuard();
-        backCount += 1;
-        if (backCount === 1) {
-          if (document.getElementById("seatNameBubble")) window.__busSeatCloseSeatBubble?.();
-          else {
-            var notice = document.getElementById("hikingNoticeOverlay");
-            if (notice && !notice.classList.contains("hidden")) window.__busSeatCloseHikingNoticeDialog?.();
-          }
-          return;
-        }
-        if (backCount === 2) {
-          var gate = document.getElementById("memberAuthGate");
-          if (!document.body.classList.contains("membership-locked") &&
-              (!gate || gate.classList.contains("is-hidden")) &&
-              typeof window.__busSeatSwitchMode === "function") {
+
+      function forceMemberInputMode() {
+        closeTransientUi();
+
+        // 로그인 전 상태에서는 인증을 우회하지 않고 로그인 화면을 그대로 유지한다.
+        if (loginGateVisible()) return;
+
+        try {
+          if (typeof window.__busSeatSwitchMode === "function") {
             window.__busSeatSwitchMode("member");
           }
+        } catch (_) {}
+
+        // 화면 전환 함수가 늦게 준비되거나 일부 패널 상태가 남아 있어도 회원 입력 화면으로 정리한다.
+        try {
+          if (!document.body) return;
+          document.body.classList.remove("admin-mode", "member-manage-mode", "admin-entry-only", "approval-admin-mode");
+          document.body.classList.add("member-mode");
+
+          document.getElementById("loginManagePanel")?.classList.add("hidden");
+          document.getElementById("memberManagePanel")?.classList.add("hidden");
+          document.getElementById("adminLoginPanel")?.classList.add("hidden");
+          document.getElementById("adminPanel")?.classList.add("hidden");
+          document.getElementById("memberPanel")?.classList.remove("hidden");
+
+          document.getElementById("memberTab")?.classList.add("active");
+          document.getElementById("adminTab")?.classList.remove("active");
+          document.getElementById("memberManageTab")?.classList.remove("active");
+
+          try { sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "member"); } catch (_) {}
+        } catch (_) {}
+      }
+
+      function closeApplication() {
+        if (exiting) return;
+
+        if (!window.confirm("앱을 종료하시겠습니까?")) {
+          backCount = 0;
           armBackGuard();
           return;
         }
-        closeApp();
-      }
-      window.addEventListener("popstate", function (event) {
-        if (isMobile()) {
-          event.stopImmediatePropagation();
-          if (mobileExiting) return;
-          if (Date.now() - nativeBackAt < 500) {
-            try { history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href); } catch (_) {}
+
+        exiting = true;
+
+        try {
+          if (navigator.app && typeof navigator.app.exitApp === "function") {
+            navigator.app.exitApp();
             return;
           }
-          handleMobileBack(true);
-          return;
-        }
-        if (!isSeatScreen()) return;
-        event.stopImmediatePropagation();
-        try {
-          history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href);
         } catch (_) {}
-        var bubble = document.getElementById("seatNameBubble");
-        if (bubble && typeof window.__busSeatCloseSeatBubble === "function") {
-          window.__busSeatCloseSeatBubble();
-          backCount = 1;
+
+        try {
+          if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App &&
+              typeof window.Capacitor.Plugins.App.exitApp === "function") {
+            window.Capacitor.Plugins.App.exitApp();
+            return;
+          }
+        } catch (_) {}
+
+        // 일반 모바일 브라우저/PWA는 자바스크립트로 앱 종료가 제한될 수 있다.
+        try { window.close(); } catch (_) {}
+        window.setTimeout(function () {
+          if (!window.closed) {
+            try { location.replace("about:blank"); } catch (_) {}
+          }
+        }, 120);
+      }
+
+      function handleMobileBack(event, historyAlreadyPopped) {
+        if (!isMobile() || exiting) return;
+
+        if (event) {
+          try { event.preventDefault?.(); } catch (_) {}
+          try { event.stopImmediatePropagation?.(); } catch (_) {}
+          try { event.stopPropagation?.(); } catch (_) {}
+        }
+
+        var now = Date.now();
+        if ((now - lastHandledAt) < DEDUPE_MS) {
+          // popstate가 먼저 발생해 보호 이력이 빠졌다면 즉시 다시 복구한다.
+          if (historyAlreadyPopped) armBackGuard();
           return;
         }
-        var notice = document.getElementById("hikingNoticeOverlay");
-        if (notice && !notice.classList.contains("hidden")) {
-          if (typeof window.__busSeatCloseHikingNoticeDialog === "function")
-            window.__busSeatCloseHikingNoticeDialog();
-          return;
-        }
+        lastHandledAt = now;
+
+        if (historyAlreadyPopped) armBackGuard();
+        else armBackGuard();
+
         backCount += 1;
-        if (backCount === 1) return;
-        if (backCount === 2) {
-          if (typeof window.__busSeatSwitchMode === "function") window.__busSeatSwitchMode("member");
+
+        if (backCount === 1) {
+          forceMemberInputMode();
           armBackGuard();
           return;
         }
-        backCount = 2;
-        closeApp();
-      }, true);
-      window.__busSeatArmSeatBackGuard = armBackGuard;
-      window.__busSeatResetSeatBackCount = function () { if (!isMobile()) backCount = 0; armBackGuard(); };
-      document.addEventListener("backbutton", function (event) {
-        if (!isMobile()) return;
-        event.preventDefault();
-        nativeBackAt = Date.now();
-        handleMobileBack(false);
-      });
-      document.addEventListener("DOMContentLoaded", function () {
+
+        if (backCount === 2) {
+          // 요청 규칙: 두 번째 뒤로가기는 아무 화면 동작도 하지 않는다.
+          armBackGuard();
+          return;
+        }
+
+        // 세 번째부터는 종료 확인 후 카운터를 다시 시작한다.
+        backCount = 3;
+        closeApplication();
+      }
+
+      function handleDesktopBack(event) {
+        // 데스크톱은 기존 화면 이탈 방지 정도만 유지하고 모바일 3회 카운트는 사용하지 않는다.
+        if (isMobile() || exiting) return;
+        try { event.stopImmediatePropagation?.(); } catch (_) {}
+        closeTransientUi();
+        if (!loginGateVisible()) forceMemberInputMode();
         armBackGuard();
-        setTimeout(armBackGuard, 500);
+      }
+
+      window.addEventListener("popstate", function (event) {
+        if (isMobile()) handleMobileBack(event, true);
+        else handleDesktopBack(event);
+      }, true);
+
+      document.addEventListener("backbutton", function (event) {
+        handleMobileBack(event, false);
+      }, true);
+
+      function bindCapacitorBack() {
         try {
-          window.Capacitor?.Plugins?.App?.addListener?.("backButton", function () {
-            if (!isMobile()) return;
-            nativeBackAt = Date.now();
-            handleMobileBack(false);
+          var appPlugin = window.Capacitor?.Plugins?.App;
+          if (!appPlugin || typeof appPlugin.addListener !== "function") return;
+          if (window.__busSeatCapacitorBackBound) return;
+          window.__busSeatCapacitorBackBound = true;
+          appPlugin.addListener("backButton", function () {
+            handleMobileBack(null, false);
           });
         } catch (_) {}
-        if (window.MutationObserver) {
-          new MutationObserver(armBackGuard).observe(document.body, { attributes: true, attributeFilter: ["class"] });
-          var gate = document.getElementById("memberAuthGate");
-          if (gate) new MutationObserver(armBackGuard).observe(gate, { attributes: true, attributeFilter: ["class", "style"] });
-        }
-      });
-      window.addEventListener("pageshow", function (event) {
-        if (isMobile() && event.persisted) mobileGuardArmed = false;
+      }
+
+      function initBackController() {
         armBackGuard();
+        bindCapacitorBack();
+        window.setTimeout(armBackGuard, 300);
+        window.setTimeout(bindCapacitorBack, 500);
+      }
+
+      // 기존 코드에서 호출하는 이름과의 호환성 유지
+      window.__busSeatArmSeatBackGuard = armBackGuard;
+      window.__busSeatEnsureAdminBackState = armBackGuard;
+      window.__busSeatResetSeatBackCount = function () {
+        if (!isMobile()) backCount = 0;
+        armBackGuard();
+      };
+      window.__busSeatUnifiedBackCount = function () { return backCount; };
+
+      document.addEventListener("DOMContentLoaded", initBackController);
+      window.addEventListener("pageshow", function () {
+        armBackGuard();
+        bindCapacitorBack();
       });
     })();
   </script>
@@ -196,16 +239,6 @@
           document.documentElement.classList.add("restore-admin-session");
         }
       } catch (error) {}
-    })();
-  </script>
-  <script>
-    /* 관리자 화면도 좌석 화면의 공통 뒤로가기 이력을 사용한다. */
-    (function () {
-      function ensureAdminBackState() {
-        window.__busSeatArmSeatBackGuard?.();
-      }
-
-      window.__busSeatEnsureAdminBackState = ensureAdminBackState;
     })();
   </script>
   <style>
@@ -7197,12 +7230,7 @@ function renderAll() {
       const overlay = byId("hikingNoticeOverlay");
       if (!overlay) return;
       overlay.classList.remove("hidden");
-      if (!hikingNoticeHistoryPushed) {
-        try {
-          history.pushState({ busSeatHikingNoticeOpen: true }, "", location.href);
-          hikingNoticeHistoryPushed = true;
-        } catch (error) {}
-      }
+      hikingNoticeHistoryPushed = true;
       renderHikingNoticeDialog();
       const textEl = byId("hikingNoticeText");
       if (textEl && textEl.contentEditable === "true") {
@@ -9117,13 +9145,6 @@ function renderAll() {
       });
       const hikingNoticeOverlay = byId("hikingNoticeOverlay");
       if (hikingNoticeOverlay) hikingNoticeOverlay.addEventListener("click", (e) => { if (e.target === hikingNoticeOverlay) closeHikingNoticeDialog(); });
-      window.addEventListener("popstate", () => {
-        if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
-        const overlay = byId("hikingNoticeOverlay");
-        if (overlay && !overlay.classList.contains("hidden")) {
-          returnToBusSeatScreenFromHikingNotice();
-        }
-      });
       bindIfPresent("infoTitleMain", "input", async (e) => { state.busInfo.titleMain = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoFeeLabel", "input", async (e) => { state.busInfo.feeLabel = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
       bindIfPresent("infoAccountNumber", "input", async (e) => { state.busInfo.accountNumber = e.target.value; renderBoard(); if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote(); });
@@ -15990,173 +16011,6 @@ body.admin-mode:not(.member-manage-mode) .controls {
 </script>
 
 
-<script id="member-log-mobile-back-flow-patch">
-/* 요청 수정: 모바일 기기 뒤로가기 흐름 고정
-   - 로그관리 화면 뒤로가기: 회원관리 화면으로 이동
-   - 회원관리 화면 뒤로가기: 회원입력 화면으로 이동
-   - 로그인 화면으로 빠지는 현상 방지 */
-(function(){
-  if (window.__memberLogMobileBackFlowPatchApplied) return;
-  window.__memberLogMobileBackFlowPatchApplied = true;
-
-  function isHidden(el){
-    return !el || el.classList.contains("hidden") || el.offsetParent === null;
-  }
-
-  function currentScreen(){
-    var loginPanel = document.getElementById("loginManagePanel");
-    var managePanel = document.getElementById("memberManagePanel");
-    if (!isHidden(loginPanel)) return "loginManage";
-    if (!isHidden(managePanel) || document.body.classList.contains("member-manage-mode")) return "memberManage";
-    return "member";
-  }
-
-  function showMemberScreen(){
-    try {
-      if (typeof window.__busSeatSwitchMode === "function") {
-        window.__busSeatSwitchMode("member");
-      }
-    } catch (error) {}
-    try {
-      document.body.classList.remove("member-manage-mode", "admin-entry-only");
-      document.body.classList.add("member-mode");
-      document.getElementById("loginManagePanel")?.classList.add("hidden");
-      document.getElementById("memberManagePanel")?.classList.add("hidden");
-      document.getElementById("memberPanel")?.classList.remove("hidden");
-      document.getElementById("adminLoginPanel")?.classList.add("hidden");
-      document.getElementById("adminPanel")?.classList.add("hidden");
-      document.getElementById("memberTab")?.classList.add("active");
-      document.getElementById("adminTab")?.classList.remove("active");
-      document.getElementById("memberManageTab")?.classList.remove("active");
-      try { sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "member"); } catch (error) {}
-    } catch (error) {}
-  }
-
-  function showMemberManageScreen(){
-    try {
-      if (typeof window.__busSeatSwitchMode === "function") {
-        window.__busSeatSwitchMode("memberManage");
-      }
-    } catch (error) {}
-    try {
-      document.body.classList.add("member-manage-mode");
-      document.body.classList.remove("member-mode", "admin-entry-only");
-      document.getElementById("loginManagePanel")?.classList.add("hidden");
-      document.getElementById("memberManagePanel")?.classList.remove("hidden");
-      document.getElementById("memberPanel")?.classList.add("hidden");
-      document.getElementById("adminLoginPanel")?.classList.add("hidden");
-      document.getElementById("adminPanel")?.classList.add("hidden");
-      document.getElementById("memberTab")?.classList.remove("active");
-      document.getElementById("adminTab")?.classList.remove("active");
-      document.getElementById("memberManageTab")?.classList.add("active");
-      try { sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "memberManage"); } catch (error) {}
-    } catch (error) {}
-  }
-
-  function showLoginManageScreen(){
-    showMemberManageScreen();
-    try {
-      document.getElementById("memberManagePanel")?.classList.add("hidden");
-      document.getElementById("loginManagePanel")?.classList.remove("hidden");
-    } catch (error) {}
-  }
-
-  function replaceWithMemberBase(){
-    try {
-      if (!history.state || !history.state.busSeatBackFlowBase) {
-        history.replaceState(Object.assign({}, history.state || {},
-          { busSeatScreen: "member", busSeatBackFlowBase: true }), "", location.href);
-      }
-    } catch (error) {}
-  }
-
-  function pushScreenState(screen){
-    try {
-      var state = history.state || {};
-      if (state.busSeatScreen === screen && state.busSeatBackFlowPatch) return;
-      history.pushState({ busSeatScreen: screen, busSeatBackFlowPatch: true }, "", location.href);
-    } catch (error) {}
-  }
-
-  function syncHistoryToScreen(){
-    if (document.body.classList.contains("admin-mode")) return;
-    var screen = currentScreen();
-    if (screen === "member") {
-      replaceWithMemberBase();
-      return;
-    }
-    replaceWithMemberBase();
-    if (screen === "memberManage") {
-      pushScreenState("memberManage");
-      return;
-    }
-    if (screen === "loginManage") {
-      try {
-        if (!history.state || history.state.busSeatScreen !== "memberManage") pushScreenState("memberManage");
-      } catch (error) { pushScreenState("memberManage"); }
-      pushScreenState("loginManage");
-    }
-  }
-
-  window.addEventListener("popstate", function(event){
-    if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
-    var state = event.state || {};
-    if (state.busSeatScreen === "loginManage") {
-      showLoginManageScreen();
-      return;
-    }
-    if (state.busSeatScreen === "memberManage") {
-      showMemberManageScreen();
-      return;
-    }
-    if (currentScreen() === "loginManage") {
-      showMemberManageScreen();
-      try { history.replaceState({ busSeatScreen: "memberManage", busSeatBackFlowPatch: true }, "", location.href); } catch (error) {}
-      return;
-    }
-    if (currentScreen() === "memberManage") {
-      showMemberScreen();
-      try { history.replaceState(Object.assign({}, history.state || {}, { busSeatScreen: "member", busSeatBackFlowBase: true }), "", location.href); } catch (error) {}
-      return;
-    }
-    showMemberScreen();
-  }, true);
-
-  document.addEventListener("click", function(event){
-    var manageBtn = event.target && event.target.closest ? event.target.closest("#memberManageTab") : null;
-    var logBtn = event.target && event.target.closest ? event.target.closest("#memberLoginManageBtn") : null;
-    var logBackBtn = event.target && event.target.closest ? event.target.closest("#loginManageBackBtn") : null;
-    var manageCloseBtn = event.target && event.target.closest ? event.target.closest("#memberManageCloseBtn") : null;
-
-    if (manageBtn) {
-      setTimeout(function(){ replaceWithMemberBase(); pushScreenState("memberManage"); }, 0);
-      return;
-    }
-    if (logBtn) {
-      setTimeout(function(){
-        replaceWithMemberBase();
-        try {
-          if (!history.state || history.state.busSeatScreen !== "memberManage") pushScreenState("memberManage");
-        } catch (error) { pushScreenState("memberManage"); }
-        pushScreenState("loginManage");
-      }, 0);
-      return;
-    }
-    if (logBackBtn) {
-      setTimeout(function(){ showMemberManageScreen(); try { history.replaceState({ busSeatScreen: "memberManage", busSeatBackFlowPatch: true }, "", location.href); } catch (error) {} }, 0);
-      return;
-    }
-    if (manageCloseBtn) {
-      setTimeout(function(){ showMemberScreen(); try { history.replaceState(Object.assign({}, history.state || {}, { busSeatScreen: "member", busSeatBackFlowBase: true }), "", location.href); } catch (error) {} window.__busSeatArmSeatBackGuard?.(); }, 0);
-    }
-  }, true);
-
-  window.addEventListener("pageshow", function(){ setTimeout(syncHistoryToScreen, 80); });
-  document.addEventListener("DOMContentLoaded", function(){ setTimeout(syncHistoryToScreen, 120); });
-})();
-</script>
-
-
 <script>
 /* 요청 수정: 회원 로그아웃은 로그인 화면을 반드시 다시 표시하고, 관리자종료는 관리자 진입 화면만 유지 */
 (function(){
@@ -17612,283 +17466,6 @@ body.member-mode .help-text:empty {
 </style>
 </body>
 </html>
-<script id="member-manage-back-to-member-mode-final-patch">
-/* 요청 수정: 회원관리 화면에서 브라우저/휴대폰 뒤로가기 실행 시 회원 입력 모드로 진입 */
-(function(){
-  if (window.__memberManageBackToMemberModeFinalPatchApplied) return;
-  window.__memberManageBackToMemberModeFinalPatchApplied = true;
-
-  var MEMBER_STATE = { busSeatScreen: "member", busSeatBackFlowBase: true };
-  var MANAGE_STATE = { busSeatScreen: "memberManage", busSeatBackFlowPatch: true };
-
-  function isVisible(el){
-    if (!el) return false;
-    if (el.classList && el.classList.contains("hidden")) return false;
-    var style = window.getComputedStyle ? window.getComputedStyle(el) : null;
-    if (style && (style.display === "none" || style.visibility === "hidden")) return false;
-    return true;
-  }
-
-  function isMemberManageScreen(){
-    var panel = document.getElementById("memberManagePanel");
-    return document.body.classList.contains("member-manage-mode") || isVisible(panel);
-  }
-
-  function forceMemberInputMode(){
-    try {
-      if (typeof window.__busSeatSwitchMode === "function") {
-        window.__busSeatSwitchMode("member");
-      }
-    } catch (error) {}
-
-    try {
-      document.body.classList.remove("member-manage-mode", "admin-entry-only");
-      document.body.classList.add("member-mode");
-      document.getElementById("memberManagePanel")?.classList.add("hidden");
-      document.getElementById("loginManagePanel")?.classList.add("hidden");
-      document.getElementById("adminLoginPanel")?.classList.add("hidden");
-      document.getElementById("adminPanel")?.classList.add("hidden");
-      document.getElementById("memberPanel")?.classList.remove("hidden");
-      document.getElementById("memberTab")?.classList.add("active");
-      document.getElementById("adminTab")?.classList.remove("active");
-      document.getElementById("memberManageTab")?.classList.remove("active");
-      sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "member");
-    } catch (error) {}
-  }
-
-  function ensureMemberBaseState(){
-    if (document.body.classList.contains("admin-mode")) return;
-    try {
-      var s = history.state || {};
-      if (!s.busSeatBackFlowBase && s.busSeatScreen !== "member") {
-        history.replaceState(Object.assign({}, history.state || {}, MEMBER_STATE), "", location.href);
-      }
-    } catch (error) {}
-  }
-
-  function pushMemberManageState(){
-    try {
-      ensureMemberBaseState();
-      var s = history.state || {};
-      if (s.busSeatScreen !== "memberManage") {
-        history.pushState(MANAGE_STATE, "", location.href);
-      }
-    } catch (error) {}
-  }
-
-  function syncAfterModeChange(){
-    setTimeout(function(){
-      if (isMemberManageScreen()) pushMemberManageState();
-    }, 30);
-  }
-
-  window.addEventListener("popstate", function(event){
-    if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
-    var s = event.state || {};
-    if (s.busSeatScreen === "member" || isMemberManageScreen()) {
-      event.stopPropagation && event.stopPropagation();
-      forceMemberInputMode();
-      try { history.replaceState(Object.assign({}, history.state || {}, MEMBER_STATE), "", location.href); } catch (error) {}
-    }
-  }, true);
-
-  document.addEventListener("click", function(event){
-    var manageTab = event.target && event.target.closest ? event.target.closest("#memberManageTab") : null;
-    var manageClose = event.target && event.target.closest ? event.target.closest("#memberManageCloseBtn") : null;
-    if (manageTab) syncAfterModeChange();
-    if (manageClose) {
-      setTimeout(function(){
-        forceMemberInputMode();
-        try { history.replaceState(Object.assign({}, history.state || {}, MEMBER_STATE), "", location.href); } catch (error) {}
-      }, 0);
-    }
-  }, true);
-
-  function wrapSwitchModeIfReady(){
-    if (typeof window.__busSeatSwitchMode !== "function" || window.__busSeatSwitchMode.__memberManageBackWrapped) return;
-    var originalSwitchMode = window.__busSeatSwitchMode;
-    var wrapped = function(nextMode){
-      var result = originalSwitchMode.apply(this, arguments);
-      if (nextMode === "memberManage") pushMemberManageState();
-      if (nextMode === "member") {
-        try { history.replaceState(Object.assign({}, history.state || {}, MEMBER_STATE), "", location.href); } catch (error) {}
-        window.__busSeatArmSeatBackGuard?.();
-      }
-      return result;
-    };
-    wrapped.__memberManageBackWrapped = true;
-    window.__busSeatSwitchMode = wrapped;
-  }
-
-  document.addEventListener("DOMContentLoaded", function(){
-    ensureMemberBaseState();
-    wrapSwitchModeIfReady();
-    setTimeout(wrapSwitchModeIfReady, 300);
-    setTimeout(function(){ if (isMemberManageScreen()) pushMemberManageState(); }, 500);
-  });
-  window.addEventListener("pageshow", function(){
-    ensureMemberBaseState();
-    wrapSwitchModeIfReady();
-    setTimeout(function(){ if (isMemberManageScreen()) pushMemberManageState(); }, 150);
-  });
-})();
-</script>
-
-
-<script id="mobile-login-back-exit-once-patch">
-/* 요청 수정: 모바일 로그인 화면 뒤로가기 2회 시 모든 내부 history 정리 후 앱 종료.
-   원인: 앱 내부 화면전환 history + 브라우저/웹뷰 history 가 누적되어
-   뒤로가기를 여러 번 눌러야 종료되는 현상 발생.
-   처리:
-   1차 뒤로가기 → 내부 history 를 로그인 기준으로 정리
-   2차 뒤로가기 → 남은 history 를 한 번에 제거 후 앱 종료 시도 */
-(function(){
-  if (window.__mobileLoginBackExitDoublePatchApplied) return;
-  window.__mobileLoginBackExitDoublePatchApplied = true;
-
-  var LOGIN_STATE = { busSeatScreen: "memberLogin", busSeatLoginExitBase: true };
-  var lastBackPressedAt = 0;
-  var EXIT_INTERVAL = 2200;
-  var exitingNow = false;
-
-  function isLoginGateVisible(){
-    try {
-      var gate = document.getElementById("memberAuthGate");
-      if (!document.body || !document.body.classList.contains("membership-locked")) return false;
-      if (!gate || gate.classList.contains("is-hidden")) return false;
-      var style = window.getComputedStyle ? window.getComputedStyle(gate) : null;
-      return !(style && (style.display === "none" || style.visibility === "hidden"));
-    } catch (error) {
-      return false;
-    }
-  }
-
-  function setLoginBaseState(){
-    if (!isLoginGateVisible()) return;
-    try {
-      history.replaceState(LOGIN_STATE, "", location.href);
-    } catch (error) {}
-  }
-
-  function showExitToast(){
-    try {
-      if (window.__loginExitToastEl) {
-        window.__loginExitToastEl.remove();
-      }
-
-      var toast = document.createElement("div");
-      toast.textContent = "한번 더 뒤로가기 하면 앱을 종료합니다.";
-      toast.style.position = "fixed";
-      toast.style.left = "50%";
-      toast.style.bottom = "34px";
-      toast.style.transform = "translateX(-50%)";
-      toast.style.background = "rgba(17,24,39,.92)";
-      toast.style.color = "#fff";
-      toast.style.padding = "10px 16px";
-      toast.style.borderRadius = "999px";
-      toast.style.fontSize = "13px";
-      toast.style.fontWeight = "700";
-      toast.style.zIndex = "2147483647";
-      toast.style.boxShadow = "0 4px 18px rgba(0,0,0,.28)";
-      document.body.appendChild(toast);
-
-      window.__loginExitToastEl = toast;
-
-      setTimeout(function(){
-        try {
-          if (toast.parentNode) toast.parentNode.removeChild(toast);
-        } catch (e) {}
-      }, 1800);
-    } catch (error) {}
-  }
-
-  function closeApplicationNow(){
-    if (exitingNow) return;
-    exitingNow = true;
-
-    try {
-      var totalSteps = Math.max(1, Math.min((history.length || 1) - 1, 50));
-      history.go(-totalSteps);
-    } catch (error) {
-      try { history.back(); } catch (e) {}
-    }
-
-    try {
-      if (navigator.app && typeof navigator.app.exitApp === "function") {
-        navigator.app.exitApp();
-      }
-    } catch (error) {}
-
-    try {
-      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
-        window.Capacitor.Plugins.App.exitApp();
-      }
-    } catch (error) {}
-
-    setTimeout(function(){
-      exitingNow = false;
-    }, 1800);
-  }
-
-  function handleLoginBackPressed(event){
-    if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
-    if (!isLoginGateVisible()) return;
-
-    if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
-    else if (event && event.stopPropagation) event.stopPropagation();
-
-    var now = Date.now();
-
-    if ((now - lastBackPressedAt) < EXIT_INTERVAL) {
-      closeApplicationNow();
-      return;
-    }
-
-    lastBackPressedAt = now;
-    setLoginBaseState();
-    showExitToast();
-
-    try {
-      history.pushState(LOGIN_STATE, "", location.href);
-    } catch (error) {}
-  }
-
-  window.addEventListener("popstate", handleLoginBackPressed, true);
-
-  document.addEventListener("DOMContentLoaded", function(){
-    setTimeout(setLoginBaseState, 0);
-    setTimeout(setLoginBaseState, 300);
-  });
-
-  window.addEventListener("pageshow", function(){
-    setTimeout(setLoginBaseState, 0);
-    setTimeout(setLoginBaseState, 300);
-  });
-
-  if (window.MutationObserver) {
-    document.addEventListener("DOMContentLoaded", function(){
-      try {
-        var gate = document.getElementById("memberAuthGate");
-        if (!gate || !document.body) return;
-
-        new MutationObserver(function(){
-          setTimeout(setLoginBaseState, 0);
-        }).observe(document.body, {
-          attributes:true,
-          attributeFilter:["class"]
-        });
-
-        new MutationObserver(function(){
-          setTimeout(setLoginBaseState, 0);
-        }).observe(gate, {
-          attributes:true,
-          attributeFilter:["class","style"]
-        });
-      } catch (error) {}
-    });
-  }
-})();
-</script>
 
 <!-- ===== 패치: 좌석 이름 ↔ 회원관리 이름/닉네임 비교 후 미가입 좌석 이름 파랑 표시 / 깜빡임 OFF ===== -->
 <style id="seat-unregistered-member-blink-patch-style">
