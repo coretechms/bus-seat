@@ -3591,9 +3591,9 @@ body.member-mode .alt-arrow-cell {
         <button id="memberPasswordChangeOpenBtn" type="button">비밀번호변경</button>
         <button id="memberLoginBtn" type="button">로그인</button>
       </div>
-      <button id="memberPasswordRecoveryOpenBtn" type="button">비밀번호 찾기</button>
+      <button id="memberPasswordRecoveryOpenBtn" type="button">비밀번호 재설정</button>
       <div id="memberPasswordRecoveryPanel" class="member-password-change-panel" hidden>
-        <h3 class="member-password-panel-title">비밀번호 찾기</h3>
+        <h3 class="member-password-panel-title">비밀번호 재설정</h3>
         <div class="member-auth-row"><label for="memberRecoveryNameInput">아이디</label><input id="memberRecoveryNameInput" type="text" placeholder="이름" autocomplete="off"></div>
         <div class="member-auth-row"><label for="memberRecoveryBirthInput">생년월일</label><input id="memberRecoveryBirthInput" type="text" inputmode="numeric" maxlength="6" placeholder="YYMMDD" autocomplete="off"></div>
         <div class="member-auth-row"><label for="memberRecoveryPhoneInput">전화번호</label><input id="memberRecoveryPhoneInput" type="tel" inputmode="numeric" placeholder="휴대전화 전체 번호" autocomplete="off"></div>
@@ -4889,8 +4889,9 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       editor.focus();
       const selection = window.getSelection?.();
       if (!selection || !selection.rangeCount || !editor.contains(selection.getRangeAt(0).commonAncestorContainer)) return;
-      // insertText를 우선 사용해 브라우저의 실행 취소 기록을 유지한다.
-      if (document.execCommand?.("insertText", false, text)) return;
+      // 줄바꿈과 탭은 텍스트 노드에 저장한다. 브라우저가 div/p를 만들면
+      // 로그인 출력창에서 빈 줄 수가 달라질 수 있다.
+      if (!/[\n\t]/.test(text) && document.execCommand?.("insertText", false, text)) return;
       const range = selection.getRangeAt(0);
       range.deleteContents();
       const node = document.createTextNode(text);
@@ -4908,6 +4909,13 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       event.preventDefault();
       event.stopPropagation();
       insertMainMemoText(event.currentTarget, event.key === "Enter" ? "\n" : "\t");
+    }
+
+    function handleMainMemoBeforeInput(event) {
+      if (event.isComposing || (event.inputType !== "insertParagraph" && event.inputType !== "insertLineBreak")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      insertMainMemoText(event.currentTarget, "\n");
     }
 
     function handleMainMemoPlainPaste(event) {
@@ -8908,6 +8916,7 @@ function renderAll() {
       bindIfPresent("adminInfoGuideBtn", "click", toggleInfoGuidePanel);
       bindIfPresent("adminMainMemoBtn", "click", toggleMainMemoPanel);
       bindIfPresent("mainMemoText", "keydown", handleMainMemoNotepadKeydown);
+      bindIfPresent("mainMemoText", "beforeinput", handleMainMemoBeforeInput);
       bindIfPresent("mainMemoText", "paste", handleMainMemoPlainPaste);
       bindIfPresent("mainMemoText", "input", (e) => saveMainMemoEditorValue(e.target));
       bindIfPresent("mainMemoText", "blur", flushMainMemoSave);
@@ -11741,7 +11750,7 @@ function renderAll() {
       setAuthMessage("기존 비밀번호 칸에 임시 비밀번호가 입력되었습니다. 새 비밀번호를 설정하세요.", true);
       byId("memberChangeNewPasswordInput")?.focus();
     } catch (error) {
-      console.error("비밀번호 찾기 오류:", error);
+      console.error("비밀번호 재설정 오류:", error);
       fail("비밀번호를 저장하지 못했습니다. 관리자에게 문의하세요.");
     } finally { if (btn) btn.disabled = false; }
   }
@@ -16775,12 +16784,18 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
 <script id="main-memo-keyboard-isolation">
 (function () {
-  function inMemo(target) { return !!target?.closest?.("#mainMemoText"); }
-  ["keydown", "keyup", "keypress", "beforeinput"].forEach(type => {
-    document.addEventListener(type, event => {
-      if (inMemo(event.target)) event.stopPropagation();
-    }, true);
-  });
+  function attach() {
+    const editor = document.getElementById("mainMemoText");
+    if (!editor || editor.dataset.memoKeyboardIsolationBound) return;
+    editor.dataset.memoKeyboardIsolationBound = "1";
+    // 편집기 자체에서 상위 단축키 전파를 막는다. document 캡처에서 막으면
+    // 편집기의 Enter/붙여넣기/입력 핸들러까지 도달하지 못한다.
+    ["keydown", "keyup", "keypress", "beforeinput", "paste"].forEach(type => {
+      editor.addEventListener(type, event => event.stopPropagation(), true);
+    });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", attach);
+  else attach();
 })();
 </script>
 
@@ -18486,5 +18501,59 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   #adminSettingsPanel .admin-settings-action-row select,
   #adminSettingsPanel .admin-settings-action-row input { font-size: 9px; }
   #adminSettingsPanel .admin-lock-action-row #nameEntryLockStatus { font-size: 9px; }
+}
+</style>
+
+<style id="main-memo-editor-login-width-match">
+/* 편집창과 로그인 메모창의 외곽 폭 및 실제 글자 영역을 동일하게 맞춘다. */
+#mainMemoText {
+  width: min(300px, 92vw) !important;
+  max-width: none !important;
+  left: 50%;
+  position: relative;
+  transform: translateX(-50%);
+  margin: 0 !important;
+  padding: 11px 14px !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+  font-weight: 400 !important;
+}
+#memberLoginMainMemoBox { font-weight: 400 !important; }
+@media (max-width: 760px) {
+  #mainMemoText { padding: 10px 12px !important; }
+}
+</style>
+
+<style id="main-memo-editor-login-text-match">
+/* 기본 글자색/글꼴을 양쪽에서 통일한다. 선택한 글자의 색상 서식은 각 span이 유지한다. */
+#mainMemoText,
+#memberLoginMainMemoBox {
+  color: #111 !important;
+  font-family: Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif !important;
+  letter-spacing: normal !important;
+}
+</style>
+
+<style id="main-memo-shared-text-layout">
+/* 저장된 동일 HTML이 편집창과 로그인 메모창에서 같은 폭과 줄바꿈으로 보인다. */
+#mainMemoText,
+#memberLoginMainMemoBox {
+  width: min(300px, 92vw) !important;
+  padding: 11px 14px !important;
+  font-family: Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.6 !important;
+  letter-spacing: normal !important;
+  color: #111 !important;
+  white-space: pre-wrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+  tab-size: 4 !important;
+  text-align: left !important;
+}
+@media (max-width: 760px) {
+  #mainMemoText,
+  #memberLoginMainMemoBox { padding: 10px 12px !important; }
 }
 </style>
