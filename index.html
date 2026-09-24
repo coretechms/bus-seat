@@ -31,6 +31,42 @@
       } catch (error) {}
     })();
   </script>
+  <script>
+    /* 관리자 화면에서 모바일 뒤로가기가 회원 입력 화면으로 전환되지 않도록 유지한다. */
+    (function () {
+      function isAdminScreen() {
+        var panel = document.getElementById("adminPanel");
+        return !!(document.body && document.body.classList.contains("admin-mode") &&
+          panel && !panel.classList.contains("hidden") &&
+          typeof window.__busSeatIsAdminAuthenticated === "function" &&
+          window.__busSeatIsAdminAuthenticated());
+      }
+
+      function ensureAdminBackState() {
+        if (!isAdminScreen()) return;
+        try {
+          var current = history.state || {};
+          if (current.busSeatAdminBackGuard) return;
+          if (!current.busSeatAdminBackBase) {
+            history.replaceState({ busSeatAdminBackBase: true }, "", location.href);
+          }
+          history.pushState({ busSeatAdminBackGuard: true }, "", location.href);
+        } catch (error) {}
+      }
+
+      window.__busSeatEnsureAdminBackState = ensureAdminBackState;
+      window.addEventListener("popstate", function (event) {
+        if (!isAdminScreen()) return;
+        var overlay = document.getElementById("hikingNoticeOverlay");
+        if (overlay && !overlay.classList.contains("hidden") &&
+            typeof window.__busSeatCloseHikingNoticeDialog === "function") {
+          window.__busSeatCloseHikingNoticeDialog();
+        }
+        ensureAdminBackState();
+        event.stopImmediatePropagation();
+      }, true);
+    })();
+  </script>
   <style>
     :root {
       --bg: #dcdcdc;
@@ -1472,7 +1508,8 @@ body:not(.membership-locked) .member-current-badge {
 
 /* 가입신청란 개인정보 기본 노출 방지: 회원가입 버튼을 누르기 전에는 표시하지 않고, 기본값은 비워둔다. */
 #memberSignupPanel:not(.is-open),
-#memberPasswordChangePanel:not(.is-open) {
+#memberPasswordChangePanel:not(.is-open),
+#memberPasswordRecoveryPanel:not(.is-open) {
   display: none !important;
 }
 
@@ -3554,7 +3591,16 @@ body.member-mode .alt-arrow-cell {
         <button id="memberPasswordChangeOpenBtn" type="button">비밀번호변경</button>
         <button id="memberLoginBtn" type="button">로그인</button>
       </div>
+      <button id="memberPasswordRecoveryOpenBtn" type="button">비밀번호 찾기</button>
+      <div id="memberPasswordRecoveryPanel" class="member-password-change-panel" hidden>
+        <h3 class="member-password-panel-title">비밀번호 찾기</h3>
+        <div class="member-auth-row"><label for="memberRecoveryNameInput">아이디</label><input id="memberRecoveryNameInput" type="text" placeholder="이름" autocomplete="off"></div>
+        <div class="member-auth-row"><label for="memberRecoveryBirthInput">생년월일</label><input id="memberRecoveryBirthInput" type="text" inputmode="numeric" maxlength="6" placeholder="YYMMDD" autocomplete="off"></div>
+        <div class="member-auth-row"><label for="memberRecoveryPhoneInput">전화번호</label><input id="memberRecoveryPhoneInput" type="tel" inputmode="numeric" placeholder="휴대전화 전체 번호" autocomplete="off"></div>
+        <div class="member-password-change-actions"><button id="memberRecoverySubmitBtn" type="button">확인</button><button id="memberRecoveryCloseBtn" type="button">나가기</button></div>
+      </div>
       <div id="memberPasswordChangePanel" class="member-password-change-panel">
+        <h3 class="member-password-panel-title">비밀번호 변경</h3>
         <div class="member-auth-row">
           <label for="memberChangeNameInput">아이디</label>
           <input id="memberChangeNameInput" type="text" autocomplete="off" lang="ko" inputmode="text" enterkeyhint="next" placeholder="이  름" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
@@ -3709,13 +3755,17 @@ body.member-mode .alt-arrow-cell {
               <button class="btn btn-outline" id="adminCaptureProxyBtn" type="button" style="width:100%;">캡처</button>
               <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="width:100%;">관리자종료</button>
               <button class="btn btn-primary" id="adminSaveBtnTop" type="button" style="width:100%;">상태저장</button>
-              <select id="adminStatus" aria-label="좌석 상태 선택">
-                <option value="paid">완납</option>
-                <option value="waiting">입금대기</option>
-                <option value="reserved">이름만 표기</option>
-                <option value="paid_new">완납/신입</option>
-                <option value="paid_reserved">완납/예약완료</option>
-              </select>
+              <div class="admin-status-box">
+                <select id="adminStatus" aria-label="좌석 상태 선택">
+                  <option value="paid">완납</option>
+                  <option value="waiting">입금대기</option>
+                  <option value="reserved">이름만 표기</option>
+                  <option value="paid_new">완납/신입</option>
+                  <option value="paid_reserved">완납/예약완료</option>
+                </select>
+                <button class="btn btn-primary" id="adminSaveBtnBottom" type="button">상태저장</button>
+              </div>
+              <button class="btn btn-outline" id="adminMainMemoBtn" type="button" style="width:100%; height:28px; margin-top:0;">메인메모</button>
               <button class="btn btn-outline" id="adminSettingsToggleBtn" type="button" style="width:100%;" aria-expanded="false">설정</button>
             </div>
 
@@ -3725,6 +3775,7 @@ body.member-mode .alt-arrow-cell {
             </div>
 
             <div id="adminSettingsPanel" class="admin-settings-panel" hidden>
+            <div class="admin-vehicle-settings-row">
             <div class="fleet-settings">
               <label for="fleetOperationSelect">운영 차량</label>
               <div class="fleet-setting-row">
@@ -3761,39 +3812,34 @@ body.member-mode .alt-arrow-cell {
                 <button class="btn btn-outline" id="saveBusType2Btn" type="button">2호차 변경</button>
               </div>
             </div>
+            </div>
 
-            <div id="adminExpireInline" style="margin-top:12px;">
-              <div style="display:flex; gap:8px; align-items:center;">
-                <label for="waitingExpireHoursInput" style="width:50px; margin-bottom:0;">입금시간</label>
-                <input id="waitingExpireHoursInput" type="number" min="1" step="1" placeholder="자동삭제 시간(시간)" style="flex:1;" />
-                <button class="btn btn-outline" id="saveWaitingExpireBtn" type="button" style="width:120px; min-width:80px;">시간저장</button>
+            <div id="adminExpireInline" class="admin-settings-action-row" style="margin-top:12px;">
+              <label for="waitingExpireHoursInput">입금시간</label>
+              <input id="waitingExpireHoursInput" type="number" min="1" step="1" placeholder="시간" aria-label="자동삭제 시간(시간)" />
+              <button class="btn btn-outline" id="saveWaitingExpireBtn" type="button">시간저장</button>
+              <select id="resetVehicleSelect" aria-label="초기화할 차량 선택">
+                <option value="">차량 초기화</option>
+                <option value="1">1호차 초기화</option>
+                <option value="2" id="resetVehicle2Option">2호차 초기화</option>
+              </select>
+            </div>
+            <div id="resetInlineConfirm" class="hidden" style="margin-top:6px; margin-bottom:6px; padding:8px; border:1px solid #d32f2f; border-radius:16px; background:#fff5f5;">
+              <div style="font-size:12px; margin-bottom:6px; color:#b91c1c; font-weight:700;"><span id="fleetResetConfirmText">1호차 좌석을 모두 초기화하시겠습니까?</span></div>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-outline" id="resetInlineCancelBtn" type="button">아니오</button>
+                <button class="btn btn-danger" id="resetInlineConfirmBtn" type="button">예</button>
               </div>
             </div>
 
-            <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
-              <label for="toggleNameEntryLockBtn" style="width:80px; margin-bottom:0;">입력제한</label>
-              <button class="btn btn-outline" id="toggleNameEntryLockBtn" type="button" style="flex:1;">전체 입력 제한</button>
-              <div id="nameEntryLockStatus" class="status-box" style="margin-top:0; flex:1; min-width:0; justify-content:center;">
-                <strong>이름 입력 가능</strong>
-              </div>
+            <div class="admin-settings-action-row admin-lock-action-row" style="margin-top:10px;">
+              <label for="toggleNameEntryLockBtn">입력제한</label>
+              <button class="btn btn-outline" id="toggleNameEntryLockBtn" type="button">입력제한설정</button>
+              <div id="nameEntryLockStatus" class="status-box" role="status" aria-live="polite"><strong>입력가능</strong></div>
+              <button class="btn btn-primary" id="systemAdminEnterBtn" type="button">시스템관리자</button>
             </div>
 
             <div id="systemAdminGatePanel" style="margin-top:10px;">
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; align-items:center;">
-                <select id="resetVehicleSelect" aria-label="초기화할 차량 선택">
-                  <option value="">차량 초기화</option>
-                  <option value="1">1호차 초기화</option>
-                  <option value="2" id="resetVehicle2Option">2호차 초기화</option>
-                </select>
-                <button class="btn btn-primary" id="systemAdminEnterBtn" type="button">시스템관리자</button>
-              </div>
-              <div id="resetInlineConfirm" class="hidden" style="margin-top:6px; margin-bottom:6px; padding:8px; border:1px solid #d32f2f; border-radius:16px; background:#fff5f5;">
-                <div style="font-size:12px; margin-bottom:6px; color:#b91c1c; font-weight:700;"><span id="fleetResetConfirmText">1호차 좌석을 모두 초기화하시겠습니까?</span></div>
-                <div style="display:flex; gap:6px;">
-                  <button class="btn btn-outline" id="resetInlineCancelBtn" type="button">아니오</button>
-                  <button class="btn btn-danger" id="resetInlineConfirmBtn" type="button">예</button>
-                </div>
-              </div>
               <div id="systemAdminPanel" class="hidden" style="margin-top:10px; border:1px solid #d4d4d4; border-radius:16px; padding:10px; background:#f8fafc;">
                 <div style="display:flex; gap:8px; align-items:center;">
                   <input id="newSystemAdminPassword" type="password" placeholder="시스템 관리자 비밀번호 입력" style="flex:1;" inputmode="numeric" pattern="[0-9]*">
@@ -3960,8 +4006,7 @@ body.member-mode .alt-arrow-cell {
                   <input id="loginTopLogoLink2Input" type="url" placeholder="https:// 로 시작하는 링크 입력" />
                 </div>
               </div>
-              <div style="margin-top:8px;">
-                <button class="btn btn-outline" id="adminMainMemoBtn" type="button" style="width:100%; height:28px; margin-top:0;">메인메모</button>
+              <div>
                 <div id="adminMainMemoPanel" class="hidden">
                   <div class="main-memo-label-row">
                     <label for="mainMemoText">메인 메모</label>
@@ -4225,7 +4270,6 @@ const firebaseConfig = {
       state.pendingResetVehicle = null;
       state.lastSavedSeat = null;
       state.inlineEditProtectUntil = 0;
-      adminSeatEditArmed = null;
       byId("resetInlineConfirm")?.classList.add("hidden");
     }
 
@@ -4398,9 +4442,12 @@ const firebaseConfig = {
       return status || "empty";
     }
 
-    function getVehicleSeatsForDuplicateCheck(vehicleId) {
+    function getVehicleSeatsForDuplicateCheck(vehicleId, rootPayload = null) {
       vehicleId = String(vehicleId || "1");
-      const seats = vehicleId === state.activeVehicle
+      const seats = rootPayload
+        ? Object.entries(projectVehiclePayload(rootPayload, vehicleId)?.seats || {})
+            .map(([number, seat]) => ({ ...(seat || {}), number: Number(number) }))
+        : vehicleId === state.activeVehicle
         ? state.seats
         : Object.entries(projectVehiclePayload(state.fleetPayload || {}, vehicleId)?.seats || {})
             .map(([number, seat]) => ({ ...(seat || {}), number: Number(number) }));
@@ -4411,9 +4458,11 @@ const firebaseConfig = {
       }));
     }
 
-    function getAllFleetSeatsForDuplicateCheck() {
-      const vehicleIds = state.secondVehicleEnabled ? ["1", "2"] : ["1"];
-      return vehicleIds.flatMap((vehicleId) => getVehicleSeatsForDuplicateCheck(vehicleId));
+    function getAllFleetSeatsForDuplicateCheck(rootPayload = null) {
+      const hasSecondVehicle = state.secondVehicleEnabled || state.activeVehicle === "2" ||
+        rootPayload?.fleet?.secondVehicleEnabled === true;
+      const vehicleIds = hasSecondVehicle ? ["1", "2"] : ["1"];
+      return vehicleIds.flatMap((vehicleId) => getVehicleSeatsForDuplicateCheck(vehicleId, rootPayload));
     }
 
     function isSameFleetSeat(seat, vehicleId, seatNumber) {
@@ -4421,19 +4470,19 @@ const firebaseConfig = {
         && Number(seat?.number) === Number(seatNumber);
     }
 
-    function getSameNameSeats(name, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle) {
+    function getSameNameSeats(name, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle, fleetSeats = getAllFleetSeatsForDuplicateCheck()) {
       const normalizedName = normalizeName(name);
       if (!normalizedName) return [];
-      return getAllFleetSeatsForDuplicateCheck()
+      return fleetSeats
         .filter((seat) => !isSameFleetSeat(seat, excludeVehicleId, excludeSeatNumber) && normalizeName(seat.name) === normalizedName)
         .sort((a, b) => ((a.updatedAt || 0) - (b.updatedAt || 0)) || String(a.vehicleId).localeCompare(String(b.vehicleId)) || (a.number - b.number));
     }
 
-    function buildDuplicateName(baseName, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle) {
+    function buildDuplicateName(baseName, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle, fleetSeats = getAllFleetSeatsForDuplicateCheck()) {
       const normalizedBase = normalizeName(baseName);
       if (!normalizedBase) return "";
       const taken = new Set(
-        getAllFleetSeatsForDuplicateCheck()
+        fleetSeats
           .filter((seat) => !isSameFleetSeat(seat, excludeVehicleId, excludeSeatNumber))
           .map((seat) => normalizeName(seat.name))
           .filter(Boolean)
@@ -4449,6 +4498,32 @@ const firebaseConfig = {
       return new Promise((resolve) => {
         const existing = document.getElementById("threeOptionDialogOverlay");
         if (existing) existing.remove();
+
+        const editingBubble = byId("seatNameBubble");
+        const mobileBubble = !!editingBubble && window.matchMedia("(max-width: 760px)").matches;
+        let updateVisibleArea = null;
+        if (mobileBubble) {
+          document.body.classList.toggle("duplicate-seat-dialog-tall", editingBubble.classList.contains("has-status-action"));
+          const input = editingBubble.querySelector("#inlineSeatInput");
+          if (input) {
+            input.dataset.detaching = "1";
+            state.inlineEditProtectUntil = 0;
+            input.blur(); // 모바일 키보드를 내려 두 창이 모두 보일 공간을 확보한다.
+          }
+          document.body.classList.add("duplicate-seat-dialog-open");
+          updateVisibleArea = () => {
+            if (!document.body.classList.contains("duplicate-seat-dialog-open")) return;
+            const viewport = window.visualViewport;
+            document.body.style.setProperty("--duplicate-visible-top", `${viewport?.offsetTop || 0}px`);
+            document.body.style.setProperty("--duplicate-visible-height", `${viewport?.height || window.innerHeight}px`);
+          };
+          updateVisibleArea();
+          window.visualViewport?.addEventListener("resize", updateVisibleArea);
+          window.visualViewport?.addEventListener("scroll", updateVisibleArea);
+          window.addEventListener("resize", updateVisibleArea);
+          window.setTimeout(updateVisibleArea, 180);
+          window.setTimeout(updateVisibleArea, 450);
+        }
 
         const overlay = document.createElement("div");
         overlay.className = "tri-overlay";
@@ -4467,6 +4542,15 @@ const firebaseConfig = {
         document.body.appendChild(overlay);
 
         const cleanup = (value) => {
+          if (mobileBubble) {
+            document.body.classList.remove("duplicate-seat-dialog-open");
+            document.body.classList.remove("duplicate-seat-dialog-tall");
+            document.body.style.removeProperty("--duplicate-visible-top");
+            document.body.style.removeProperty("--duplicate-visible-height");
+            window.visualViewport?.removeEventListener("resize", updateVisibleArea);
+            window.visualViewport?.removeEventListener("scroll", updateVisibleArea);
+            window.removeEventListener("resize", updateVisibleArea);
+          }
           overlay.remove();
           resolve(value);
         };
@@ -4482,7 +4566,16 @@ const firebaseConfig = {
 
     async function confirmDuplicateNameAction(name, excludeSeatNumber = null, excludeVehicleId = state.activeVehicle) {
       const normalizedName = normalizeName(name);
-      const duplicateSeats = getSameNameSeats(normalizedName, excludeSeatNumber, excludeVehicleId);
+      let fleetSeats = getAllFleetSeatsForDuplicateCheck();
+      if (state.db && state.isFirebaseReady) {
+        try {
+          const currentFleet = await get(ref(state.db, ROOT_PATH));
+          if (currentFleet.exists()) fleetSeats = getAllFleetSeatsForDuplicateCheck(currentFleet.val());
+        } catch (error) {
+          console.warn("1·2호차 동명이인 최신 조회 실패; 현재 화면 자료 사용", error);
+        }
+      }
+      const duplicateSeats = getSameNameSeats(normalizedName, excludeSeatNumber, excludeVehicleId, fleetSeats);
       if (duplicateSeats.length === 0) {
         return { type: "normal", name: normalizedName, sourceSeat: null };
       }
@@ -4497,7 +4590,7 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
         return { type: "move", name: normalizedName, sourceSeat, moveStatus };
       }
       if (choice === "duplicate") {
-        const uniqueName = buildDuplicateName(normalizedName, excludeSeatNumber, excludeVehicleId);
+        const uniqueName = buildDuplicateName(normalizedName, excludeSeatNumber, excludeVehicleId, fleetSeats);
         return { type: "duplicate", name: uniqueName, sourceSeat: null, originalName: normalizedName };
       }
       return { type: "cancel", name: normalizedName, sourceSeat: null };
@@ -4585,7 +4678,7 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
     }
 
 
-    function sanitizeGuideEditorHtml(html) {
+    function sanitizeGuideEditorHtml(html, preserveMemoLines = false) {
       const temp = document.createElement("div");
       temp.innerHTML = String(html || "");
       const allowedClasses = new Set(["guide-bold", "guide-blue", "guide-red", "guide-blink"]);
@@ -4598,13 +4691,16 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
         if (!children && tag !== "br") return "";
         if (tag === "b" || tag === "strong") return `<b>${children}</b>`;
         if (tag === "span") {
-          const cls = Array.from(node.classList || []).find((name) => allowedClasses.has(name));
-          return cls ? `<span class="${cls}">${children}</span>` : children;
+          const classes = Array.from(node.classList || []).filter((name) => allowedClasses.has(name));
+          return classes.length ? `<span class="${classes.join(" ")}">${children}</span>` : children;
         }
         if (tag === "div" || tag === "p") return children ? `${children}<br>` : "<br>";
         return children;
       }
-      return Array.from(temp.childNodes).map(cleanNode).join("").replace(/<span class="guide-[^"]+"><\/span>/g, "").replace(/(<br>){3,}/g, "<br><br>").replace(/(<br>)+$/g, "");
+      const clean = Array.from(temp.childNodes).map(cleanNode).join("")
+        .replace(/<span class="guide-[^"]+"><\/span>/g, "");
+      // 메모장은 연속된 빈 줄과 마지막 줄바꿈까지 그대로 저장한다.
+      return preserveMemoLines ? clean : clean.replace(/(<br>){3,}/g, "<br><br>").replace(/(<br>)+$/g, "");
     }
 
     function renderGuideTextHtml(text) {
@@ -4713,6 +4809,26 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       }
     }
 
+    function insertSingleHikingNoticeLineBreak(editor) {
+      const selection = window.getSelection?.();
+      if (!editor || !selection || !selection.rangeCount) return false;
+      const range = selection.getRangeAt(0);
+      if (!(editor.contains(range.commonAncestorContainer) || editor === range.commonAncestorContainer)) return false;
+      // 편집기의 기본 Enter는 div/p를 만들 수 있으므로 한 줄 줄바꿈으로 고정한다.
+      try {
+        if (document.execCommand?.("insertLineBreak", false, null)) return true;
+      } catch (_) {}
+      range.deleteContents();
+      const br = document.createElement("br");
+      range.insertNode(br);
+      const nextRange = document.createRange();
+      nextRange.setStartAfter(br);
+      nextRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+      return true;
+    }
+
     async function saveInfoGuideEditorValue(editor) {
       if (!editor) return;
       state.busInfo.seatGuideText = sanitizeGuideEditorHtml(editor.innerHTML);
@@ -4743,11 +4859,63 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       return String(temp.textContent || "").replace(/\u00a0/g, " ").trim();
     }
 
-    async function saveMainMemoEditorValue(editor) {
+    let mainMemoSaveTimer = null;
+    function renderMainMemoHtml(value) {
+      const html = String(value || "");
+      return sanitizeGuideEditorHtml(html, true);
+    }
+
+    function saveMainMemoEditorValue(editor) {
       if (!editor) return;
-      state.busInfo.mainMemoText = sanitizeGuideEditorHtml(editor.innerHTML);
+      state.busInfo.mainMemoText = renderMainMemoHtml(editor.innerHTML);
       renderMainMemoBox();
-      if (state.isFirebaseReady && state.isAdminAuthenticated) await saveBusInfoRemote();
+      clearTimeout(mainMemoSaveTimer);
+      if (state.isFirebaseReady && state.isAdminAuthenticated) {
+        mainMemoSaveTimer = setTimeout(() => {
+          mainMemoSaveTimer = null;
+          saveBusInfoRemote();
+        }, 350);
+      }
+    }
+
+    function flushMainMemoSave() {
+      if (!mainMemoSaveTimer) return;
+      clearTimeout(mainMemoSaveTimer);
+      mainMemoSaveTimer = null;
+      if (state.isFirebaseReady && state.isAdminAuthenticated) saveBusInfoRemote();
+    }
+
+    function insertMainMemoText(editor, text) {
+      editor.focus();
+      const selection = window.getSelection?.();
+      if (!selection || !selection.rangeCount || !editor.contains(selection.getRangeAt(0).commonAncestorContainer)) return;
+      // insertText를 우선 사용해 브라우저의 실행 취소 기록을 유지한다.
+      if (document.execCommand?.("insertText", false, text)) return;
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const node = document.createTextNode(text);
+      range.insertNode(node);
+      range.setStartAfter(node);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    function handleMainMemoNotepadKeydown(event) {
+      if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key !== "Enter" && event.key !== "Tab") return;
+      event.preventDefault();
+      event.stopPropagation();
+      insertMainMemoText(event.currentTarget, event.key === "Enter" ? "\n" : "\t");
+    }
+
+    function handleMainMemoPlainPaste(event) {
+      const text = event.clipboardData?.getData("text/plain");
+      if (text == null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      insertMainMemoText(event.currentTarget, text.replace(/\r\n?/g, "\n"));
     }
 
     function unwrapMainMemoBlinkSpans(root) {
@@ -4892,7 +5060,7 @@ function removeGuideColorFromSelection(editor) {
     }
 
     function renderMainMemoBox() {
-      const memoHtml = renderGuideTextHtml(state.busInfo?.mainMemoText || "");
+      const memoHtml = renderMainMemoHtml(state.busInfo?.mainMemoText || "");
       const hasMemo = Boolean(getGuidePlainText(memoHtml));
       const loginMemoBox = byId("memberLoginMainMemoBox");
       if (loginMemoBox) {
@@ -4928,6 +5096,7 @@ function removeGuideColorFromSelection(editor) {
       const willOpen = panel.classList.contains("hidden");
       panel.classList.toggle("hidden", !willOpen);
       if (button) button.classList.toggle("main-memo-open", willOpen);
+      document.body.classList.toggle("admin-main-memo-open", willOpen);
       if (willOpen) {
         renderMainMemoBox();
         const editor = byId("mainMemoText");
@@ -5334,9 +5503,7 @@ function removeGuideColorFromSelection(editor) {
           <div class="seat-name-hit-zone" aria-hidden="true"></div>
           <div class="seat-inner">
             ${!isEditing ? status : ""}
-            ${isEditing
-              ? `<input class="inline-input ${offsetClass}" id="inlineSeatInput" value="${escapeHtml(state.editName)}" placeholder="이름입력" oninput="this.value=this.value.replace(/\\s+/g,'')" />`
-              : `<div class="seat-name ${offsetClass} ${nameColorClass}">${escapeHtml(seat.name)}</div>`}
+            <div class="seat-name ${offsetClass} ${nameColorClass}">${escapeHtml(seat.name)}</div>
           </div>
         </button>`;
     }
@@ -5347,6 +5514,17 @@ function removeGuideColorFromSelection(editor) {
         let longPressTriggered = false;
         let startX = 0;
         let startY = 0;
+        let pointerActive = false;
+        let pointerMoved = false;
+        let suppressClickUntil = 0;
+
+        const insideSeatEditArea = (x, y) => {
+          const rect = btn.getBoundingClientRect();
+          const insetX = rect.width * 0.1;
+          const insetY = rect.height * 0.1;
+          return x >= rect.left + insetX && x <= rect.right - insetX &&
+            y >= rect.top + insetY && y <= rect.bottom - insetY;
+        };
 
         const clearPressTimer = () => {
           if (pressTimer) window.clearTimeout(pressTimer);
@@ -5354,6 +5532,10 @@ function removeGuideColorFromSelection(editor) {
         };
 
         const beginPress = (event) => {
+          pointerActive = true;
+          pointerMoved = false;
+          startX = event.clientX;
+          startY = event.clientY;
           const seatNo = Number(btn.dataset.seat);
           const seat = state.seats.find((s) => s.number === seatNo);
           longPressTriggered = false;
@@ -5376,6 +5558,8 @@ function removeGuideColorFromSelection(editor) {
         };
 
         const movePress = (event) => {
+          if (pointerActive && (Math.abs(event.clientX - startX) > 10 ||
+              Math.abs(event.clientY - startY) > 10)) pointerMoved = true;
           if (!pressTimer) return;
           const currentX = event.clientX ?? (event.touches?.[0]?.clientX || 0);
           const currentY = event.clientY ?? (event.touches?.[0]?.clientY || 0);
@@ -5384,9 +5568,18 @@ function removeGuideColorFromSelection(editor) {
 
         btn.addEventListener("pointerdown", beginPress);
         btn.addEventListener("pointermove", movePress);
-        btn.addEventListener("pointerup", clearPressTimer);
-        btn.addEventListener("pointercancel", clearPressTimer);
-        btn.addEventListener("pointerleave", clearPressTimer);
+        btn.addEventListener("pointerup", (event) => {
+          clearPressTimer();
+          if (!pointerActive) return;
+          pointerActive = false;
+          // click 이벤트를 기다리지 않고 손을 떼는 순간 입력창을 연다.
+          suppressClickUntil = Date.now() + 650;
+          if (pointerMoved || longPressTriggered || !insideSeatEditArea(event.clientX, event.clientY)) return;
+          const seat = state.seats.find((s) => s.number === Number(btn.dataset.seat));
+          handleSeatClick(seat);
+        });
+        btn.addEventListener("pointercancel", () => { pointerActive = false; clearPressTimer(); });
+        btn.addEventListener("pointerleave", () => { pointerActive = false; clearPressTimer(); });
         btn.addEventListener("click", (event) => {
           if (longPressTriggered) {
             event.preventDefault();
@@ -5394,8 +5587,11 @@ function removeGuideColorFromSelection(editor) {
             longPressTriggered = false;
             return;
           }
+          if (event.detail !== 0 && Date.now() < suppressClickUntil) return;
           const seatNo = Number(btn.dataset.seat);
           const seat = state.seats.find((s) => s.number === seatNo);
+          // PointerEvent 미지원 환경과 키보드 활성화에서는 click을 사용한다.
+          if (event.detail !== 0 && !insideSeatEditArea(event.clientX, event.clientY)) return;
           handleSeatClick(seat);
         });
       });
@@ -5467,13 +5663,106 @@ function removeGuideColorFromSelection(editor) {
 
       bindSeatEvents();
 
+      // 좌석 영역의 overflow에 잘리지 않도록 말풍선은 문서 최상위에 놓는다.
+      const oldBubble = byId("seatNameBubble");
+      if (oldBubble) {
+        const oldInput = oldBubble.querySelector("#inlineSeatInput");
+        if (oldInput) oldInput.dataset.detaching = "1";
+        oldBubble.remove();
+      }
+
       if (state.editingSeat) {
+        const bubble = document.createElement("div");
+        bubble.id = "seatNameBubble";
+        bubble.className = "seat-name-bubble";
+        const editingSeatData = state.seats.find((seat) => seat.number === Number(state.editingSeat));
+        const showStatusAction = state.mode === "admin" && !!editingSeatData?.name;
+        if (showStatusAction) bubble.classList.add("has-status-action");
+        bubble.innerHTML = '<div class="bubble-heading"><span class="bubble-seat-number"></span><span class="bubble-caption">이름 입력</span></div><input id="inlineSeatInput" type="text" aria-label="좌석 이름 입력" placeholder="이름입력" autocomplete="off" />' +
+          (showStatusAction ? '<select id="bubbleStatusSelect" aria-label="좌석 상태 선택"><option value="paid">완납</option><option value="waiting">입금대기</option><option value="reserved">이름만 표기</option><option value="paid_new">완납/신입</option><option value="paid_reserved">완납/예약완료</option></select>' : '');
+        bubble.querySelector(".bubble-seat-number").textContent = `${getSeatDisplayNumber(state.editingSeat)}번 좌석`;
+        document.body.appendChild(bubble);
+        const positionBubble = () => {
+          const seatEl = byId(`seat-btn-${state.editingSeat}`);
+          if (!seatEl || !bubble.isConnected) return;
+          const rect = seatEl.getBoundingClientRect();
+          const width = Math.min(300, window.innerWidth - 24);
+          const seatCenterX = rect.left + rect.width / 2;
+          const left = Math.max(12, Math.min(seatCenterX - width / 2, window.innerWidth - width - 12));
+          const bubbleOffset = showStatusAction ? 222 : 170;
+          const above = rect.top >= bubbleOffset || rect.bottom + bubbleOffset + 5 > window.innerHeight;
+          bubble.classList.toggle("below", !above);
+          bubble.style.width = `${width}px`;
+          bubble.style.left = `${left}px`;
+          bubble.style.top = `${above ? Math.max(8, rect.top - bubbleOffset) : rect.bottom + 34}px`;
+          // 꼬리의 꼭짓점을 좌석 박스의 정확한 가로 중앙에 맞춘다.
+          bubble.style.setProperty("--tail-x", `${seatCenterX - left}px`);
+        };
+        positionBubble();
+        bubble.positionBubble = positionBubble;
+        if (!window.seatNameBubblePositionBound) {
+          window.seatNameBubblePositionBound = true;
+          const refreshBubblePosition = () => {
+            const current = byId("seatNameBubble");
+            if (current && current.positionBubble) current.positionBubble();
+          };
+          window.addEventListener("resize", refreshBubblePosition);
+          document.addEventListener("scroll", refreshBubblePosition, true);
+        }
+        if (!window.seatNameBubbleOutsideBound) {
+          window.seatNameBubbleOutsideBound = true;
+          const closeOnOutside = (event) => {
+            const currentBubble = byId("seatNameBubble");
+            if (!currentBubble || !state.editingSeat) return;
+            if (byId("threeOptionDialogOverlay")) return;
+            const target = event.target;
+            // 말풍선과 모든 좌석은 바깥 클릭으로 취급하지 않는다.
+            if (currentBubble.contains(target) || target.closest?.(".seat")) return;
+            const seatNo = Number(state.editingSeat);
+            const currentInput = currentBubble.querySelector("#inlineSeatInput");
+            if (currentInput) currentInput.dataset.detaching = "1";
+            state.inlineEditProtectUntil = 0;
+            currentBubble.remove();
+            if (state.mode === "admin" && target.closest?.("#adminStatus")) {
+              // 상태 선택 자체가 저장하므로 이전 상태로 별도 저장하지 않는다.
+              state.editingSeat = null;
+              state.editName = "";
+              return;
+            }
+            // 기존의 포커스 이탈 저장 흐름을 한 번만 실행한다.
+            void handleInlineSave(seatNo);
+          };
+          document.addEventListener("pointerdown", closeOnOutside, true);
+          if (!window.PointerEvent) {
+            document.addEventListener("mousedown", closeOnOutside, true);
+            document.addEventListener("touchstart", closeOnOutside, true);
+          }
+        }
         const inline = byId("inlineSeatInput");
         if (!inline) return;
-        inline.focus();
-        inline.select();
+        inline.value = state.editName;
+        if (!document.body.classList.contains("duplicate-seat-dialog-open")) {
+          inline.focus();
+          inline.select();
+        }
         inline.addEventListener("click", (e) => e.stopPropagation());
+        const statusAction = bubble.querySelector("#bubbleStatusSelect");
+        if (statusAction) {
+          statusAction.value = ["paid", "waiting", "reserved", "paid_new", "paid_reserved"].includes(state.adminStatus)
+            ? state.adminStatus : "reserved";
+          const protectFromBlurSave = () => {
+            inline.dataset.detaching = "1";
+            state.inlineEditProtectUntil = 0;
+          };
+          statusAction.addEventListener("pointerdown", protectFromBlurSave);
+          statusAction.addEventListener("change", (event) => {
+            event.stopPropagation();
+            protectFromBlurSave();
+            void handleAdminSetNamedSeatStatus(event.target.value);
+          });
+        }
         inline.addEventListener("input", (e) => {
+          e.target.value = e.target.value.replace(/\s+/g, "");
           const rawValue = e.target.value;
           state.editName = rawValue;
           state.memberName = rawValue;
@@ -5486,9 +5775,10 @@ function removeGuideColorFromSelection(editor) {
           if (adminNameInput && adminNameInput.value !== rawValue) adminNameInput.value = rawValue;
         });
         inline.addEventListener("blur", () => {
+          if (inline.dataset.detaching === "1") return;
           const seatNoAtBlur = Number(state.editingSeat || 0);
           const protectUntil = Number(state.inlineEditProtectUntil || 0);
-          if (state.mode === "member" && seatNoAtBlur && Date.now() < protectUntil) {
+          if ((state.mode === "member" || state.mode === "admin") && seatNoAtBlur && Date.now() < protectUntil) {
             // 보호시간 안의 순간 터치는 편집 종료/저장으로 처리하지 않고 입력창으로 복귀
             window.setTimeout(() => {
               if (Number(state.editingSeat || 0) !== seatNoAtBlur) return;
@@ -5606,10 +5896,10 @@ function removeGuideColorFromSelection(editor) {
         memberCancelBtn.title = isMemberLocked ? "관리자가 전체 입력을 제한했습니다." : "";
       }
       if (toggleNameEntryLockBtn) {
-        toggleNameEntryLockBtn.textContent = state.nameEntryLocked ? "입력 제한 해제" : "입력 제한 설정";
+        toggleNameEntryLockBtn.textContent = state.nameEntryLocked ? "입력제한해제" : "입력제한설정";
       }
       if (nameEntryLockStatus) {
-        nameEntryLockStatus.innerHTML = `<strong>${state.nameEntryLocked ? "이름 입력이 제한됨" : "이름 입력 가능"}</strong>`;
+        nameEntryLockStatus.innerHTML = `<strong>${state.nameEntryLocked ? "입력불가능" : "입력가능"}</strong>`;
       }
 
       if (memberSeat) {
@@ -5637,7 +5927,7 @@ function removeGuideColorFromSelection(editor) {
       renderMainMemoBox();
       renderLoginTopLogoLinks();
       if (mainMemoText) {
-        const nextMainMemoHtml = renderGuideTextHtml(state.busInfo.mainMemoText || "");
+        const nextMainMemoHtml = renderMainMemoHtml(state.busInfo.mainMemoText || "");
         if (document.activeElement !== mainMemoText && mainMemoText.innerHTML !== nextMainMemoHtml) mainMemoText.innerHTML = nextMainMemoHtml;
       }
       if (adminInfoGuideBtn) {
@@ -6409,6 +6699,9 @@ async function sha256Hex(value) {
 function renderAll() {
       renderBoard();
       renderPanels();
+      if (state.mode === "admin" && state.isAdminAuthenticated) {
+        window.__busSeatEnsureAdminBackState?.();
+      }
       const captureBtn = byId("captureBoardBtn");
       if (captureBtn) {
         const showCapture = (state.mode === "admin");
@@ -6723,6 +7016,7 @@ function renderAll() {
       if (overlay) overlay.classList.add("hidden");
       hikingNoticeHistoryPushed = false;
     }
+    window.__busSeatCloseHikingNoticeDialog = closeHikingNoticeDialog;
 
     function updateNoticeCheckBlinkButtons() {
       const shouldBlink = Boolean(state.noticeCheckBlink);
@@ -6991,10 +7285,44 @@ function renderAll() {
       }
     }
 
-    async function saveSeatAdmin(seatNo, name, status) {
+    async function saveSeatAdmin(seatNo, name, status, options = {}) {
       const vehicleId = state.activeVehicle;
       const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
+      const sourceSeatNo = Number(options.clearSourceSeatNo || 0);
+      const sourceVehicleId = String(options.clearSourceVehicleId || vehicleId);
+      if (sourceSeatNo && (sourceVehicleId !== vehicleId || sourceSeatNo !== Number(seatNo))) {
+        const sourceSeat = await readSeatRemote(sourceSeatNo, sourceVehicleId);
+        if (normalizeName(sourceSeat?.name || "") !== normalizeName(options.originalName || name)) {
+          setStatusMessage("자리이동 원본 좌석의 이름을 다시 확인하세요.", state.projectLabel);
+          return false;
+        }
+        const now = Date.now();
+        const targetPrefix = vehicleId === "2" ? "vehicles/2/" : "";
+        const sourcePrefix = sourceVehicleId === "2" ? "vehicles/2/" : "";
+        const updates = {
+          [`${targetPrefix}seats/${seatNo}/name`]: name,
+          [`${targetPrefix}seats/${seatNo}/status`]: name ? status : "empty",
+          [`${targetPrefix}seats/${seatNo}/updatedAt`]: now,
+          [`${targetPrefix}seats/${seatNo}/updatedBy`]: state.clientId,
+          [`${targetPrefix}seats/${seatNo}/ownerMemberCode`]: sourceSeat.ownerMemberCode || "",
+          [`${targetPrefix}meta/updatedAt`]: now,
+          [`${sourcePrefix}seats/${sourceSeatNo}/name`]: "",
+          [`${sourcePrefix}seats/${sourceSeatNo}/status`]: "empty",
+          [`${sourcePrefix}seats/${sourceSeatNo}/updatedAt`]: now,
+          [`${sourcePrefix}seats/${sourceSeatNo}/updatedBy`]: state.clientId,
+          [`${sourcePrefix}seats/${sourceSeatNo}/ownerMemberCode`]: "",
+          [`${sourcePrefix}seats/${sourceSeatNo}/memo`]: "",
+          [`${sourcePrefix}meta/updatedAt`]: now
+        };
+        const moved = await safeUpdate(ref(state.db, ROOT_PATH), updates, {
+          label: "saveSeatAdmin:moveAcrossFleet",
+          permissionMessage: "1·2호차 자리이동 저장 권한이 없습니다.",
+          genericMessage: "자리이동 저장 실패"
+        });
+        if (moved) setMemberOwnedSeat(sourceVehicleId, sourceSeatNo, false);
+        return moved;
+      }
       // 관리자 수정 규칙:
       // 1) 이름/상태만 수정하면 기존 회원 입력자(ownerMemberCode)는 그대로 유지
       // 2) 관리자가 좌석을 완전히 비우면 ownerMemberCode도 삭제하여 새 회원이 입력 가능
@@ -7193,24 +7521,14 @@ function renderAll() {
         const nextAdminStatus = seat.name
           ? normalizeSeatStatus(seat.status === "empty" ? "reserved" : seat.status)
           : "reserved";
-        if (adminSeatEditArmed !== seat.number) {
-          adminSeatEditArmed = seat.number;
-          state.adminSeat = String(seat.number);
-          state.adminStatus = nextAdminStatus;
-          state.memberSeat = String(seat.number);
-          state.memberName = seat.name || "";
-          state.editingSeat = null;
-          state.editName = "";
-          renderAll();
-          return;
-        }
-        adminSeatEditArmed = null;
+        // 관리자도 안쪽 80%를 한 번 누르면 바로 이름 입력 말풍선을 연다.
         state.adminSeat = String(seat.number);
         state.adminStatus = nextAdminStatus;
         state.memberSeat = String(seat.number);
         state.memberName = seat.name || "";
         state.editingSeat = seat.number;
         state.editName = seat.name || "";
+        state.inlineEditProtectUntil = Date.now() + 3000;
         renderAll();
         return;
       }
@@ -7225,7 +7543,6 @@ function renderAll() {
       renderAll();
     }
 
-    let adminSeatEditArmed = null;
     let inlineSeatSaveBusy = false;
 
     async function handleInlineSave(seatNumber) {
@@ -7259,7 +7576,8 @@ function renderAll() {
       let sourceSeatNo = null;
       let sourceVehicleId = state.activeVehicle;
 
-      if (state.mode === "member" && name) {
+      if (name && (state.mode === "member" ||
+          (state.mode === "admin" && normalizeName(name) !== normalizeName(prevName)))) {
         const duplicateDecision = await confirmDuplicateNameAction(name, seatNumber);
         if (duplicateDecision.type === "cancel") {
           state.editingSeat = null;
@@ -7303,8 +7621,14 @@ function renderAll() {
         return;
       }
       if (state.isAdminAuthenticated) {
-        const nextStatus = finalName ? normalizeSeatStatus((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus) : "empty";
-        const ok = await saveSeatAdmin(seatNumber, finalName, nextStatus);
+        const nextStatus = finalName ? (sourceSeatNo
+          ? finalStatus
+          : normalizeSeatStatus((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus)) : "empty";
+        const ok = await saveSeatAdmin(seatNumber, finalName, nextStatus, {
+          clearSourceSeatNo: sourceSeatNo,
+          clearSourceVehicleId: sourceVehicleId,
+          originalName: name
+        });
         if (!ok) {
           state.seats = prevSeats;
           renderAll();
@@ -7928,7 +8252,7 @@ function renderAll() {
       state.editName = "";
       renderAll();
       if (!state.isFirebaseReady) {
-        flashSaveVisuals(seatNo, "adminSaveBtnTop");
+        flashSaveVisuals(seatNo, null);
         setStatusMessage("Firebase 미연결 - 화면에만 저장", state.projectLabel);
         return;
       }
@@ -7939,10 +8263,12 @@ function renderAll() {
         alert("관리 상태 저장 권한이 없습니다.");
         return;
       }
-      flashSaveVisuals(seatNo, "adminSaveBtnTop");
+      flashSaveVisuals(seatNo, null);
     }
 
-    async function handleAdminMarkSelectedPaid() {
+    async function handleAdminSetNamedSeatStatus(requestedStatus) {
+      const nextStatus = String(requestedStatus || "");
+      if (!["paid", "waiting", "reserved", "paid_new", "paid_reserved"].includes(nextStatus)) return;
       if (!state.isAdminAuthenticated) {
         alert("관리자 인증 후 사용할 수 있습니다.");
         return;
@@ -7953,36 +8279,67 @@ function renderAll() {
         return;
       }
       if (!seatNo) {
-        alert("완납 처리할 좌석을 먼저 선택하세요.");
+        alert("상태를 변경할 좌석을 먼저 선택하세요.");
         return;
       }
       const prevSeat = state.seats.find((s) => s.number === seatNo);
       const prevName = prevSeat?.name || "";
       const prevStatus = prevSeat?.status || "empty";
+      const prevSeats = state.seats.map((seat) => ({ ...seat }));
       const nextName = String(state.memberName || prevName || "").trim();
       if (!nextName) {
-        alert("이름이 있는 좌석만 완납 처리할 수 있습니다.");
+        alert("이름이 있는 좌석만 상태를 변경할 수 있습니다.");
         return;
       }
-      state.adminStatus = "paid";
-      state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: nextName, status: "paid", updatedAt: Date.now(), updatedBy: state.clientId } : seat);
+      const validation = validatePassengerName(nextName);
+      if (!validation.ok) {
+        await showNoticeDialog(validation.alert);
+        return;
+      }
+      let finalName = validation.normalized;
+      let sourceSeatNo = null;
+      let sourceVehicleId = state.activeVehicle;
+      if (normalizeName(finalName) !== normalizeName(prevName)) {
+        const duplicateDecision = await confirmDuplicateNameAction(finalName, seatNo);
+        if (duplicateDecision.type === "cancel") {
+          renderAll();
+          return;
+        }
+        finalName = duplicateDecision.name;
+        if (duplicateDecision.type === "move") {
+          sourceSeatNo = duplicateDecision.sourceSeat?.number || null;
+          sourceVehicleId = String(duplicateDecision.sourceSeat?.vehicleId || state.activeVehicle);
+        }
+      }
+      state.adminStatus = nextStatus;
+      applyNameAssignmentLocal(seatNo, finalName, nextStatus, { sourceSeatNo, sourceVehicleId });
+      state.memberName = finalName;
       state.editingSeat = null;
       state.editName = "";
       renderAll();
       if (!state.isFirebaseReady || !state.db) {
-        flashSaveVisuals(seatNo, "adminMarkSelectedPaidBtn");
-        setStatusMessage("Firebase 미연결 - 현재 화면에서만 완납 처리", state.projectLabel);
+        flashSaveVisuals(seatNo, null);
+        setStatusMessage("Firebase 미연결 - 현재 화면에서만 상태 변경", state.projectLabel);
         return;
       }
-      const ok = await saveSeatAdmin(seatNo, nextName, "paid");
+      const ok = await saveSeatAdmin(seatNo, finalName, nextStatus, {
+        clearSourceSeatNo: sourceSeatNo,
+        clearSourceVehicleId: sourceVehicleId,
+        originalName: nextName
+      });
       if (!ok) {
-        state.seats = state.seats.map((seat) => seat.number === seatNo ? { ...seat, name: prevName, status: prevStatus } : seat);
+        state.seats = prevSeats;
+        state.memberName = prevName;
         state.adminStatus = normalizeSeatStatus(prevStatus === "empty" ? "reserved" : prevStatus);
         renderAll();
-        alert("완납 처리 권한이 없거나 저장에 실패했습니다.");
+        alert("상태 변경 권한이 없거나 저장에 실패했습니다.");
         return;
       }
-      flashSaveVisuals(seatNo, "adminMarkSelectedPaidBtn");
+      flashSaveVisuals(seatNo, null);
+    }
+
+    async function handleAdminMarkSelectedPaid() {
+      return handleAdminSetNamedSeatStatus("paid");
     }
 
     async function handleAdminClearSeat() {
@@ -8453,8 +8810,13 @@ function renderAll() {
           }
         }
       }));
-      bindIfPresent("adminStatus", "change", (e) => { state.adminStatus = e.target.value; });
+      bindIfPresent("adminStatus", "change", (e) => {
+        state.adminStatus = e.target.value;
+        // PC와 모바일 모두 상태 선택 즉시 저장한다.
+        void handleAdminSave();
+      });
       bindIfPresent("adminSaveBtnTop", "click", handleAdminSave);
+      bindIfPresent("adminSaveBtnBottom", "click", handleAdminSave);
       bindIfPresent("adminClearSeatBtn", "click", handleAdminClearSeat);
       bindIfPresent("adminMarkNamedPaidBtn", "click", handleAdminMarkNamedPaid);
       bindIfPresent("adminMarkSelectedPaidBtn", "click", handleAdminMarkSelectedPaid);
@@ -8513,7 +8875,12 @@ function renderAll() {
       bindIfPresent("hikingNoticeBlinkBtn", "click", () => applyHikingNoticeFormat("blink"));
       bindIfPresent("hikingNoticeText", "keydown", (e) => {
         if (state.hikingNotice.locked) return;
-        handleGuideEditorKeydown(e, saveHikingNoticeEditorValue);
+        if (e.key !== "Enter" || e.isComposing) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (insertSingleHikingNoticeLineBreak(e.currentTarget)) {
+          window.setTimeout(() => saveHikingNoticeEditorValue(e.currentTarget), 0);
+        }
       });
       bindIfPresent("hikingNoticeText", "input", (e) => {
         if (state.hikingNotice.locked) return;
@@ -8540,10 +8907,10 @@ function renderAll() {
       bindIfPresent("infoSeatGuideText", "input", async (e) => { await saveInfoGuideEditorValue(e.target); });
       bindIfPresent("adminInfoGuideBtn", "click", toggleInfoGuidePanel);
       bindIfPresent("adminMainMemoBtn", "click", toggleMainMemoPanel);
-      bindIfPresent("mainMemoText", "keydown", (e) => {
-        handleGuideEditorKeydown(e, (editor) => { saveMainMemoEditorValue(editor); });
-      });
-      bindIfPresent("mainMemoText", "input", async (e) => { await saveMainMemoEditorValue(e.target); });
+      bindIfPresent("mainMemoText", "keydown", handleMainMemoNotepadKeydown);
+      bindIfPresent("mainMemoText", "paste", handleMainMemoPlainPaste);
+      bindIfPresent("mainMemoText", "input", (e) => saveMainMemoEditorValue(e.target));
+      bindIfPresent("mainMemoText", "blur", flushMainMemoSave);
       bindIfPresent("mainMemoBoldBtn", "click", () => applyMainMemoFormat("bold"));
       bindIfPresent("mainMemoBlueBtn", "click", () => applyMainMemoFormat("blue"));
       bindIfPresent("mainMemoRedBtn", "click", () => applyMainMemoFormat("red"));
@@ -8688,7 +9055,7 @@ function renderAll() {
     handleMemberSave = guardVehicleWorkflow(handleMemberSave);
     executeMemberCancel = guardVehicleWorkflow(executeMemberCancel);
     handleAdminSave = guardVehicleWorkflow(handleAdminSave);
-    handleAdminMarkSelectedPaid = guardVehicleWorkflow(handleAdminMarkSelectedPaid);
+    handleAdminSetNamedSeatStatus = guardVehicleWorkflow(handleAdminSetNamedSeatStatus);
     handleAdminClearSeat = guardVehicleWorkflow(handleAdminClearSeat);
     handleAdminMarkNamedPaid = guardVehicleWorkflow(handleAdminMarkNamedPaid);
     executeReset = guardVehicleWorkflow(executeReset);
@@ -11004,10 +11371,6 @@ function renderAll() {
       setAuthMessage("아이디/본명은 띄어쓰기 없이 한글 이름으로 입력하세요.");
       return;
     }
-    if (password.length < 4) {
-      setAuthMessage("비밀번호는 4자리 이상 입력하세요.");
-      return;
-    }
 
     setAuthMessage("기존 회원 중복 확인중입니다...");
     const duplicateResult = await checkJoinDuplicateBeforeSave({ name, birthYear: birthDate, birthDate, rrn: birthDate, phoneDigits, dong });
@@ -11133,10 +11496,6 @@ function renderAll() {
       }
       if (!/^[가-힣]{2,}$/.test(name)) {
         failChange("아이디는 띄어쓰기 없이 한글 이름으로 입력하세요.");
-        return;
-      }
-      if (newPassword.length < 4) {
-        failChange("변경 비밀번호는 4자리 이상 입력하세요.");
         return;
       }
       if (newPassword !== confirmPassword) {
@@ -11323,6 +11682,68 @@ function renderAll() {
     } finally {
       if (submitBtn && submitBtn.textContent !== "완료") finishButton();
     }
+  }
+
+  async function recoverMemberPassword() {
+    const btn = byId("memberRecoverySubmitBtn");
+    if (btn?.disabled) return;
+    const name = normalizeName(byId("memberRecoveryNameInput")?.value);
+    const birth = normalizeBirthYear(byId("memberRecoveryBirthInput")?.value);
+    const phone = normalizePhone(byId("memberRecoveryPhoneInput")?.value);
+    const fail = (message) => setAuthMessage(message || "회원정보가 일치하지 않습니다.");
+    if (!/^[가-힣]{2,}$/.test(name) || birth.length !== 6 || !isValidKoreanMobileDigits(phone)) {
+      fail("이름, 생년월일 6자리, 휴대전화 전체 번호를 정확히 입력하세요.");
+      return;
+    }
+    if (btn) btn.disabled = true;
+    try {
+      setAuthMessage("회원정보를 확인하고 있습니다...");
+      const candidates = (await findMembersByName(name)).filter(m => {
+        const savedBirth = normalizeBirthYear(m.birthDate || m.rrn || m.birth || m.birthInput || "");
+        const savedPhone = normalizePhone(m.phoneDigits || m.phone || m.tel || "");
+        return memberNameMatches(m, name) && savedBirth.length === 6 && savedBirth === birth && savedPhone === phone && isMemberAllowedToLogin(m);
+      });
+      const byCode = new Map(candidates.map(m => [String(m.code || ""), m]));
+      byCode.delete("");
+      if (byCode.size !== 1) { fail(byCode.size ? "일치하는 회원이 여러 명입니다. 관리자에게 문의하세요." : "회원정보가 일치하지 않습니다."); return; }
+      const member = [...byCode.values()][0];
+      const code = String(member.code);
+      const nameKey = makeNameKey(name);
+      const bytes = new Uint32Array(1);
+      crypto.getRandomValues(bytes);
+      const temporaryPassword = String(bytes[0] % 10000).padStart(4, "0");
+      const passwordHash = await sha256Hex(temporaryPassword);
+      const now = Date.now();
+      const record = makeMemberLoginIndexRecord({ ...member, name, code, passwordHash, passwordChangedAt: now });
+      const updates = {
+        [`${MEMBERS_ROOT}/members/${code}/passwordHash`]: passwordHash,
+        [`${MEMBERS_ROOT}/members/${code}/passwordChangedAt`]: now,
+        [`${MEMBERS_ROOT}/members/${code}/updatedAt`]: now,
+        [`${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${code}`]: record,
+        [`${MEMBERS_ROOT}/nameIndex/${nameKey}/${code}`]: true
+      };
+      await update(ref(membershipDb), updates);
+      const check = await get(ref(membershipDb, `${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${code}/passwordHash`));
+      if (String(check.val() || "") !== passwordHash) throw new Error("저장 확인 실패");
+      byId("memberPasswordRecoveryPanel")?.classList.remove("is-open");
+      byId("memberPasswordRecoveryPanel").hidden = true;
+      byId("memberAuthGate")?.classList.remove("recovery-open");
+      byId("memberSignupPanel")?.classList.remove("is-open");
+      byId("memberPasswordChangePanel")?.classList.add("is-open");
+      setMemberAuthViewMode("change");
+      byId("memberChangeNameInput").value = name;
+      byId("memberChangeOldPasswordInput").value = temporaryPassword;
+      byId("memberChangeNewPasswordInput").value = "";
+      byId("memberChangeConfirmPasswordInput").value = "";
+      byId("memberLoginNameInput").value = name;
+      byId("memberLoginPasswordInput").value = "";
+      ["memberRecoveryNameInput","memberRecoveryBirthInput","memberRecoveryPhoneInput"].forEach(id => { byId(id).value = ""; });
+      setAuthMessage("기존 비밀번호 칸에 임시 비밀번호가 입력되었습니다. 새 비밀번호를 설정하세요.", true);
+      byId("memberChangeNewPasswordInput")?.focus();
+    } catch (error) {
+      console.error("비밀번호 찾기 오류:", error);
+      fail("비밀번호를 저장하지 못했습니다. 관리자에게 문의하세요.");
+    } finally { if (btn) btn.disabled = false; }
   }
 
   function clearMemberAuthInputValues() {
@@ -12056,6 +12477,10 @@ if (action === "delete") {
     const box = byId("memberAuthGate")?.querySelector(".member-auth-box");
     if (!box) return;
     box.classList.remove("signup-open", "change-open");
+    if (mode !== "main") {
+      byId("memberPasswordRecoveryPanel")?.classList.remove("is-open");
+      if (byId("memberPasswordRecoveryPanel")) byId("memberPasswordRecoveryPanel").hidden = true;
+    }
     if (mode === "signup") box.classList.add("signup-open");
     if (mode === "change") box.classList.add("change-open");
     // 로그인 부속 요소(메인메모/바로가기 아이콘)의 화면별 표시를
@@ -12124,6 +12549,28 @@ if (action === "delete") {
       setAuthMessage("회원 정보를 입력 후 가입신청을 누르세요.");
     });
 
+    byId("memberPasswordRecoveryOpenBtn")?.addEventListener("click", () => {
+      clearMemberAuthTypingInputsOnScreenSwitch();
+      byId("memberSignupPanel")?.classList.remove("is-open");
+      byId("memberPasswordChangePanel")?.classList.add("is-open");
+      setMemberAuthViewMode("change");
+      const panel = byId("memberPasswordRecoveryPanel");
+      panel?.classList.add("is-open");
+      if (panel) panel.hidden = false;
+      byId("memberAuthGate")?.classList.add("recovery-open");
+     
+      setAuthMessage("회원정보를 확인한 뒤 비밀번호 변경란에서 새 비밀번호를 입력하세요.");
+      byId("memberRecoveryNameInput")?.focus();
+    });
+    byId("memberRecoveryCloseBtn")?.addEventListener("click", () => {
+      byId("memberPasswordRecoveryPanel")?.classList.remove("is-open");
+      byId("memberPasswordRecoveryPanel").hidden = true;
+      byId("memberPasswordChangePanel")?.classList.remove("is-open");
+      byId("memberAuthGate")?.classList.remove("recovery-open");
+      setMemberAuthViewMode("main");
+      setAuthMessage("아이디와 비밀번호를 입력하세요.");
+    });
+    byId("memberRecoverySubmitBtn")?.addEventListener("click", recoverMemberPassword);
     byId("memberPasswordChangeOpenBtn")?.addEventListener("click", () => {
       clearMemberAuthTypingInputsOnScreenSwitch();
       byId("memberSignupPanel")?.classList.remove("is-open");
@@ -12135,6 +12582,9 @@ if (action === "delete") {
     byId("memberPasswordChangeCloseBtn")?.addEventListener("click", () => {
       clearMemberAuthTypingInputsOnScreenSwitch();
       byId("memberPasswordChangePanel")?.classList.remove("is-open");
+      byId("memberPasswordRecoveryPanel")?.classList.remove("is-open");
+      byId("memberPasswordRecoveryPanel").hidden = true;
+      byId("memberAuthGate")?.classList.remove("recovery-open");
       setMemberAuthViewMode("main");
       setAuthMessage("아이디와 비밀번호를 입력하세요.");
     });
@@ -15404,6 +15854,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
   }
 
   function syncHistoryToScreen(){
+    if (document.body.classList.contains("admin-mode")) return;
     var screen = currentScreen();
     if (screen === "member") {
       replaceWithMemberBase();
@@ -16322,128 +16773,14 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
 <!-- ===== 전체 편집 버튼 토글 패치: 굵게/색상/깜빡임 적용-해제 ===== -->
 
-<script id="main-memo-space-caret-fix-patch">
-/* 요청 수정: 메인메모 편집 박스에서 Space 키 입력 시 커서가 다른 곳으로 이동하는 문제 방지.
-   - 메인메모 내부 Space/입력 이벤트가 좌석/버튼 전역 단축키로 전달되지 않게 차단
-   - 입력 후 커서 위치를 즉시 복구
-   - 기존 저장 구조는 유지 */
-(function(){
-  if (window.__mainMemoSpaceCaretFixApplied) return;
-  window.__mainMemoSpaceCaretFixApplied = true;
-
-  function byId(id){ return document.getElementById(id); }
-  function editor(){ return byId("mainMemoText"); }
-  function isMainMemoTarget(target){
-    var ed = editor();
-    return !!(ed && target && (target === ed || (target.closest && target.closest("#mainMemoText") === ed)));
-  }
-  function rangeInside(range, root){
-    if (!range || !root) return false;
-    var node = range.commonAncestorContainer;
-    return node === root || root.contains(node);
-  }
-  function getTextOffset(root, node, offset){
-    if (!root || !node) return 0;
-    var total = 0;
-    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-    var cur;
-    while ((cur = walker.nextNode())) {
-      if (cur === node) return total + Math.max(0, Math.min(offset || 0, cur.nodeValue.length));
-      total += cur.nodeValue.length;
-    }
-    return total;
-  }
-  function saveCaret(){
-    var ed = editor();
-    var sel = window.getSelection ? window.getSelection() : null;
-    if (!ed || !sel || sel.rangeCount === 0) return null;
-    var range = sel.getRangeAt(0);
-    if (!rangeInside(range, ed)) return null;
-    return {
-      start: getTextOffset(ed, range.startContainer, range.startOffset),
-      end: getTextOffset(ed, range.endContainer, range.endOffset)
-    };
-  }
-  function restoreCaret(pos){
-    var ed = editor();
-    if (!ed || !pos || !window.getSelection || !document.createRange) return false;
-    var sel = window.getSelection();
-    var range = document.createRange();
-    var textNodes = [];
-    var total = 0;
-    var walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT, null);
-    var node;
-    while ((node = walker.nextNode())) {
-      textNodes.push({ node: node, start: total, end: total + node.nodeValue.length });
-      total += node.nodeValue.length;
-    }
-    if (!textNodes.length) {
-      range.selectNodeContents(ed);
-      range.collapse(false);
-      sel.removeAllRanges();
-      sel.addRange(range);
-      return true;
-    }
-    function locate(value){
-      value = Math.max(0, Math.min(Number(value || 0), total));
-      for (var i = 0; i < textNodes.length; i++) {
-        var item = textNodes[i];
-        if (value >= item.start && value <= item.end) {
-          return { node: item.node, offset: Math.max(0, Math.min(value - item.start, item.node.nodeValue.length)) };
-        }
-      }
-      var last = textNodes[textNodes.length - 1];
-      return { node: last.node, offset: last.node.nodeValue.length };
-    }
-    try {
-      var a = locate(pos.start);
-      var b = locate(pos.end == null ? pos.start : pos.end);
-      range.setStart(a.node, a.offset);
-      range.setEnd(b.node, b.offset);
-      sel.removeAllRanges();
-      sel.addRange(range);
-      return true;
-    } catch(e) { return false; }
-  }
-  function stopForMainMemo(event){
-    if (!isMainMemoTarget(event.target)) return;
-    event.stopPropagation();
-  }
-
-  document.addEventListener("keydown", function(event){
-    if (!isMainMemoTarget(event.target)) return;
-    if (event.key === " " || event.code === "Space" || event.key === "Spacebar") {
-      event.stopPropagation();
-    }
-  }, true);
-
-  document.addEventListener("beforeinput", function(event){
-    if (!isMainMemoTarget(event.target)) return;
-    if (event.inputType === "insertText" || event.inputType === "insertCompositionText") {
-      event.stopPropagation();
-    }
-  }, true);
-
-  document.addEventListener("keyup", stopForMainMemo, true);
-  document.addEventListener("keypress", stopForMainMemo, true);
-
-  function bind(){
-    var ed = editor();
-    if (!ed || ed.dataset.mainMemoSpaceCaretFixBound) return;
-    ed.dataset.mainMemoSpaceCaretFixBound = "1";
-    ed.addEventListener("input", function(){
-      var caret = saveCaret();
-      setTimeout(function(){
-        if (document.activeElement === ed && caret) restoreCaret(caret);
-      }, 0);
+<script id="main-memo-keyboard-isolation">
+(function () {
+  function inMemo(target) { return !!target?.closest?.("#mainMemoText"); }
+  ["keydown", "keyup", "keypress", "beforeinput"].forEach(type => {
+    document.addEventListener(type, event => {
+      if (inMemo(event.target)) event.stopPropagation();
     }, true);
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
-  else bind();
-  window.addEventListener("load", bind);
-  setTimeout(bind, 300);
-  setTimeout(bind, 1200);
+  });
 })();
 </script>
 
@@ -17038,61 +17375,6 @@ body.member-mode .help-text:empty {
     color: #e9e5d8 !important;
   }
 </style>
-
-
-<!-- ===== 관리자 기본 UI 크기 = 회원 입력 모드 / 설정 실행 시 기존 편집 UI 복원 ===== -->
-<style id="admin-match-member-ui-size-until-settings-open">
-/* 관리자 모드에 들어오기만 했을 때는 회원 입력 모드의 상/하 UI 크기를 그대로 유지 */
-body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .app {
-  padding-top: 4px !important;
-}
-body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .shell {
-  height: calc(100dvh - 12px) !important;
-  max-height: calc(100dvh - 12px) !important;
-}
-body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .seat,
-body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .alt-arrow-cell {
-  min-height: 42px !important;
-  height: 42px !important;
-}
-/* 관리자 기본화면의 하단 UI도 회원 입력 모드와 동일하게 내용 높이만 사용 */
-body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .controls {
-  flex: 0 0 auto !important;
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  overflow-y: visible !important;
-  overflow-x: hidden !important;
-  padding-bottom: 0 !important;
-  -webkit-overflow-scrolling: auto !important;
-  overscroll-behavior: none !important;
-  touch-action: auto !important;
-}
-body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .controls > .card {
-  flex: 0 0 auto !important;
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  overflow: visible !important;
-}
-body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .controls::-webkit-scrollbar {
-  display: none !important;
-}
-@media (max-width: 760px) {
-  body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .shell {
-    height: calc(100dvh - 16px) !important;
-    max-height: calc(100dvh - 16px) !important;
-  }
-}
-@media (min-width: 761px) {
-  body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .seat,
-  body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .alt-arrow-cell {
-    min-height: 52px !important;
-    height: 52px !important;
-  }
-}
-/* .admin-settings-open 상태에는 위 규칙을 적용하지 않음. 기존 관리자 편집용 UI 크기/스크롤 규칙 사용 */
-</style>
 </body>
 </html>
 <script id="member-manage-back-to-member-mode-final-patch">
@@ -17140,6 +17422,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open) .controls::-w
   }
 
   function ensureMemberBaseState(){
+    if (document.body.classList.contains("admin-mode")) return;
     try {
       var s = history.state || {};
       if (!s.busSeatBackFlowBase && s.busSeatScreen !== "member") {
@@ -17590,6 +17873,225 @@ body.admin-mode.admin-settings-open #adminSettingsPanel {
   }
 }
 
+/* 관리자 버튼 세 개 같은 너비; 모바일에만 완납 박스 아래 상태저장 표시 */
+.admin-compact-action-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+.admin-compact-action-row #adminLogoutBtn,
+.admin-compact-action-row #adminSaveBtnTop {
+  display: none !important;
+}
+.admin-compact-action-row #adminCaptureProxyBtn,
+.admin-compact-action-row #adminStatus,
+.admin-compact-action-row #adminSettingsToggleBtn {
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+.admin-compact-action-row > #adminCaptureProxyBtn,
+.admin-compact-action-row > #adminSettingsToggleBtn {
+  align-self: start;
+}
+.admin-status-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.admin-status-box #adminStatus {
+  width: 100%;
+}
+#adminSaveBtnBottom {
+  display: none !important;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+body.member-mode #boardImageModeBtn {
+  display: none !important;
+}
+@media (max-width: 760px) {
+  .admin-compact-action-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+  }
+  .admin-status-box {
+    gap: 4px;
+  }
+  #adminSaveBtnBottom {
+    display: none !important;
+    font-size: 10px !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+}
+
+/* 좌석 번호가 표시되는 이름 입력 말풍선 */
+.seat-name-bubble {
+  position: fixed;
+  z-index: 10000;
+  box-sizing: border-box;
+  height: 138px;
+  padding: 12px;
+  background: linear-gradient(150deg, #ffffff, #f2f8f5);
+  border: 1px solid #93aaa5;
+  border-radius: 24px;
+  box-shadow: 0 10px 24px rgba(27, 62, 57, .20), 0 2px 5px rgba(27, 62, 57, .08);
+}
+.seat-name-bubble.has-status-action { height: 190px; }
+.seat-name-bubble #bubbleStatusSelect {
+  display: block;
+  width: 100%;
+  height: 42px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid #20745f;
+  border-radius: 15px;
+  background: #227c63;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.seat-name-bubble #bubbleStatusSelect:focus { outline: 2px solid #9fd2c2; outline-offset: 2px; }
+.seat-name-bubble .bubble-heading {
+  height: 34px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 3px;
+}
+.seat-name-bubble .bubble-seat-number {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #e2f2eb;
+  color: #16634e;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.seat-name-bubble .bubble-caption {
+  padding: 5px 3px 0 0;
+  color: #61746e;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.seat-name-bubble #inlineSeatInput {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 76px;
+  margin: 0;
+  border: 1.5px solid #9dbbb0;
+  border-radius: 20px;
+  background: #fff;
+  color: #182c28;
+  font-size: clamp(25px, 6vw, 35px);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  padding: 0 10px;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: manipulation;
+}
+.seat-name-bubble #inlineSeatInput::placeholder { color: #536a61; opacity: 1; font-weight: 500; }
+.seat-name-bubble #inlineSeatInput:focus {
+  border-color: #24856b;
+  box-shadow: 0 0 0 3px rgba(36, 133, 107, .12);
+}
+.seat-name-bubble::before,
+.seat-name-bubble::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--tail-x, 50%) - 22px);
+  width: 44px;
+  height: 34px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  pointer-events: none;
+}
+.seat-name-bubble::before { top: calc(100% - 1px); background: #93aaa5; }
+.seat-name-bubble::after {
+  top: calc(100% - 3px);
+  left: calc(var(--tail-x, 50%) - 20px);
+  width: 40px;
+  height: 30px;
+  background: #f2f8f5;
+}
+.seat-name-bubble.below::before,
+.seat-name-bubble.below::after {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.seat-name-bubble.below::before { top: -33px; }
+.seat-name-bubble.below::after { top: -29px; background: #fff; }
+@media (max-width: 760px) {
+  .seat-name-bubble { height: 138px; padding: 11px; }
+  .seat-name-bubble.has-status-action { height: 190px; }
+  .seat-name-bubble #inlineSeatInput { height: 78px; font-size: clamp(25px, 8vw, 35px); }
+}
+
+/* 모바일 동명이인 확인: 키보드가 내려간 화면에 말풍선과 선택창을 세로로 배치 */
+@media (max-width: 760px) {
+  body.duplicate-seat-dialog-open #seatNameBubble {
+    top: calc(var(--duplicate-visible-top, 0px) + 10px) !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+    z-index: 10002;
+    pointer-events: none;
+  }
+  body.duplicate-seat-dialog-open #seatNameBubble::before,
+  body.duplicate-seat-dialog-open #seatNameBubble::after {
+    display: none;
+  }
+  body.duplicate-seat-dialog-open #threeOptionDialogOverlay {
+    inset: auto 0 auto 0;
+    top: calc(var(--duplicate-visible-top, 0px) + 154px);
+    height: max(0px, calc(var(--duplicate-visible-height, 100dvh) - 154px));
+    min-height: 0;
+    box-sizing: border-box;
+    padding: 8px 12px 16px;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    z-index: 10001;
+  }
+  body.duplicate-seat-dialog-open #threeOptionDialogOverlay .tri-dialog {
+    box-sizing: border-box;
+    width: min(460px, 100%);
+    flex: 0 0 auto;
+  }
+  body.duplicate-seat-dialog-open.duplicate-seat-dialog-tall #threeOptionDialogOverlay {
+    top: calc(var(--duplicate-visible-top, 0px) + 206px);
+    height: max(0px, calc(var(--duplicate-visible-height, 100dvh) - 206px));
+  }
+}
+
+/* 관리자 첫 행: 캡처 / 메인메모 / 설정만 표시 */
+#adminPanel .admin-compact-action-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+#adminPanel .admin-compact-action-row .admin-status-box {
+  display: none !important;
+}
+#adminPanel .admin-compact-action-row #adminCaptureProxyBtn,
+#adminPanel .admin-compact-action-row #adminMainMemoBtn,
+#adminPanel .admin-compact-action-row #adminSettingsToggleBtn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  box-sizing: border-box;
+  margin: 0 !important;
+}
 </style>
 <script id="seat-unregistered-member-blink-patch">
 (function(){
@@ -17845,3 +18347,144 @@ body.admin-mode.admin-settings-open #adminSettingsPanel {
   }
 })();
 </script>
+
+<style id="member-recovery-panel-final-style">
+#memberPasswordRecoveryOpenBtn { display:block; margin:7px auto; border:0; background:none; color:#1544aa; text-decoration:underline; cursor:pointer; font-weight:700; }
+.member-auth-box.change-open #memberPasswordRecoveryOpenBtn,
+.member-auth-box.signup-open #memberPasswordRecoveryOpenBtn { display:none; }
+.member-auth-gate.recovery-open { justify-content:flex-start; overflow-y:auto; }
+#memberPasswordRecoveryPanel[hidden] { display:none !important; }
+</style>
+
+<style id="admin-match-member-ui-size-until-settings-open">
+/* 관리자 모드에 들어오기만 했을 때는 회원 입력 모드의 상/하 UI 크기를 그대로 유지 */
+body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .app {
+  padding-top: 4px !important;
+}
+body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .shell {
+  height: calc(100dvh - 12px) !important;
+  max-height: calc(100dvh - 12px) !important;
+}
+body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .seat,
+body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .alt-arrow-cell {
+  min-height: 42px !important;
+  height: 42px !important;
+}
+/* 관리자 기본화면의 하단 UI도 회원 입력 모드와 동일하게 내용 높이만 사용 */
+body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .controls {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+  overflow-x: hidden !important;
+  padding-bottom: 0 !important;
+  -webkit-overflow-scrolling: auto !important;
+  overscroll-behavior: none !important;
+  touch-action: auto !important;
+}
+body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .controls > .card {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .controls::-webkit-scrollbar {
+  display: none !important;
+}
+@media (max-width: 760px) {
+  body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .shell {
+    height: calc(100dvh - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+  }
+}
+@media (min-width: 761px) {
+  body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .seat,
+  body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .alt-arrow-cell {
+    min-height: 52px !important;
+    height: 52px !important;
+  }
+}
+/* 설정 또는 메인메모 편집 중에는 위 규칙을 적용하지 않고 관리자 편집용 크기/스크롤을 사용 */
+</style>
+
+<style id="member-password-panel-titles-style">
+.member-password-panel-title {
+  margin: 2px 0 10px;
+  color: #1428c8;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+}
+</style>
+
+<style id="main-memo-notepad-white-space">
+#mainMemoText, #memberLoginMainMemoBox { white-space: pre-wrap !important; tab-size: 4; }
+</style>
+
+<style id="admin-vehicle-settings-side-by-side">
+/* 화면 폭이 충분하면 운영 차량과 버스선택을 나란히 배치한다. */
+@media (min-width: 581px) {
+  #adminSettingsPanel .admin-vehicle-settings-row {
+    display: grid;
+    grid-template-columns: minmax(0, 4.4fr) minmax(0, 5.6fr);
+    gap: 8px;
+    align-items: stretch;
+    padding-right: 8px;
+  }
+  #adminSettingsPanel .admin-vehicle-settings-row > div {
+    min-width: 0;
+    margin-top: 10px;
+  }
+  #adminSettingsPanel .fleet-setting-row { gap: 5px; }
+  #adminSettingsPanel .fleet-setting-row button { padding-left: 6px; padding-right: 6px; font-size: 11px; }
+  #adminSettingsPanel .bus-type-vehicle-row {
+    grid-template-columns: 42px minmax(0, 1fr) 76px;
+    gap: 5px;
+  }
+  #adminSettingsPanel .bus-type-vehicle-row button { font-size: 10px; }
+}
+@media (max-width: 580px) {
+  #adminSettingsPanel .admin-vehicle-settings-row { display: block; }
+}
+</style>
+
+<style id="admin-settings-two-action-rows">
+#adminSettingsPanel .admin-settings-action-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 80px 106px;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+#adminSettingsPanel .admin-lock-action-row {
+  grid-template-columns: 52px minmax(0, 1fr) 110px 106px;
+}
+#adminSettingsPanel .admin-settings-action-row > * { min-width: 0; margin: 0; }
+#adminSettingsPanel .admin-settings-action-row label { white-space: nowrap; font-size: 11px; }
+#adminSettingsPanel .admin-settings-action-row input,
+#adminSettingsPanel .admin-settings-action-row select,
+#adminSettingsPanel .admin-settings-action-row button { width: 100%; height: 28px; box-sizing: border-box; }
+#adminSettingsPanel .admin-settings-action-row button { padding: 0 3px; white-space: nowrap; font-size: 11px; }
+#adminSettingsPanel .admin-lock-action-row #nameEntryLockStatus {
+  height: 28px;
+  justify-content: center;
+  white-space: nowrap;
+  padding: 2px;
+  font-size: 10px;
+}
+@media (max-width: 580px) {
+  #adminSettingsPanel .admin-settings-action-row,
+  #adminSettingsPanel .admin-lock-action-row {
+    grid-template-columns: 40px minmax(0, 1fr) 64px 78px;
+    gap: 3px;
+  }
+  #adminSettingsPanel .admin-settings-action-row label { font-size: 10px; }
+  #adminSettingsPanel .admin-settings-action-row button,
+  #adminSettingsPanel .admin-settings-action-row select,
+  #adminSettingsPanel .admin-settings-action-row input { font-size: 9px; }
+  #adminSettingsPanel .admin-lock-action-row #nameEntryLockStatus { font-size: 9px; }
+}
+</style>
