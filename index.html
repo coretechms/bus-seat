@@ -21,6 +21,25 @@
     (function () {
       var backCount = 0;
       var guardKey = "busSeatSeatScreenBackGuard";
+      var mobileGuardArmed = false;
+      var mobileExiting = false;
+      var nativeBackAt = 0;
+      function isMobile() {
+        return window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
+      }
+      // 다른 화면 코드가 이력을 교체해도 모바일 뒤로가기용 표식을 유지한다.
+      var originalPushState = history.pushState.bind(history);
+      var originalReplaceState = history.replaceState.bind(history);
+      history.pushState = function (nextState, title, url) {
+        if (isMobile() && !mobileExiting)
+          nextState = Object.assign({}, nextState || {}, { [guardKey]: true });
+        return originalPushState(nextState, title, url);
+      };
+      history.replaceState = function (nextState, title, url) {
+        if (isMobile() && !mobileExiting && history.state?.[guardKey])
+          nextState = Object.assign({}, nextState || {}, { [guardKey]: true });
+        return originalReplaceState(nextState, title, url);
+      };
       function isSeatScreen() {
         var body = document.body;
         if (!body || body.classList.contains("membership-locked") ||
@@ -31,6 +50,14 @@
         return body.classList.contains("member-mode") || body.classList.contains("admin-mode");
       }
       function armBackGuard() {
+        if (isMobile()) {
+          if (mobileGuardArmed && history.state?.[guardKey]) return;
+          try {
+            history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href);
+            mobileGuardArmed = true;
+          } catch (_) {}
+          return;
+        }
         if (!isSeatScreen()) return;
         try {
           if (history.state && history.state[guardKey]) return;
@@ -39,6 +66,7 @@
       }
       function closeApp() {
         if (!window.confirm("앱을 종료하시겠습니까?")) return;
+        mobileExiting = true;
         try {
           if (navigator.app && typeof navigator.app.exitApp === "function") {
             navigator.app.exitApp(); return;
@@ -49,10 +77,54 @@
           }
         } catch (_) {}
         // 웹 브라우저는 스크립트로 열린 탭만 닫을 수 있다.
+        if (isMobile()) {
+          try { window.close(); } catch (_) {}
+          // 일반 브라우저는 탭 닫기를 차단할 수 있다. 로그인 화면이 나타나지 않도록 종료한다.
+          window.setTimeout(() => { if (!window.closed) location.replace("about:blank"); }, 120);
+          return;
+        }
         if (history.length > 2) history.go(-(history.length - 1));
         else window.close();
       }
+      function handleMobileBack(alreadyPopped) {
+        if (mobileExiting) return;
+        if (alreadyPopped) {
+          // 한 단계 뒤로 이동한 이력 위에 즉시 보호 항목을 다시 쌓는다.
+          try { history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href); } catch (_) {}
+        } else armBackGuard();
+        backCount += 1;
+        if (backCount === 1) {
+          if (document.getElementById("seatNameBubble")) window.__busSeatCloseSeatBubble?.();
+          else {
+            var notice = document.getElementById("hikingNoticeOverlay");
+            if (notice && !notice.classList.contains("hidden")) window.__busSeatCloseHikingNoticeDialog?.();
+          }
+          return;
+        }
+        if (backCount === 2) {
+          var gate = document.getElementById("memberAuthGate");
+          if (!document.body.classList.contains("membership-locked") &&
+              (!gate || gate.classList.contains("is-hidden")) &&
+              typeof window.__busSeatSwitchMode === "function") {
+            window.__busSeatSwitchMode("member");
+          }
+          armBackGuard();
+          return;
+        }
+        backCount = 2;
+        closeApp();
+      }
       window.addEventListener("popstate", function (event) {
+        if (isMobile()) {
+          event.stopImmediatePropagation();
+          if (mobileExiting) return;
+          if (Date.now() - nativeBackAt < 500) {
+            try { history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href); } catch (_) {}
+            return;
+          }
+          handleMobileBack(true);
+          return;
+        }
         if (!isSeatScreen()) return;
         event.stopImmediatePropagation();
         try {
@@ -81,17 +153,33 @@
         closeApp();
       }, true);
       window.__busSeatArmSeatBackGuard = armBackGuard;
-      window.__busSeatResetSeatBackCount = function () { backCount = 0; armBackGuard(); };
+      window.__busSeatResetSeatBackCount = function () { if (!isMobile()) backCount = 0; armBackGuard(); };
+      document.addEventListener("backbutton", function (event) {
+        if (!isMobile()) return;
+        event.preventDefault();
+        nativeBackAt = Date.now();
+        handleMobileBack(false);
+      });
       document.addEventListener("DOMContentLoaded", function () {
         armBackGuard();
         setTimeout(armBackGuard, 500);
+        try {
+          window.Capacitor?.Plugins?.App?.addListener?.("backButton", function () {
+            if (!isMobile()) return;
+            nativeBackAt = Date.now();
+            handleMobileBack(false);
+          });
+        } catch (_) {}
         if (window.MutationObserver) {
           new MutationObserver(armBackGuard).observe(document.body, { attributes: true, attributeFilter: ["class"] });
           var gate = document.getElementById("memberAuthGate");
           if (gate) new MutationObserver(armBackGuard).observe(gate, { attributes: true, attributeFilter: ["class", "style"] });
         }
       });
-      window.addEventListener("pageshow", armBackGuard);
+      window.addEventListener("pageshow", function (event) {
+        if (isMobile() && event.persisted) mobileGuardArmed = false;
+        armBackGuard();
+      });
     })();
   </script>
   <script>
@@ -5153,10 +5241,18 @@ function removeGuideColorFromSelection(editor) {
       const button = byId("adminMainMemoBtn");
       if (!panel) return;
       const willOpen = panel.classList.contains("hidden");
+      if (willOpen && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches &&
+          document.body.classList.contains("admin-settings-open")) {
+        byId("adminSettingsToggleBtn")?.click();
+      }
       panel.classList.toggle("hidden", !willOpen);
       if (button) button.classList.toggle("main-memo-open", willOpen);
       document.body.classList.toggle("admin-main-memo-open", willOpen);
       if (willOpen) {
+        if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) {
+          const controls = document.querySelector(".controls");
+          if (controls) controls.scrollTop = 0;
+        }
         renderMainMemoBox();
         const editor = byId("mainMemoText");
         if (editor) {
@@ -9020,6 +9116,7 @@ function renderAll() {
       const hikingNoticeOverlay = byId("hikingNoticeOverlay");
       if (hikingNoticeOverlay) hikingNoticeOverlay.addEventListener("click", (e) => { if (e.target === hikingNoticeOverlay) closeHikingNoticeDialog(); });
       window.addEventListener("popstate", () => {
+        if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
         const overlay = byId("hikingNoticeOverlay");
         if (overlay && !overlay.classList.contains("hidden")) {
           returnToBusSeatScreenFromHikingNotice();
@@ -16000,6 +16097,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
   }
 
   window.addEventListener("popstate", function(event){
+    if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
     var state = event.state || {};
     if (state.busSeatScreen === "loginManage") {
       showLoginManageScreen();
@@ -16369,12 +16467,22 @@ body.admin-mode:not(.member-manage-mode) .controls {
   function setAdminSettingsOpen(open) {
     var panel = document.getElementById("adminSettingsPanel");
     var btn = document.getElementById("adminSettingsToggleBtn");
+    if (open && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) {
+      var memoPanel = document.getElementById("adminMainMemoPanel");
+      memoPanel?.classList.add("hidden");
+      document.getElementById("adminMainMemoBtn")?.classList.remove("main-memo-open");
+      document.body.classList.remove("admin-main-memo-open");
+    }
     document.body.classList.toggle("admin-settings-open", !!open);
     if (panel) panel.hidden = !open;
     if (btn) {
       btn.classList.toggle("is-open", !!open);
       btn.setAttribute("aria-expanded", open ? "true" : "false");
       btn.textContent = open ? "닫기" : "설정";
+    }
+    if (open && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) {
+      var controls = document.querySelector(".controls");
+      if (controls) controls.scrollTop = 0;
     }
   }
 
@@ -17573,6 +17681,7 @@ body.member-mode .help-text:empty {
   }
 
   window.addEventListener("popstate", function(event){
+    if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
     var s = event.state || {};
     if (s.busSeatScreen === "member" || isMemberManageScreen()) {
       event.stopPropagation && event.stopPropagation();
@@ -17720,6 +17829,7 @@ body.member-mode .help-text:empty {
   }
 
   function handleLoginBackPressed(event){
+    if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
     if (!isLoginGateVisible()) return;
 
     if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
@@ -18712,5 +18822,66 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 @media (max-width: 760px) {
   #mainMemoText,
   #memberLoginMainMemoBox { padding: 10px 12px !important; }
+}
+</style>
+
+<style id="mobile-admin-editor-fullscreen-v471">
+/* 모바일 관리자에서 메인메모/설정 편집 시 좌석판을 숨기고 하단 편집 UI에 화면을 배정한다. */
+@media (max-width: 760px), (pointer: coarse) {
+  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .app {
+    padding: 0 !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .shell {
+    width: 100vw !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    gap: 0 !important;
+  }
+  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .board-wrap {
+    display: none !important;
+  }
+  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .controls {
+    margin-top: 0 !important;
+    flex: 1 1 auto !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: 100dvh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 4px 5px max(10px, env(safe-area-inset-bottom)) !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+  }
+  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .controls > .card {
+    flex: 1 0 auto !important;
+    min-height: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .card-title-row {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 30 !important;
+    background: #fff !important;
+  }
+  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) #adminPanel .admin-compact-action-row {
+    position: sticky !important;
+    top: 34px !important;
+    z-index: 29 !important;
+    background: #fff !important;
+  }
+  body.admin-mode.admin-main-memo-open #mainMemoText {
+    position: static !important;
+    left: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    min-height: max(260px, calc(100dvh - 230px)) !important;
+    max-height: none !important;
+    resize: none !important;
+  }
 }
 </style>
