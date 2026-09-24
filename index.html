@@ -5524,7 +5524,7 @@ function removeGuideColorFromSelection(editor) {
         let startY = 0;
         let pointerActive = false;
         let pointerMoved = false;
-        let suppressClickUntil = 0;
+        let suppressPointerClick = false;
 
         const insideSeatEditArea = (x, y) => {
           const rect = btn.getBoundingClientRect();
@@ -5540,6 +5540,7 @@ function removeGuideColorFromSelection(editor) {
         };
 
         const beginPress = (event) => {
+          suppressPointerClick = false;
           pointerActive = true;
           pointerMoved = false;
           startX = event.clientX;
@@ -5580,8 +5581,9 @@ function removeGuideColorFromSelection(editor) {
           clearPressTimer();
           if (!pointerActive) return;
           pointerActive = false;
-          // click 이벤트를 기다리지 않고 손을 떼는 순간 입력창을 연다.
-          suppressClickUntil = Date.now() + 650;
+          // pointerup에서 이미 처리했다면 뒤이어 오는 click은 경과 시간과 관계없이 한 번 무시한다.
+          // alert 창을 오래 띄워 놓아도 같은 좌석 알림이 다시 뜨지 않는다.
+          suppressPointerClick = true;
           if (pointerMoved || longPressTriggered || !insideSeatEditArea(event.clientX, event.clientY)) return;
           const seat = state.seats.find((s) => s.number === Number(btn.dataset.seat));
           handleSeatClick(seat);
@@ -5595,7 +5597,10 @@ function removeGuideColorFromSelection(editor) {
             longPressTriggered = false;
             return;
           }
-          if (event.detail !== 0 && Date.now() < suppressClickUntil) return;
+          if (event.detail !== 0 && suppressPointerClick) {
+            suppressPointerClick = false;
+            return;
+          }
           const seatNo = Number(btn.dataset.seat);
           const seat = state.seats.find((s) => s.number === seatNo);
           // PointerEvent 미지원 환경과 키보드 활성화에서는 click을 사용한다.
@@ -7578,6 +7583,15 @@ function renderAll() {
       const prevSeat = state.seats.find((s) => s.number === Number(seatNumber));
       const prevName = prevSeat?.name || "";
       const prevStatus = prevSeat?.status || "empty";
+      // 관리자 말풍선에서 이름을 수정하지 않았다면 좌석을 다시 저장하지 않는다.
+      // 자동 blur 저장이 완납 상태를 과거 값으로 덮어쓰는 일을 방지한다.
+      if (state.mode === "admin" && normalizeName(name) === normalizeName(prevName)) {
+        if (document.activeElement === byId("bubbleStatusSelect")) return;
+        state.editingSeat = null;
+        state.editName = "";
+        renderAll();
+        return;
+      }
       const prevSeats = state.seats.map((seat) => ({ ...seat }));
       let finalName = name;
       let finalStatus = name ? (state.mode === "member" ? "waiting" : normalizeSeatStatus(prevStatus === "empty" ? "reserved" : prevStatus)) : "empty";
@@ -7629,9 +7643,9 @@ function renderAll() {
         return;
       }
       if (state.isAdminAuthenticated) {
-        const nextStatus = finalName ? (sourceSeatNo
-          ? finalStatus
-          : normalizeSeatStatus((prevStatus === "empty" || !prevStatus || prevStatus === "paid" || prevStatus === "reserved") ? "reserved" : prevStatus)) : "empty";
+        // 위에서 결정한 상태를 화면과 Firebase에 동일하게 저장한다.
+        // 기존 paid 상태를 reserved로 바꾸는 별도 변환을 하지 않는다.
+        const nextStatus = finalName ? finalStatus : "empty";
         const ok = await saveSeatAdmin(seatNumber, finalName, nextStatus, {
           clearSourceSeatNo: sourceSeatNo,
           clearSourceVehicleId: sourceVehicleId,
@@ -18462,7 +18476,53 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   #adminSettingsPanel .bus-type-vehicle-row button { font-size: 10px; }
 }
 @media (max-width: 580px) {
-  #adminSettingsPanel .admin-vehicle-settings-row { display: block; }
+  #adminSettingsPanel .admin-vehicle-settings-row {
+    display: grid;
+    grid-template-columns: minmax(0, 4.5fr) minmax(0, 5.5fr);
+    gap: 4px;
+    align-items: stretch;
+  }
+  #adminSettingsPanel .admin-vehicle-settings-row > div {
+    min-width: 0;
+    margin-top: 8px;
+    padding: 4px;
+  }
+  #adminSettingsPanel .admin-vehicle-settings-row label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  #adminSettingsPanel .fleet-setting-row { gap: 2px; }
+  #adminSettingsPanel .fleet-setting-row select {
+    min-width: 0;
+    width: 100%;
+    font-size: 9px;
+    padding: 0;
+  }
+  #adminSettingsPanel .fleet-setting-row button {
+    min-width: 0;
+    padding: 0 2px;
+    font-size: 8px !important;
+  }
+  #adminSettingsPanel .bus-type-vehicle-row {
+    grid-template-columns: 26px minmax(0, 1fr) 52px;
+    gap: 2px;
+  }
+  #adminSettingsPanel .bus-type-vehicle-row .bus-type-vehicle-name {
+    font-size: 9px;
+    letter-spacing: -0.05em;
+  }
+  #adminSettingsPanel .bus-type-vehicle-row select {
+    min-width: 0;
+    padding: 0;
+    font-size: 9px;
+  }
+  #adminSettingsPanel .bus-type-vehicle-row button {
+    min-width: 0;
+    padding: 0 1px;
+    font-size: 8px !important;
+  }
 }
 </style>
 
