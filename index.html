@@ -109,39 +109,13 @@
     })();
   </script>
   <script>
-    /* 관리자 화면에서 모바일 뒤로가기가 회원 입력 화면으로 전환되지 않도록 유지한다. */
+    /* 관리자 화면도 좌석 화면의 공통 뒤로가기 이력을 사용한다. */
     (function () {
-      function isAdminScreen() {
-        var panel = document.getElementById("adminPanel");
-        return !!(document.body && document.body.classList.contains("admin-mode") &&
-          panel && !panel.classList.contains("hidden") &&
-          typeof window.__busSeatIsAdminAuthenticated === "function" &&
-          window.__busSeatIsAdminAuthenticated());
-      }
-
       function ensureAdminBackState() {
-        if (!isAdminScreen()) return;
-        try {
-          var current = history.state || {};
-          if (current.busSeatAdminBackGuard) return;
-          if (!current.busSeatAdminBackBase) {
-            history.replaceState({ busSeatAdminBackBase: true }, "", location.href);
-          }
-          history.pushState({ busSeatAdminBackGuard: true }, "", location.href);
-        } catch (error) {}
+        window.__busSeatArmSeatBackGuard?.();
       }
 
       window.__busSeatEnsureAdminBackState = ensureAdminBackState;
-      window.addEventListener("popstate", function (event) {
-        if (!isAdminScreen()) return;
-        var overlay = document.getElementById("hikingNoticeOverlay");
-        if (overlay && !overlay.classList.contains("hidden") &&
-            typeof window.__busSeatCloseHikingNoticeDialog === "function") {
-          window.__busSeatCloseHikingNoticeDialog();
-        }
-        ensureAdminBackState();
-        event.stopImmediatePropagation();
-      }, true);
     })();
   </script>
   <style>
@@ -4839,8 +4813,8 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
     function keepEditorSelectionOnButton(buttonId) {
       const button = byId(buttonId);
       if (!button) return;
-      button.addEventListener("mousedown", (event) => event.preventDefault());
-      button.addEventListener("touchstart", (event) => event.preventDefault(), { passive: false });
+      // 포맷 버튼을 누를 때 선택 영역을 유지한다. 마우스와 터치 모두 같은 경로를 사용한다.
+      button.addEventListener("pointerdown", (event) => event.preventDefault());
     }
 
 
@@ -5593,7 +5567,22 @@ function removeGuideColorFromSelection(editor) {
         </button>`;
     }
 
+    let recentSeatTouch = null;
     function bindSeatEvents() {
+      if (!window.seatTouchClickGuardBound) {
+        window.seatTouchClickGuardBound = true;
+        // 모바일 pointerup이 화면을 다시 그린 뒤 발생하는 합성 click도 새 좌석 버튼에서 차단한다.
+        document.addEventListener("click", (event) => {
+          if (!recentSeatTouch || event.detail === 0) return;
+          if (Date.now() - recentSeatTouch.at > 700) { recentSeatTouch = null; return; }
+          const seatButton = event.target.closest?.(".seat");
+          if (seatButton && Number(seatButton.dataset.seat) === recentSeatTouch.number) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            recentSeatTouch = null;
+          }
+        }, true);
+      }
       document.querySelectorAll(".seat").forEach((btn) => {
         let pressTimer = null;
         let longPressTriggered = false;
@@ -5658,14 +5647,28 @@ function removeGuideColorFromSelection(editor) {
           clearPressTimer();
           if (!pointerActive) return;
           pointerActive = false;
-          // 선택은 뒤따르는 click에서만 한 번 처리한다.
-          // 스크롤, 길게 누르기, 좌석 가장자리 터치는 click에서도 제외한다.
+          // 모바일은 좌석 가장자리까지 한 번 터치로 선택한다. 이동한 터치는 스크롤로 처리한다.
           clickEligible = !pointerMoved && !longPressTriggered &&
-            insideSeatEditArea(event.clientX, event.clientY);
+            (event.pointerType === "touch" || insideSeatEditArea(event.clientX, event.clientY));
+          if (!clickEligible || event.pointerType === "mouse") return;
+          // 모바일에서는 합성 click이 없거나 pointerleave 뒤에 올 수 있으므로 터치 종료에서 연다.
+          const seatNo = Number(btn.dataset.seat);
+          recentSeatTouch = { number: seatNo, at: Date.now() };
+          handleSeatClick(state.seats.find((s) => s.number === seatNo));
         });
         btn.addEventListener("pointercancel", () => { pointerActive = false; clickEligible = false; clearPressTimer(); });
-        btn.addEventListener("pointerleave", () => { pointerActive = false; clickEligible = false; clearPressTimer(); });
+        btn.addEventListener("pointerleave", () => {
+          if (pointerActive) { pointerActive = false; clickEligible = false; clearPressTimer(); }
+        });
         btn.addEventListener("click", (event) => {
+          // 제거된 이전 버튼으로 click이 전달되는 브라우저에서도 중복 실행을 막는다.
+          if (recentSeatTouch && event.detail !== 0 &&
+              Number(btn.dataset.seat) === recentSeatTouch.number &&
+              Date.now() - recentSeatTouch.at <= 700) {
+            event.preventDefault();
+            recentSeatTouch = null;
+            return;
+          }
           if (longPressTriggered) {
             event.preventDefault();
             event.stopPropagation();
@@ -8758,18 +8761,20 @@ function renderAll() {
       let startY = 0;
       let startTime = 0;
 
-      swipeArea.addEventListener("touchstart", (e) => {
-        if (!e.touches || e.touches.length !== 1) return;
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
+      let swipePointerId = null;
+      swipeArea.addEventListener("pointerdown", (e) => {
+        if (e.pointerType !== "touch" || !e.isPrimary) return;
+        swipePointerId = e.pointerId;
+        startX = e.clientX;
+        startY = e.clientY;
         startTime = Date.now();
-      }, { passive: true });
+      });
 
-      swipeArea.addEventListener("touchend", (e) => {
-        if (!e.changedTouches || e.changedTouches.length !== 1) return;
-
-        const endX = e.changedTouches[0].clientX;
-        const endY = e.changedTouches[0].clientY;
+      swipeArea.addEventListener("pointerup", (e) => {
+        if (e.pointerId !== swipePointerId) return;
+        swipePointerId = null;
+        const endX = e.clientX;
+        const endY = e.clientY;
         const diffX = endX - startX;
         const diffY = endY - startY;
         const elapsed = Date.now() - startTime;
@@ -8780,7 +8785,8 @@ function renderAll() {
 
         if (diffX < 0) switchMode("admin");
         else switchMode("member");
-      }, { passive: true });
+      });
+      swipeArea.addEventListener("pointercancel", () => { swipePointerId = null; });
     }
 
     function bindStaticEvents() {
@@ -9463,13 +9469,6 @@ function renderAll() {
     document.addEventListener("pointermove", movePress, true);
     document.addEventListener("pointerup", cancelPress, true);
     document.addEventListener("pointercancel", cancelPress, true);
-    document.addEventListener("touchstart", startPress, {capture:true, passive:false});
-    document.addEventListener("touchmove", movePress, {capture:true, passive:true});
-    document.addEventListener("touchend", cancelPress, true);
-    document.addEventListener("touchcancel", cancelPress, true);
-    document.addEventListener("mousedown", startPress, true);
-    document.addEventListener("mousemove", movePress, true);
-    document.addEventListener("mouseup", cancelPress, true);
   }
   document.addEventListener("DOMContentLoaded", function(){
     // 좌석 메모 길게누름은 메인 bindSeatEvents()에서 처리한다.
@@ -15966,7 +15965,8 @@ body.admin-mode:not(.member-manage-mode) .controls {
   function replaceWithMemberBase(){
     try {
       if (!history.state || !history.state.busSeatBackFlowBase) {
-        history.replaceState({ busSeatScreen: "member", busSeatBackFlowBase: true }, "", location.href);
+        history.replaceState(Object.assign({}, history.state || {},
+          { busSeatScreen: "member", busSeatBackFlowBase: true }), "", location.href);
       }
     } catch (error) {}
   }
@@ -16016,7 +16016,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
     }
     if (currentScreen() === "memberManage") {
       showMemberScreen();
-      try { history.replaceState({ busSeatScreen: "member", busSeatBackFlowBase: true }, "", location.href); } catch (error) {}
+      try { history.replaceState(Object.assign({}, history.state || {}, { busSeatScreen: "member", busSeatBackFlowBase: true }), "", location.href); } catch (error) {}
       return;
     }
     showMemberScreen();
@@ -16047,7 +16047,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
       return;
     }
     if (manageCloseBtn) {
-      setTimeout(function(){ showMemberScreen(); try { history.replaceState({ busSeatScreen: "member", busSeatBackFlowBase: true }, "", location.href); } catch (error) {} }, 0);
+      setTimeout(function(){ showMemberScreen(); try { history.replaceState(Object.assign({}, history.state || {}, { busSeatScreen: "member", busSeatBackFlowBase: true }), "", location.href); } catch (error) {} window.__busSeatArmSeatBackGuard?.(); }, 0);
     }
   }, true);
 
@@ -17395,32 +17395,25 @@ body.admin-mode:not(.member-manage-mode) .controls {
     var el = document.getElementById('accountNumber');
     if(!el || el.dataset.longPressCopyBound === '1') return;
     el.dataset.longPressCopyBound = '1';
-
-    el.addEventListener('touchstart', function(e){
-      if(!e.touches || e.touches.length !== 1) return;
-      beginLongPress(e.touches[0].clientX, e.touches[0].clientY);
-    }, {passive:true});
-
-    el.addEventListener('touchmove', function(e){
-      if(!timer || !e.touches || !e.touches.length) return;
-      var dx = e.touches[0].clientX - startX;
-      var dy = e.touches[0].clientY - startY;
-      if(Math.hypot(dx,dy) > 12) cancelLongPress();
-    }, {passive:true});
-
-    el.addEventListener('touchend', cancelLongPress, {passive:true});
-    el.addEventListener('touchcancel', cancelLongPress, {passive:true});
-
-    el.addEventListener('mousedown', function(e){
-      if(e.button !== 0) return;
+    var activePointerId = null;
+    el.addEventListener('pointerdown', function(e){
+      if(!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      activePointerId = e.pointerId;
       beginLongPress(e.clientX, e.clientY);
     });
-    el.addEventListener('mousemove', function(e){
+    el.addEventListener('pointermove', function(e){
+      if(e.pointerId !== activePointerId) return;
       if(!timer) return;
       if(Math.hypot(e.clientX-startX,e.clientY-startY) > 12) cancelLongPress();
     });
-    el.addEventListener('mouseup', cancelLongPress);
-    el.addEventListener('mouseleave', cancelLongPress);
+    function finishPointer(e){
+      if(e.pointerId !== activePointerId) return;
+      activePointerId = null;
+      cancelLongPress();
+    }
+    el.addEventListener('pointerup', finishPointer);
+    el.addEventListener('pointercancel', finishPointer);
+    el.addEventListener('pointerleave', finishPointer);
 
     el.addEventListener('contextmenu', function(e){
       if(isMemberMode()) e.preventDefault();
@@ -17558,7 +17551,7 @@ body.member-mode .help-text:empty {
     try {
       var s = history.state || {};
       if (!s.busSeatBackFlowBase && s.busSeatScreen !== "member") {
-        history.replaceState(MEMBER_STATE, "", location.href);
+        history.replaceState(Object.assign({}, history.state || {}, MEMBER_STATE), "", location.href);
       }
     } catch (error) {}
   }
@@ -17584,7 +17577,7 @@ body.member-mode .help-text:empty {
     if (s.busSeatScreen === "member" || isMemberManageScreen()) {
       event.stopPropagation && event.stopPropagation();
       forceMemberInputMode();
-      try { history.replaceState(MEMBER_STATE, "", location.href); } catch (error) {}
+      try { history.replaceState(Object.assign({}, history.state || {}, MEMBER_STATE), "", location.href); } catch (error) {}
     }
   }, true);
 
@@ -17595,7 +17588,7 @@ body.member-mode .help-text:empty {
     if (manageClose) {
       setTimeout(function(){
         forceMemberInputMode();
-        try { history.replaceState(MEMBER_STATE, "", location.href); } catch (error) {}
+        try { history.replaceState(Object.assign({}, history.state || {}, MEMBER_STATE), "", location.href); } catch (error) {}
       }, 0);
     }
   }, true);
@@ -17607,7 +17600,8 @@ body.member-mode .help-text:empty {
       var result = originalSwitchMode.apply(this, arguments);
       if (nextMode === "memberManage") pushMemberManageState();
       if (nextMode === "member") {
-        try { history.replaceState(MEMBER_STATE, "", location.href); } catch (error) {}
+        try { history.replaceState(Object.assign({}, history.state || {}, MEMBER_STATE), "", location.href); } catch (error) {}
+        window.__busSeatArmSeatBackGuard?.();
       }
       return result;
     };
