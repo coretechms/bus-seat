@@ -17,7 +17,93 @@
   <link rel="icon" type="image/png" sizes="192x192" href="geomam-icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="geomam-icon-512.png" />
 <title>검암산악회</title>
-  <script id="unified-mobile-back-controller">
+
+  <!-- ==============================================================
+       GPT MAINTENANCE ZONE
+       이 파일을 수정할 때 가장 먼저 보는 영역입니다.
+
+       [권장 수정 순서]
+       1) BUS_SEAT_GPT_CONFIG : 숫자/동작 설정
+       2) BUS_SEAT_GPT_MAP    : 화면/모듈 위치 확인
+       3) 해당 id의 style/script만 수정
+       4) LATE_PATCH_ZONE에는 가능하면 새 코드를 추가하지 않음
+
+       [핵심 모듈]
+       unified-mobile-back-controller
+       bus-seat-core-style
+       bus-seat-core-app-module
+       bus-seat-membership-gate-script
+       bus-seat-member-manage-forced-render-script
+       ============================================================== -->
+  <script id="bus-seat-gpt-maintenance-config">
+    window.BUS_SEAT_GPT_CONFIG = Object.freeze({
+      version: "48.2-admin-editor-minimal",
+      mobileQuery: "(max-width: 760px), (pointer: coarse)",
+
+      back: Object.freeze({
+        dedupeMs: 650,
+        exitBlankDelayMs: 120,
+        armRetryMs: 300,
+        capacitorRetryMs: 500,
+        requiredPressCount: 3
+      }),
+
+      ui: Object.freeze({
+        mobileBreakpointPx: 760,
+        desktopBreakpointPx: 1024
+      }),
+
+      /* 관리자 메인메모/설정 편집 - 최소 개입 설정 */
+      adminEditor: Object.freeze({
+        bottomSpacePx: 110,
+        focusTopGapPx: 74,
+        focusBottomGapPx: 28,
+        focusAnchorRatio: 0.58,
+        focusDelayMs: 180
+      }),
+
+      maintenance: Object.freeze({
+        latePatchPolicy: "compatibility-only",
+        preferredEditZone: "named-module"
+      })
+    });
+
+    window.BUS_SEAT_GPT_MAP = Object.freeze({
+      screens: Object.freeze({
+        memberLogin: "#memberAuthGate",
+        memberInput: "#memberPanel",
+        adminLogin: "#adminLoginPanel",
+        admin: "#adminPanel",
+        memberManage: "#memberManagePanel",
+        loginManage: "#loginManagePanel",
+        hikingNotice: "#hikingNoticeOverlay"
+      }),
+
+      seatUi: Object.freeze({
+        board: ".board-wrap",
+        seatLayout: ".seat-layout",
+        leftGrid: "#leftGrid",
+        rightGrid: "#rightGrid",
+        controls: ".controls",
+        accountNumber: "#accountNumber"
+      }),
+
+      modules: Object.freeze({
+        back: "#unified-mobile-back-controller",
+        coreCss: "#bus-seat-core-style",
+        coreApp: "#bus-seat-core-app-module",
+        membership: "#bus-seat-membership-gate-script",
+        memberManage: "#bus-seat-member-manage-forced-render-script",
+        mainMemoKeyboard: "#main-memo-keyboard-isolation",
+        guideFormat: "#all-guide-format-toggle-final-patch"
+      })
+    });
+  </script>
+  <!-- ==================== END GPT MAINTENANCE ZONE ================= -->
+
+  
+<!-- ================= GPT SECTION: MOBILE_BACK_CONTROLLER ================= -->
+<script id="unified-mobile-back-controller">
     /* =========================================================
        통합 뒤로가기 컨트롤러
        모바일 동작 규칙
@@ -32,14 +118,19 @@
       if (window.__busSeatUnifiedBackControllerApplied) return;
       window.__busSeatUnifiedBackControllerApplied = true;
 
+      var GPT_CONFIG = window.BUS_SEAT_GPT_CONFIG || {};
+      var BACK_CONFIG = GPT_CONFIG.back || {};
+      var MOBILE_QUERY = GPT_CONFIG.mobileQuery || "(max-width: 760px), (pointer: coarse)";
+
       var backCount = 0;
       var exiting = false;
       var lastHandledAt = 0;
       var guardKey = "busSeatUnifiedBackGuard";
-      var DEDUPE_MS = 650;
+      var DEDUPE_MS = Number(BACK_CONFIG.dedupeMs || 650);
+      var REQUIRED_PRESS_COUNT = Number(BACK_CONFIG.requiredPressCount || 3);
 
       function isMobile() {
-        return window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
+        return window.matchMedia(MOBILE_QUERY).matches;
       }
 
       function loginGateVisible() {
@@ -132,7 +223,7 @@
           if (!window.closed) {
             try { location.replace("about:blank"); } catch (_) {}
           }
-        }, 120);
+        }, Number(BACK_CONFIG.exitBlankDelayMs || 120));
       }
 
       function handleMobileBack(event, historyAlreadyPopped) {
@@ -169,9 +260,11 @@
           return;
         }
 
-        // 세 번째부터는 종료 확인 후 카운터를 다시 시작한다.
-        backCount = 3;
-        closeApplication();
+        // 설정된 횟수부터 종료 확인
+        if (backCount >= REQUIRED_PRESS_COUNT) {
+          backCount = REQUIRED_PRESS_COUNT;
+          closeApplication();
+        }
       }
 
       function handleDesktopBack(event) {
@@ -207,8 +300,8 @@
       function initBackController() {
         armBackGuard();
         bindCapacitorBack();
-        window.setTimeout(armBackGuard, 300);
-        window.setTimeout(bindCapacitorBack, 500);
+        window.setTimeout(armBackGuard, Number(BACK_CONFIG.armRetryMs || 300));
+        window.setTimeout(bindCapacitorBack, Number(BACK_CONFIG.capacitorRetryMs || 500));
       }
 
       // 기존 코드에서 호출하는 이름과의 호환성 유지
@@ -227,7 +320,7 @@
       });
     })();
   </script>
-  <script>
+  <script id="early-session-restore-script">
     /* 새로고침 순간 회원 로그인 화면이 깜빡이지 않도록 관리자/회원관리 세션을 HTML 로딩 초기에 감지 */
     (function () {
       try {
@@ -241,7 +334,9 @@
       } catch (error) {}
     })();
   </script>
-  <style>
+  
+<!-- ================= GPT SECTION: CORE_UI_STYLE ================= -->
+<style id="bus-seat-core-style">
     :root {
       --bg: #dcdcdc;
       --panel: #e6e3c5;
@@ -3733,6 +3828,19 @@ body.member-mode .alt-arrow-cell {
 </head>
 <body class="membership-locked">
 
+<!-- ================================================================
+     GPT SCREEN MAP
+     #memberAuthGate     : 회원 로그인/인증 게이트
+     #memberPanel        : 회원 입력
+     #adminLoginPanel    : 관리자 로그인
+     #adminPanel         : 관리자
+     #memberManagePanel  : 회원관리
+     #loginManagePanel   : 로그관리
+     .board-wrap         : 좌석표 상단 UI
+     .controls           : 하단 제어/관리 UI
+     ================================================================ -->
+
+
   <div id="memberAuthGate" class="member-auth-gate" aria-label="회원 로그인">
     <div class="member-login-refresh-row">
       <button id="memberLoginRefreshBtn" type="button" aria-label="새로고침">refresh</button>
@@ -4244,10 +4352,12 @@ body.member-mode .alt-arrow-cell {
   </div>
 
   
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script id="firebase-app-compat-lib" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script id="firebase-database-compat-lib" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 
-<script type="module">
+
+<!-- ================= GPT SECTION: CORE_APP_FIREBASE ================= -->
+<script id="bus-seat-core-app-module" type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getDatabase, ref, onValue, get, set, update, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
@@ -9332,7 +9442,7 @@ function renderAll() {
 
 
 
-<script>
+<script id="seat-name-longpress-member-script">
 (function(){
   const LONG_PRESS_MS = 1300;
   const MEMBER_FIREBASE_CONFIG = {
@@ -15559,7 +15669,7 @@ if (action === "delete") {
 </script>
 
 
-<script>
+<script id="admin-entry-session-script">
 (function(){
   const MODE_KEY = "bus-seat-admin-refresh-mode-v1";
   const ENTRY_KEY = "bus-seat-admin-entry-refresh-v1";
@@ -15660,7 +15770,7 @@ if (action === "delete") {
 
 <!-- patched: join same name + same phone = existing; same name + different phone/birth/dong = new memberList row -->
 
-<script>
+<script id="admin-password-focus-cleanup-script">
 /* 요청 수정: 관리자종료 후 비밀번호 입력칸에 커서가 남지 않도록 보정 */
 (function(){
   function clearAdminPasswordFocus(){
@@ -16001,7 +16111,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 </script>
 
 
-<script>
+<script id="pwa-service-worker-registration">
   // 검암산악회 PWA 서비스워커 등록: Android 설치성/오프라인 캐시 보조
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
@@ -16011,7 +16121,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 </script>
 
 
-<script>
+<script id="logout-mode-return-script">
 /* 요청 수정: 회원 로그아웃은 로그인 화면을 반드시 다시 표시하고, 관리자종료는 관리자 진입 화면만 유지 */
 (function(){
   function forceShowMemberLoginGate(){
@@ -16307,7 +16417,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
   }, true);
 })();
 </script>
-<script src="login-links-patch.js"></script>
+<script id="login-links-external-patch" src="login-links-patch.js"></script>
 <script id="main-memo-format-selection-fix-patch-removed-note">
 /* 제거됨: main-memo-format-selection-fix-patch
    사유: 메인메모 입력 중 input 이벤트에서 innerHTML을 재정리해 Space 키 입력 시 커서가 다른 위치로 이동하는 원인이 됨.
@@ -16315,7 +16425,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 </script>
 
 
-<script>
+<script id="admin-settings-toggle-script">
 /* ===== 관리자 기본화면 설정 버튼 패치 =====
    기본: 캡처 / 관리자종료 / 상태저장 / 완납선택 / 안내문구 / 메인메모만 표시
    설정: 나머지 관리자 메뉴 펼침 */
@@ -16863,6 +16973,8 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
 <!-- ===== 전체 편집 버튼 토글 패치: 굵게/색상/깜빡임 적용-해제 ===== -->
 
+
+<!-- ================= GPT SECTION: MAIN_MEMO_KEYBOARD ================= -->
 <script id="main-memo-keyboard-isolation">
 (function () {
   function attach() {
@@ -16880,6 +16992,8 @@ body.admin-mode:not(.member-manage-mode) .controls {
 })();
 </script>
 
+
+<!-- ================= GPT SECTION: GUIDE_TEXT_FORMATTING ================= -->
 <script id="all-guide-format-toggle-final-patch">
 (function(){
   if (window.__allGuideFormatToggleFinalPatchApplied) return;
@@ -17287,7 +17401,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
     pointer-events: none;
   }
 </style>
-<script>
+<script id="account-number-longpress-copy-script">
 (function(){
   'use strict';
   var LONG_PRESS_MS = 800;
@@ -17464,9 +17578,13 @@ body.member-mode .help-text:empty {
     color: #e9e5d8 !important;
   }
 </style>
-</body>
-</html>
 
+<!-- ================================================================
+     GPT SECTION: LATE_PATCH_ZONE
+     목적: 과거 버전에서 </html> 뒤에 추가되었던 후속 패치 모음
+     규칙: 새 기능은 가능한 한 기존 named module에 직접 반영합니다.
+           이 구역은 호환성 유지 패치에만 사용합니다.
+     ================================================================ -->
 <!-- ===== 패치: 좌석 이름 ↔ 회원관리 이름/닉네임 비교 후 미가입 좌석 이름 파랑 표시 / 깜빡임 OFF ===== -->
 <style id="seat-unregistered-member-blink-patch-style">
   .seat-name.seat-unregistered-member-blink {
@@ -18404,19 +18522,21 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 }
 </style>
 
+
+<!-- ================= GPT SECTION: MOBILE_ADMIN_EDITOR_LAYOUT ================= -->
 <style id="mobile-admin-editor-fullscreen-v471">
 /* 모바일 관리자에서 메인메모/설정 편집 시 좌석판을 숨기고 하단 편집 UI에 화면을 배정한다. */
 @media (max-width: 760px), (pointer: coarse) {
   body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .app {
     padding: 0 !important;
-    height: 100dvh !important;
-    min-height: 100dvh !important;
+    height: var(--admin-editor-vh, 100dvh) !important;
+    min-height: var(--admin-editor-vh, 100dvh) !important;
   }
   body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .shell {
     width: 100vw !important;
     max-width: none !important;
-    height: 100dvh !important;
-    max-height: 100dvh !important;
+    height: var(--admin-editor-vh, 100dvh) !important;
+    max-height: var(--admin-editor-vh, 100dvh) !important;
     gap: 0 !important;
   }
   body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .board-wrap {
@@ -18425,12 +18545,15 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .controls {
     margin-top: 0 !important;
     flex: 1 1 auto !important;
-    height: 100dvh !important;
+    height: var(--admin-editor-vh, 100dvh) !important;
     min-height: 0 !important;
-    max-height: 100dvh !important;
+    max-height: var(--admin-editor-vh, 100dvh) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    padding: 4px 5px max(10px, env(safe-area-inset-bottom)) !important;
+    padding: 4px 5px max(var(--admin-editor-bottom-space, 110px), env(safe-area-inset-bottom)) !important;
+    scroll-padding-top: 78px !important;
+    scroll-padding-bottom: var(--admin-editor-bottom-space, 110px) !important;
+    overscroll-behavior-y: contain !important;
     -webkit-overflow-scrolling: touch !important;
     touch-action: pan-y !important;
   }
@@ -18458,9 +18581,176 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     left: auto !important;
     transform: none !important;
     width: 100% !important;
-    min-height: max(260px, calc(100dvh - 230px)) !important;
-    max-height: none !important;
+    min-height: 260px !important;
+    height: auto !important;
+    max-height: max(280px, calc(var(--admin-editor-vh, 100dvh) - 190px)) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    touch-action: pan-y !important;
     resize: none !important;
+  }
+
+  body.admin-mode.admin-settings-open #adminSettingsPanel {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-bottom: var(--admin-editor-bottom-space, 110px) !important;
+    touch-action: pan-y !important;
+  }
+
+  body.admin-mode.admin-main-memo-open #adminMainMemoPanel {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-bottom: 48px !important;
   }
 }
 </style>
+<!-- ======================= END LATE_PATCH_ZONE ==================== -->
+
+
+
+
+<script id="admin-editor-minimal-viewport-v482">
+(function () {
+  "use strict";
+  if (window.__adminEditorMinimalViewportV482) return;
+  window.__adminEditorMinimalViewportV482 = true;
+
+  var cfg = (window.BUS_SEAT_GPT_CONFIG && window.BUS_SEAT_GPT_CONFIG.adminEditor) || {};
+  var mobileQuery = (window.BUS_SEAT_GPT_CONFIG && window.BUS_SEAT_GPT_CONFIG.mobileQuery) ||
+    "(max-width: 760px), (pointer: coarse)";
+
+  function isMobile() {
+    return window.matchMedia(mobileQuery).matches;
+  }
+
+  function editorOpen() {
+    if (!document.body || !isMobile()) return false;
+    if (!document.body.classList.contains("admin-mode")) return false;
+    if (document.body.classList.contains("member-manage-mode")) return false;
+    return document.body.classList.contains("admin-main-memo-open") ||
+           document.body.classList.contains("admin-settings-open");
+  }
+
+  function updateVisibleHeight() {
+    if (!document.documentElement) return;
+    var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    if (!Number.isFinite(h) || h < 200) return;
+    document.documentElement.style.setProperty("--admin-editor-vh", Math.round(h) + "px");
+    document.documentElement.style.setProperty(
+      "--admin-editor-bottom-space",
+      Number(cfg.bottomSpacePx || 110) + "px"
+    );
+  }
+
+  function isEditorTarget(el) {
+    if (!el || !el.matches || !editorOpen()) return false;
+    if (!el.closest("#adminSettingsPanel, #adminMainMemoPanel")) return false;
+    return el.matches(
+      'input:not([disabled]):not([readonly]),' +
+      'textarea:not([disabled]):not([readonly]),' +
+      'select:not([disabled]),' +
+      '[contenteditable="true"]'
+    );
+  }
+
+  function revealTarget(el) {
+    if (!el || !document.contains(el) || !editorOpen()) return;
+
+    var controls = el.closest(".controls") || document.querySelector("body.admin-mode .controls");
+    if (!controls) return;
+
+    var cr = controls.getBoundingClientRect();
+    var er = el.getBoundingClientRect();
+
+    var safeTop = cr.top + Number(cfg.focusTopGapPx || 74);
+    var safeBottom = cr.bottom - Number(cfg.focusBottomGapPx || 28);
+
+    if (er.top >= safeTop && er.bottom <= safeBottom) return;
+
+    var usable = Math.max(100, safeBottom - safeTop);
+    var ratio = Math.max(0.40, Math.min(0.76, Number(cfg.focusAnchorRatio || 0.58)));
+    var targetCenter = safeTop + usable * ratio;
+    var currentCenter = er.top + er.height / 2;
+    var delta = currentCenter - targetCenter;
+
+    if (Math.abs(delta) > 12) {
+      controls.scrollBy({ top: delta, left: 0, behavior: "auto" });
+    }
+  }
+
+  document.addEventListener("focusin", function (e) {
+    if (!isEditorTarget(e.target)) return;
+    updateVisibleHeight();
+    var target = e.target;
+    window.setTimeout(function () {
+      updateVisibleHeight();
+      revealTarget(target);
+    }, Number(cfg.focusDelayMs || 180));
+  }, true);
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", updateVisibleHeight);
+  }
+  window.addEventListener("resize", updateVisibleHeight);
+  window.addEventListener("orientationchange", function () {
+    window.setTimeout(updateVisibleHeight, 250);
+  });
+  document.addEventListener("DOMContentLoaded", updateVisibleHeight);
+  window.addEventListener("pageshow", updateVisibleHeight);
+
+  window.AdminEditorViewport = Object.freeze({
+    refresh: updateVisibleHeight,
+    reveal: revealTarget
+  });
+})();
+</script>
+
+
+<script id="bus-seat-maintainer-api">
+(function () {
+  "use strict";
+
+  window.BusSeatMaintainer = Object.freeze({
+    config: window.BUS_SEAT_GPT_CONFIG,
+    map: window.BUS_SEAT_GPT_MAP,
+
+    getScreenElements: function () {
+      var screens = (window.BUS_SEAT_GPT_MAP && window.BUS_SEAT_GPT_MAP.screens) || {};
+      var result = {};
+      Object.keys(screens).forEach(function (key) {
+        result[key] = document.querySelector(screens[key]);
+      });
+      return result;
+    },
+
+    getCurrentMode: function () {
+      if (!document.body) return "loading";
+      if (document.body.classList.contains("member-manage-mode")) return "memberManage";
+      if (document.body.classList.contains("admin-mode")) return "admin";
+      if (document.body.classList.contains("member-mode")) return "member";
+      if (document.body.classList.contains("membership-locked")) return "memberLogin";
+      return "unknown";
+    },
+
+    backCount: function () {
+      try {
+        return typeof window.__busSeatUnifiedBackCount === "function"
+          ? window.__busSeatUnifiedBackCount()
+          : null;
+      } catch (_) {
+        return null;
+      }
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
