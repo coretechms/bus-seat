@@ -5601,7 +5601,7 @@ function removeGuideColorFromSelection(editor) {
         let startY = 0;
         let pointerActive = false;
         let pointerMoved = false;
-        let suppressPointerClick = false;
+        let clickEligible = true;
 
         const insideSeatEditArea = (x, y) => {
           const rect = btn.getBoundingClientRect();
@@ -5617,7 +5617,7 @@ function removeGuideColorFromSelection(editor) {
         };
 
         const beginPress = (event) => {
-          suppressPointerClick = false;
+          clickEligible = false;
           pointerActive = true;
           pointerMoved = false;
           startX = event.clientX;
@@ -5658,15 +5658,13 @@ function removeGuideColorFromSelection(editor) {
           clearPressTimer();
           if (!pointerActive) return;
           pointerActive = false;
-          // pointerup에서 이미 처리했다면 뒤이어 오는 click은 경과 시간과 관계없이 한 번 무시한다.
-          // alert 창을 오래 띄워 놓아도 같은 좌석 알림이 다시 뜨지 않는다.
-          suppressPointerClick = true;
-          if (pointerMoved || longPressTriggered || !insideSeatEditArea(event.clientX, event.clientY)) return;
-          const seat = state.seats.find((s) => s.number === Number(btn.dataset.seat));
-          handleSeatClick(seat);
+          // 선택은 뒤따르는 click에서만 한 번 처리한다.
+          // 스크롤, 길게 누르기, 좌석 가장자리 터치는 click에서도 제외한다.
+          clickEligible = !pointerMoved && !longPressTriggered &&
+            insideSeatEditArea(event.clientX, event.clientY);
         });
-        btn.addEventListener("pointercancel", () => { pointerActive = false; clearPressTimer(); });
-        btn.addEventListener("pointerleave", () => { pointerActive = false; clearPressTimer(); });
+        btn.addEventListener("pointercancel", () => { pointerActive = false; clickEligible = false; clearPressTimer(); });
+        btn.addEventListener("pointerleave", () => { pointerActive = false; clickEligible = false; clearPressTimer(); });
         btn.addEventListener("click", (event) => {
           if (longPressTriggered) {
             event.preventDefault();
@@ -5674,10 +5672,8 @@ function removeGuideColorFromSelection(editor) {
             longPressTriggered = false;
             return;
           }
-          if (event.detail !== 0 && suppressPointerClick) {
-            suppressPointerClick = false;
-            return;
-          }
+          if (event.detail !== 0 && !clickEligible) return;
+          clickEligible = false;
           const seatNo = Number(btn.dataset.seat);
           const seat = state.seats.find((s) => s.number === seatNo);
           // PointerEvent 미지원 환경과 키보드 활성화에서는 click을 사용한다.
