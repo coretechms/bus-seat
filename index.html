@@ -17642,6 +17642,18 @@ body.admin-mode:not(.admin-settings-open) #busInfoEditor > div:last-child {
   margin-top: 2px !important;
 }
 
+/* 관리자 설정 화면: 입력제한 행과 메인제목 행 사이 중복 여백 제거 */
+body.admin-mode.admin-settings-open #systemAdminGatePanel {
+  margin-top: 0 !important;
+}
+body.admin-mode.admin-settings-open #adminPanel .mode-divider {
+  margin-top: 6px !important;
+  padding-top: 0 !important;
+}
+body.admin-mode.admin-settings-open #busInfoEditor {
+  margin-top: 0 !important;
+}
+
 /* 회원관리 모드 최종 구조: 실제 HTML을 1행 버튼 묶음과 2행 검색 묶음으로 분리 */
 body.member-manage-mode #memberManagePanel .member-manage-topbar {
   display: flex !important;
