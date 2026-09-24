@@ -37,7 +37,7 @@
        ============================================================== -->
   <script id="bus-seat-gpt-maintenance-config">
     window.BUS_SEAT_GPT_CONFIG = Object.freeze({
-      version: "48.2-admin-editor-minimal",
+      version: "48.4-admin-gap-paid-alert-fix",
       mobileQuery: "(max-width: 760px), (pointer: coarse)",
 
       back: Object.freeze({
@@ -5815,13 +5815,16 @@ function removeGuideColorFromSelection(editor) {
         // 모바일 pointerup이 화면을 다시 그린 뒤 발생하는 합성 click도 새 좌석 버튼에서 차단한다.
         document.addEventListener("click", (event) => {
           if (!recentSeatTouch || event.detail === 0) return;
-          if (Date.now() - recentSeatTouch.at > 700) { recentSeatTouch = null; return; }
           const seatButton = event.target.closest?.(".seat");
+          // pointerup에서 alert()가 열린 동안 시간이 지나도 같은 물리 터치에서 생성된 click은 반드시 1회 차단한다.
           if (seatButton && Number(seatButton.dataset.seat) === recentSeatTouch.number) {
             event.preventDefault();
             event.stopImmediatePropagation();
             recentSeatTouch = null;
+            return;
           }
+          // 다른 대상의 클릭이면 오래된 가드만 정리한다.
+          if (Date.now() - recentSeatTouch.at > 2000) recentSeatTouch = null;
         }, true);
       }
       document.querySelectorAll(".seat").forEach((btn) => {
@@ -5847,6 +5850,8 @@ function removeGuideColorFromSelection(editor) {
         };
 
         const beginPress = (event) => {
+          // 새 물리 터치가 시작되면 이전 터치의 잔여 click 가드를 폐기한다.
+          recentSeatTouch = null;
           clickEligible = false;
           pointerActive = true;
           pointerMoved = false;
@@ -5895,6 +5900,8 @@ function removeGuideColorFromSelection(editor) {
           // 모바일에서는 합성 click이 없거나 pointerleave 뒤에 올 수 있으므로 터치 종료에서 연다.
           const seatNo = Number(btn.dataset.seat);
           recentSeatTouch = { number: seatNo, at: Date.now() };
+          // 터치 선택은 pointerup에서 직접 처리하므로 뒤따르는 브라우저 합성 click은 기본 동작부터 억제한다.
+          try { event.preventDefault(); } catch (_) {}
           handleSeatClick(state.seats.find((s) => s.number === seatNo));
         });
         btn.addEventListener("pointercancel", () => { pointerActive = false; clickEligible = false; clearPressTimer(); });
@@ -5904,9 +5911,9 @@ function removeGuideColorFromSelection(editor) {
         btn.addEventListener("click", (event) => {
           // 제거된 이전 버튼으로 click이 전달되는 브라우저에서도 중복 실행을 막는다.
           if (recentSeatTouch && event.detail !== 0 &&
-              Number(btn.dataset.seat) === recentSeatTouch.number &&
-              Date.now() - recentSeatTouch.at <= 700) {
+              Number(btn.dataset.seat) === recentSeatTouch.number) {
             event.preventDefault();
+            event.stopImmediatePropagation();
             recentSeatTouch = null;
             return;
           }
@@ -7828,6 +7835,17 @@ function renderAll() {
       });
     }
 
+    let memberPaidSeatNoticeGuard = { seatNo: null, until: 0 };
+
+    function showMemberPaidSeatNoticeOnce(seatNo) {
+      const now = Date.now();
+      const normalizedSeatNo = Number(seatNo);
+      if (memberPaidSeatNoticeGuard.seatNo === normalizedSeatNo && now < memberPaidSeatNoticeGuard.until) return;
+      alert("완납 처리된 좌석은 회원 모드에서 접근할 수 없습니다.");
+      // alert 확인 직후 들어오는 동일 터치의 합성 click까지 차단한다.
+      memberPaidSeatNoticeGuard = { seatNo: normalizedSeatNo, until: Date.now() + 1200 };
+    }
+
     function handleSeatClick(seat) {
       if (!seat) return;
       if (Number(state.editingSeat) === Number(seat.number) && byId("seatNameBubble")) {
@@ -7852,7 +7870,7 @@ function renderAll() {
           return;
         }
         if (seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_reserved") {
-          alert("완납 처리된 좌석은 회원 모드에서 접근할 수 없습니다.");
+          showMemberPaidSeatNoticeOnce(seat.number);
           return;
         }
         const duplicateRole = getDuplicateSeatRole(seat);
@@ -18610,7 +18628,8 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
-    padding-bottom: var(--admin-editor-bottom-space, 110px) !important;
+    /* 키보드 안전 여백은 .controls가 담당한다. 여기에도 110px을 주면 입력제한 아래에 큰 빈 공간이 생긴다. */
+    padding-bottom: 0 !important;
     touch-action: pan-y !important;
   }
 
