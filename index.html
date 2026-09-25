@@ -37,7 +37,7 @@
        ============================================================== -->
   <script id="bus-seat-gpt-maintenance-config">
     window.BUS_SEAT_GPT_CONFIG = Object.freeze({
-      version: "48.6-second-vehicle-input-control",
+      version: "48.9-three-pass-verified",
       mobileQuery: "(max-width: 760px), (pointer: coarse)",
 
       back: Object.freeze({
@@ -4600,8 +4600,14 @@ const firebaseConfig = {
       return String(vehicleId || state.activeVehicle) === "2" && !state.secondVehicleInputEnabled;
     }
 
+    let secondVehicleInputBlockedMessageLockUntil = 0;
     function showSecondVehicleInputBlockedMessage() {
+      const now = Date.now();
+      if (now < secondVehicleInputBlockedMessageLockUntil) return false;
+      // alert가 닫힌 직후 blur/자동저장 경로에서 같은 안내가 다시 호출되는 것을 막는다.
       alert("관리자 설정에 의해 현재 2호차 입력이 불가능합니다.");
+      secondVehicleInputBlockedMessageLockUntil = Date.now() + 1200;
+      return true;
     }
 
     function renderFleetControls() {
@@ -7628,7 +7634,7 @@ function renderAll() {
         const currentSeatRecord = { ...currentSeat, status: currentStatus, number: seatNo };
         const isOwnedWaitingSeat = isMemberOwnedWaitingSeatRecord(currentSeatRecord, vehicleId, seatNo);
         const isSameLoginNameSeat = isSeatNamedForCurrentMember(currentSeatRecord);
-        const isProtectedPaidSeat = ["paid", "paid_new", "paid_reserved"].includes(currentStatus);
+        const isProtectedPaidSeat = ["paid", "paid_new", "paid_new_move", "paid_reserved"].includes(currentStatus);
         // 로그인 이름과 좌석 이름이 같으면 기존 좌석의 이름 수정은 허용한다.
         // 단, 완납 좌석은 이름을 빈칸으로 만들어 삭제하는 동작은 계속 금지한다.
         if ((isProtectedPaidSeat && (!isSameLoginNameSeat || !normalizedTargetName)) ||
@@ -7719,7 +7725,7 @@ function renderAll() {
       try {
         const currentSeat = await readSeatRemote(seatNo, vehicleId);
         const currentStatus = normalizeSeatStatus(currentSeat?.status || "empty");
-        if (["paid", "paid_new", "paid_reserved"].includes(currentStatus)) {
+        if (["paid", "paid_new", "paid_new_move", "paid_reserved"].includes(currentStatus)) {
           setStatusMessage("완납 좌석은 삭제할 수 없습니다.", state.projectLabel);
           return false;
         }
@@ -7970,7 +7976,7 @@ function renderAll() {
           return;
         }
         const sameLoginNameSeat = isSeatNamedForCurrentMember(seat);
-        if ((seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_reserved") && !sameLoginNameSeat) {
+        if ((seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_new_move" || seat.status === "paid_reserved") && !sameLoginNameSeat) {
           alert("완납 처리된 다른 회원 좌석은 회원 모드에서 접근할 수 없습니다.");
           return;
         }
@@ -8169,8 +8175,14 @@ function renderAll() {
       const sourceVehicleId = duplicateDecision.type === "move"
         ? String(duplicateDecision.sourceSeat?.vehicleId || state.activeVehicle)
         : state.activeVehicle;
+      const currentSeatBeforeSave = state.seats.find((seat) => seat.number === seatNo);
+      const memberEditingOwnNamedSeat = isSeatNamedForCurrentMember(currentSeatBeforeSave);
       const finalStatus = finalName
-        ? (duplicateDecision.type === "move" ? (duplicateDecision.moveStatus || "waiting_alt") : "waiting")
+        ? (duplicateDecision.type === "move"
+            ? (duplicateDecision.moveStatus || "waiting_alt")
+            : (memberEditingOwnNamedSeat
+                ? normalizeSeatStatus(currentSeatBeforeSave?.status || "waiting")
+                : "waiting"))
         : "empty";
       applyNameAssignmentLocal(seatNo, finalName, finalStatus, { sourceSeatNo, sourceVehicleId });
       state.memberName = finalName;
@@ -18954,24 +18966,37 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     touch-action: pan-y !important;
   }
 
-  /* 상단 제목/메뉴를 항상 앞쪽에 유지 */
+  /* 메인메모에서는 캡처/메인메모/설정 메뉴를 화면 최상단에 고정한다.
+     제목 행이 함께 sticky가 되면 모바일에서 두 영역이 겹쳐 메뉴가 가려질 수 있으므로
+     메인메모 실행 중에는 제목 행을 일반 흐름으로 두고 메뉴 행만 고정한다. */
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) .card-title-row {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 100 !important;
+    position: relative !important;
+    top: auto !important;
+    z-index: 1 !important;
     background: #fff !important;
     margin-bottom: 0 !important;
   }
 
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminPanel .admin-compact-action-row {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     position: sticky !important;
-    top: 34px !important;
-    z-index: 99 !important;
+    top: 0 !important;
+    z-index: 120 !important;
     background: #fff !important;
     margin-top: 0 !important;
     padding-top: 4px !important;
     padding-bottom: 4px !important;
     box-shadow: 0 2px 4px rgba(0,0,0,.08) !important;
+  }
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminCaptureProxyBtn,
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminMainMemoBtn,
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminSettingsToggleBtn {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   /* 메모 입력칸 자체의 별도 스크롤을 없애고, 뒤쪽 전체 내용이 움직이게 함 */
