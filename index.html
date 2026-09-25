@@ -37,7 +37,7 @@
        ============================================================== -->
   <script id="bus-seat-gpt-maintenance-config">
     window.BUS_SEAT_GPT_CONFIG = Object.freeze({
-      version: "48.4-admin-gap-paid-alert-fix",
+      version: "48.6-second-vehicle-input-control",
       mobileQuery: "(max-width: 760px), (pointer: coarse)",
 
       back: Object.freeze({
@@ -1463,11 +1463,24 @@
       cursor: not-allowed;
     }
     @media (max-width:760px) {
+      /* 모바일 공지확인: 상단으로 올리고 하단 UI 경계까지 세로 확장 */
+      .hiking-notice-overlay {
+        align-items: flex-start;
+        justify-content: center;
+        padding: 6px 9px 12px;
+      }
       .hiking-notice-box {
         width: 70vw;
-        height: 70vh;
+        height: calc(100dvh - 18px);
+        max-height: none;
+        min-height: 0;
         min-width: min(300px, calc(100vw - 18px));
         padding: 10px;
+      }
+      @supports not (height: 100dvh) {
+        .hiking-notice-box {
+          height: calc(100vh - 18px);
+        }
       }
       #hikingNoticeText { font-size: 13px; padding: 10px; }
       .hiking-notice-actions { gap: 5px; }
@@ -3808,6 +3821,8 @@ body.member-mode .alt-arrow-cell {
 #titleMain {display:none !important;}
 .fleet-settings {padding:10px;border:1px solid #bdcde0;border-radius:12px;margin-top:10px;background:#f2f7fc;}
 .fleet-setting-row {display:flex;gap:8px;align-items:center;}
+    .fleet-second-input-row { margin-top: 6px; }
+
 .fleet-setting-row select {flex:1;min-width:0;}
 .fleet-setting-row button {flex:0 0 auto;white-space:nowrap;}
 .bus-type-vehicle-settings {margin-top:12px;padding:10px;border:1px solid #bdcde0;border-radius:12px;background:#f8fbff;}
@@ -3859,21 +3874,21 @@ body.member-mode .alt-arrow-cell {
       <img class="member-login-logo" src="geomam-login-logo.png" alt="검암산악회 앱 아이콘" />
 
       <h2 id="memberAuthTitle" class="member-auth-title">  </h2>
-      <div class="member-auth-row">
+      <div class="member-auth-row member-login-main-only">
         <label for="memberLoginNameInput"> </label>
         <input id="memberLoginNameInput" type="text" autocomplete="username" lang="ko" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="이  름" value="" oninput="this.value=this.value.replace(/\s+/g,'')" />
       </div>
-      <div class="member-auth-row">
+      <div class="member-auth-row member-login-main-only">
         <label for="memberLoginPasswordInput"> </label>
          <input id="memberLoginPasswordInput" type="tel" autocomplete="current-password" placeholder="비밀번호 입력" value="" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" autocapitalize="off" autocorrect="off" spellcheck="false" style="-webkit-text-security: disc; text-security: disc;">
       </div>
 
-      <div class="member-auth-actions">
+      <div class="member-auth-actions member-login-main-only">
         <button id="memberJoinOpenBtn" type="button">회원가입</button>
         <button id="memberPasswordChangeOpenBtn" type="button">비밀번호변경</button>
         <button id="memberLoginBtn" type="button">로그인</button>
       </div>
-      <button id="memberPasswordRecoveryOpenBtn" type="button">비밀번호 재설정</button>
+      <button id="memberPasswordRecoveryOpenBtn" class="member-login-main-only" type="button">비밀번호 재설정</button>
       <div id="memberPasswordRecoveryPanel" class="member-password-change-panel" hidden>
         <h3 class="member-password-panel-title">비밀번호 재설정</h3>
         <div class="member-auth-row"><label for="memberRecoveryNameInput">아이디</label><input id="memberRecoveryNameInput" type="text" placeholder="이름" autocomplete="off"></div>
@@ -4066,6 +4081,13 @@ body.member-mode .alt-arrow-cell {
                   <option value="2">1호차 + 2호차 운영</option>
                 </select>
                 <button class="btn btn-primary" id="fleetOperationSaveBtn" type="button">운영 적용</button>
+              </div>
+              <div class="fleet-setting-row fleet-second-input-row">
+                <select id="secondVehicleInputSelect" aria-label="2호차 입력 가능 여부">
+                  <option value="enabled">2호차 입력 가능</option>
+                  <option value="disabled">2호차 입력 불가능</option>
+                </select>
+                <button class="btn btn-outline" id="secondVehicleInputSaveBtn" type="button">입력 적용</button>
               </div>
             </div>
 
@@ -4482,6 +4504,7 @@ const firebaseConfig = {
       canWrite: false,
       activeVehicle: "1",
       secondVehicleEnabled: false,
+      secondVehicleInputEnabled: true,
       fleetPayload: null,
       fleetLoaded: false,
       fleetBusy: 0,
@@ -4573,6 +4596,14 @@ const firebaseConfig = {
       return { busType, named, remaining: Math.max(0, capacity - named) };
     }
 
+    function isSecondVehicleMemberInputBlocked(vehicleId = state.activeVehicle) {
+      return String(vehicleId || state.activeVehicle) === "2" && !state.secondVehicleInputEnabled;
+    }
+
+    function showSecondVehicleInputBlockedMessage() {
+      alert("관리자 설정에 의해 현재 2호차 입력이 불가능합니다.");
+    }
+
     function renderFleetControls() {
       const busy = Boolean(state.fleetBusy || state.fleetConfigBusy);
       const fleetSwitch = document.querySelector(".fleet-switch");
@@ -4595,6 +4626,15 @@ const firebaseConfig = {
       }
       const save = byId("fleetOperationSaveBtn");
       if (save) save.disabled = busy || !state.isAdminAuthenticated || !state.fleetLoaded;
+      const secondInputSelect = byId("secondVehicleInputSelect");
+      if (secondInputSelect) {
+        secondInputSelect.disabled = busy || !state.isAdminAuthenticated || !state.fleetLoaded;
+        if (document.activeElement !== secondInputSelect && !state.fleetConfigBusy) {
+          secondInputSelect.value = state.secondVehicleInputEnabled ? "enabled" : "disabled";
+        }
+      }
+      const secondInputSave = byId("secondVehicleInputSaveBtn");
+      if (secondInputSave) secondInputSave.disabled = busy || !state.isAdminAuthenticated || !state.fleetLoaded;
       const resetSelect = byId("resetVehicleSelect");
       const resetVehicle2Option = byId("resetVehicle2Option");
       if (resetVehicle2Option) resetVehicle2Option.disabled = !state.secondVehicleEnabled;
@@ -4665,6 +4705,50 @@ const firebaseConfig = {
       } finally {
         state.fleetConfigBusy = false;
         if (byId("fleetOperationSelect")) byId("fleetOperationSelect").value = state.secondVehicleEnabled ? "2" : "1";
+        renderFleetControls();
+      }
+    }
+
+    async function saveSecondVehicleInputSetting() {
+      if (!state.isAdminAuthenticated) { alert("관리자 인증 후 사용할 수 있습니다."); return; }
+      if (!state.db || !state.isFirebaseReady || !state.fleetLoaded) { alert("Firebase 연결 후 2호차 입력 설정을 변경하세요."); return; }
+      if (state.fleetBusy || state.fleetConfigBusy || state.editingSeat || byId("seatMemoOverlay")) {
+        alert("현재 좌석 입력 또는 저장을 마친 뒤 2호차 입력 설정을 변경하세요."); return;
+      }
+      const allowInput = byId("secondVehicleInputSelect")?.value !== "disabled";
+      if (allowInput === state.secondVehicleInputEnabled) {
+        flashSaveVisuals(null, "secondVehicleInputSaveBtn");
+        renderFleetControls();
+        return;
+      }
+      state.fleetConfigBusy = true;
+      renderFleetControls();
+      try {
+        await update(ref(state.db, `${ROOT_PATH}/fleet`), {
+          secondVehicleInputEnabled: allowInput,
+          updatedAt: Date.now()
+        });
+        state.secondVehicleInputEnabled = allowInput;
+        if (!allowInput && state.activeVehicle === "2" && state.mode === "member") {
+          state.editingSeat = null;
+          state.editName = "";
+          state.memberSeat = "";
+          state.memberName = "";
+        }
+        if (state.fleetPayload) {
+          state.fleetPayload.fleet = {
+            ...(state.fleetPayload.fleet || {}),
+            secondVehicleInputEnabled: allowInput
+          };
+        }
+        renderAll();
+        flashSaveVisuals(null, "secondVehicleInputSaveBtn");
+        setStatusMessage(allowInput ? "2호차 회원 입력을 가능으로 설정했습니다." : "2호차 회원 입력을 불가능으로 설정했습니다.", state.projectLabel);
+      } catch (error) {
+        console.error("2호차 입력 설정 실패", error);
+        alert("2호차 입력 설정을 저장하지 못했습니다. Firebase 저장 권한을 확인하세요.");
+      } finally {
+        state.fleetConfigBusy = false;
         renderFleetControls();
       }
     }
@@ -5687,6 +5771,13 @@ function removeGuideColorFromSelection(editor) {
       return !ownerCode && (sameInputSession || sameLoggedInName || registeredThisLogin);
     }
 
+    function isSeatNamedForCurrentMember(seat) {
+      if (!seat || !String(seat.name || "").trim()) return false;
+      const session = getCurrentMemberSession();
+      const memberName = normalizeName(session?.name || "");
+      return Boolean(memberName && normalizeName(seat.name || "") === memberName);
+    }
+
     function isOwnWaitingSeat(seat) {
       return state.mode === "member" && isMemberOwnedWaitingSeatRecord(seat, state.activeVehicle, seat?.number);
     }
@@ -5695,6 +5786,7 @@ function removeGuideColorFromSelection(editor) {
       if (isBlockedSeat(seat.number)) return true;
       if (state.mode !== "member") return false;
       if (isAdminOnlySeatForMember(seat.number)) return true;
+      if (isSeatNamedForCurrentMember(seat)) return false;
       if (seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_new_move" || seat.status === "paid_reserved") return true;
       if (!seat.name) return false;
       if (isOwnWaitingSeat(seat)) return false;
@@ -5815,16 +5907,13 @@ function removeGuideColorFromSelection(editor) {
         // 모바일 pointerup이 화면을 다시 그린 뒤 발생하는 합성 click도 새 좌석 버튼에서 차단한다.
         document.addEventListener("click", (event) => {
           if (!recentSeatTouch || event.detail === 0) return;
+          if (Date.now() - recentSeatTouch.at > 700) { recentSeatTouch = null; return; }
           const seatButton = event.target.closest?.(".seat");
-          // pointerup에서 alert()가 열린 동안 시간이 지나도 같은 물리 터치에서 생성된 click은 반드시 1회 차단한다.
           if (seatButton && Number(seatButton.dataset.seat) === recentSeatTouch.number) {
             event.preventDefault();
             event.stopImmediatePropagation();
             recentSeatTouch = null;
-            return;
           }
-          // 다른 대상의 클릭이면 오래된 가드만 정리한다.
-          if (Date.now() - recentSeatTouch.at > 2000) recentSeatTouch = null;
         }, true);
       }
       document.querySelectorAll(".seat").forEach((btn) => {
@@ -5850,8 +5939,6 @@ function removeGuideColorFromSelection(editor) {
         };
 
         const beginPress = (event) => {
-          // 새 물리 터치가 시작되면 이전 터치의 잔여 click 가드를 폐기한다.
-          recentSeatTouch = null;
           clickEligible = false;
           pointerActive = true;
           pointerMoved = false;
@@ -5900,8 +5987,6 @@ function removeGuideColorFromSelection(editor) {
           // 모바일에서는 합성 click이 없거나 pointerleave 뒤에 올 수 있으므로 터치 종료에서 연다.
           const seatNo = Number(btn.dataset.seat);
           recentSeatTouch = { number: seatNo, at: Date.now() };
-          // 터치 선택은 pointerup에서 직접 처리하므로 뒤따르는 브라우저 합성 click은 기본 동작부터 억제한다.
-          try { event.preventDefault(); } catch (_) {}
           handleSeatClick(state.seats.find((s) => s.number === seatNo));
         });
         btn.addEventListener("pointercancel", () => { pointerActive = false; clickEligible = false; clearPressTimer(); });
@@ -5911,9 +5996,9 @@ function removeGuideColorFromSelection(editor) {
         btn.addEventListener("click", (event) => {
           // 제거된 이전 버튼으로 click이 전달되는 브라우저에서도 중복 실행을 막는다.
           if (recentSeatTouch && event.detail !== 0 &&
-              Number(btn.dataset.seat) === recentSeatTouch.number) {
+              Number(btn.dataset.seat) === recentSeatTouch.number &&
+              Date.now() - recentSeatTouch.at <= 700) {
             event.preventDefault();
-            event.stopImmediatePropagation();
             recentSeatTouch = null;
             return;
           }
@@ -6229,21 +6314,22 @@ function removeGuideColorFromSelection(editor) {
       const helpText = document.querySelector(".help-text");
       if (helpText) helpText.style.display = (state.mode === "admin" || state.mode === "memberManage") ? "none" : "block";
 
-      const isMemberLocked = state.nameEntryLocked && !state.isAdminAuthenticated;
+      const isSecondVehicleInputLocked = state.mode === "member" && isSecondVehicleMemberInputBlocked();
+      const isMemberLocked = (state.nameEntryLocked || isSecondVehicleInputLocked) && !state.isAdminAuthenticated;
       if (memberName) {
         memberName.value = state.memberName;
         memberName.disabled = isMemberLocked;
-        memberName.placeholder = isMemberLocked ? "관리자가 이름 입력을 제한했습니다" : "회원 이름";
+        memberName.placeholder = isSecondVehicleInputLocked ? "현재 2호차 입력이 제한되었습니다" : (isMemberLocked ? "관리자가 이름 입력을 제한했습니다" : "회원 이름");
       }
       if (memberSaveBtn) {
         memberSaveBtn.disabled = isMemberLocked;
         memberSaveBtn.style.opacity = isMemberLocked ? "0.55" : "1";
-        memberSaveBtn.title = isMemberLocked ? "관리자가 전체 입력을 제한했습니다." : "";
+        memberSaveBtn.title = isSecondVehicleInputLocked ? "관리자가 2호차 입력을 제한했습니다." : (isMemberLocked ? "관리자가 전체 입력을 제한했습니다." : "");
       }
       if (memberCancelBtn) {
         memberCancelBtn.disabled = isMemberLocked;
         memberCancelBtn.style.opacity = isMemberLocked ? "0.55" : "1";
-        memberCancelBtn.title = isMemberLocked ? "관리자가 전체 입력을 제한했습니다." : "";
+        memberCancelBtn.title = isSecondVehicleInputLocked ? "관리자가 2호차 입력을 제한했습니다." : (isMemberLocked ? "관리자가 전체 입력을 제한했습니다." : "");
       }
       if (toggleNameEntryLockBtn) {
         toggleNameEntryLockBtn.textContent = state.nameEntryLocked ? "입력제한해제" : "입력제한설정";
@@ -7129,6 +7215,15 @@ function renderAll() {
     function applySnapshotData(payload, options = {}) {
       state.fleetPayload = payload || {};
       state.secondVehicleEnabled = payload?.fleet?.secondVehicleEnabled === true;
+      // 구버전 데이터에는 설정값이 없으므로 기존 동작 보존을 위해 기본값은 입력 가능이다.
+      state.secondVehicleInputEnabled = payload?.fleet?.secondVehicleInputEnabled !== false;
+      // 다른 기기에서 입력불가능으로 변경되면 열려 있던 2호차 회원 입력도 즉시 종료한다.
+      if (state.activeVehicle === "2" && state.mode === "member" && !state.secondVehicleInputEnabled && !state.isAdminAuthenticated) {
+        state.editingSeat = null;
+        state.editName = "";
+        state.memberSeat = "";
+        state.memberName = "";
+      }
       if (!state.fleetLoaded) {
         state.fleetLoaded = true;
         try {
@@ -7512,6 +7607,11 @@ function renderAll() {
       const vehicleId = state.activeVehicle;
       const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
+      const requestedSourceVehicleId = String(options.clearSourceVehicleId || vehicleId);
+      if (!state.isAdminAuthenticated && (isSecondVehicleMemberInputBlocked(vehicleId) || isSecondVehicleMemberInputBlocked(requestedSourceVehicleId))) {
+        showSecondVehicleInputBlockedMessage();
+        return false;
+      }
       if (isBlockedSeat(seatNo) || isAdminOnlySeatForMember(seatNo)) {
         setStatusMessage("1~3번, 사용불가 칸은 회원 입력이 불가능합니다.", state.projectLabel);
         return false;
@@ -7525,12 +7625,15 @@ function renderAll() {
         const currentSeat = await readSeatRemote(seatNo, vehicleId);
         const currentName = currentSeat?.name || "";
         const currentStatus = normalizeSeatStatus(currentSeat?.status || "empty");
-        const isOwnedWaitingSeat = isMemberOwnedWaitingSeatRecord({ ...currentSeat, status: currentStatus, number: seatNo }, vehicleId, seatNo);
+        const currentSeatRecord = { ...currentSeat, status: currentStatus, number: seatNo };
+        const isOwnedWaitingSeat = isMemberOwnedWaitingSeatRecord(currentSeatRecord, vehicleId, seatNo);
+        const isSameLoginNameSeat = isSeatNamedForCurrentMember(currentSeatRecord);
         const isProtectedPaidSeat = ["paid", "paid_new", "paid_reserved"].includes(currentStatus);
-        // 이미 이름이 있는 좌석은 본인이 입력한 입금대기 좌석만 수정/삭제할 수 있다.
-        // 따라서 본인 좌석의 오타 수정뿐 아니라 이름을 빈칸으로 만든 삭제도 허용한다.
-        if (isProtectedPaidSeat || (currentName && !isOwnedWaitingSeat)) {
-          setStatusMessage("좌석 저장 권한 또는 좌석 상태를 확인하세요.", state.projectLabel);
+        // 로그인 이름과 좌석 이름이 같으면 기존 좌석의 이름 수정은 허용한다.
+        // 단, 완납 좌석은 이름을 빈칸으로 만들어 삭제하는 동작은 계속 금지한다.
+        if ((isProtectedPaidSeat && (!isSameLoginNameSeat || !normalizedTargetName)) ||
+            (currentName && !isOwnedWaitingSeat && !isSameLoginNameSeat)) {
+          setStatusMessage("본인 이름의 좌석만 수정할 수 있습니다.", state.projectLabel);
           return false;
         }
 
@@ -7609,6 +7712,10 @@ function renderAll() {
       const vehicleId = state.activeVehicle;
       const vehiclePath = getVehiclePath(vehicleId);
       if (!state.db) return false;
+      if (!state.isAdminAuthenticated && isSecondVehicleMemberInputBlocked(vehicleId)) {
+        showSecondVehicleInputBlockedMessage();
+        return false;
+      }
       try {
         const currentSeat = await readSeatRemote(seatNo, vehicleId);
         const currentStatus = normalizeSeatStatus(currentSeat?.status || "empty");
@@ -7835,17 +7942,6 @@ function renderAll() {
       });
     }
 
-    let memberPaidSeatNoticeGuard = { seatNo: null, until: 0 };
-
-    function showMemberPaidSeatNoticeOnce(seatNo) {
-      const now = Date.now();
-      const normalizedSeatNo = Number(seatNo);
-      if (memberPaidSeatNoticeGuard.seatNo === normalizedSeatNo && now < memberPaidSeatNoticeGuard.until) return;
-      alert("완납 처리된 좌석은 회원 모드에서 접근할 수 없습니다.");
-      // alert 확인 직후 들어오는 동일 터치의 합성 click까지 차단한다.
-      memberPaidSeatNoticeGuard = { seatNo: normalizedSeatNo, until: Date.now() + 1200 };
-    }
-
     function handleSeatClick(seat) {
       if (!seat) return;
       if (Number(state.editingSeat) === Number(seat.number) && byId("seatNameBubble")) {
@@ -7865,16 +7961,21 @@ function renderAll() {
       window.__busSeatResetSeatBackCount?.();
       if (isBlockedSeat(seat.number) || (state.mode === "member" && isAdminOnlySeatForMember(seat.number))) return;
       if (state.mode === "member") {
+        if (isSecondVehicleMemberInputBlocked()) {
+          showSecondVehicleInputBlockedMessage();
+          return;
+        }
         if (state.nameEntryLocked) {
           alert("현재 전체 입력이 제한되어 있습니다.");
           return;
         }
-        if (seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_reserved") {
-          showMemberPaidSeatNoticeOnce(seat.number);
+        const sameLoginNameSeat = isSeatNamedForCurrentMember(seat);
+        if ((seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_reserved") && !sameLoginNameSeat) {
+          alert("완납 처리된 다른 회원 좌석은 회원 모드에서 접근할 수 없습니다.");
           return;
         }
         const duplicateRole = getDuplicateSeatRole(seat);
-        if (seat.name && duplicateRole === "normal" && !isOwnWaitingSeat(seat)) return;
+        if (seat.name && duplicateRole === "normal" && !isOwnWaitingSeat(seat) && !sameLoginNameSeat) return;
         state.memberSeat = String(seat.number);
         state.memberName = seat.name || "";
         state.editingSeat = seat.number;
@@ -7924,6 +8025,13 @@ function renderAll() {
       try {
       if (state.pendingCancelSeat && Number(state.pendingCancelSeat) === Number(seatNumber)) return;
       if (isBlockedSeat(seatNumber)) return;
+      if (state.mode === "member" && isSecondVehicleMemberInputBlocked() && !state.isAdminAuthenticated) {
+        showSecondVehicleInputBlockedMessage();
+        state.editingSeat = null;
+        state.editName = "";
+        renderAll();
+        return;
+      }
       if (state.mode === "member" && state.nameEntryLocked && !state.isAdminAuthenticated) {
         alert("현재 전체 입력이 제한되어 있습니다.");
         state.editingSeat = null;
@@ -7941,6 +8049,7 @@ function renderAll() {
       const prevSeat = state.seats.find((s) => s.number === Number(seatNumber));
       const prevName = prevSeat?.name || "";
       const prevStatus = prevSeat?.status || "empty";
+      const memberEditingOwnNamedSeat = state.mode === "member" && isSeatNamedForCurrentMember(prevSeat);
       // 관리자 말풍선에서 이름을 수정하지 않았다면 좌석을 다시 저장하지 않는다.
       // 자동 blur 저장이 완납 상태를 과거 값으로 덮어쓰는 일을 방지한다.
       if (state.mode === "admin" && normalizeName(name) === normalizeName(prevName)) {
@@ -7952,7 +8061,11 @@ function renderAll() {
       }
       const prevSeats = state.seats.map((seat) => ({ ...seat }));
       let finalName = name;
-      let finalStatus = name ? (state.mode === "member" ? "waiting" : normalizeSeatStatus(prevStatus === "empty" ? "reserved" : prevStatus)) : "empty";
+      let finalStatus = name
+        ? (state.mode === "member"
+            ? (memberEditingOwnNamedSeat ? normalizeSeatStatus(prevStatus || "waiting") : "waiting")
+            : normalizeSeatStatus(prevStatus === "empty" ? "reserved" : prevStatus))
+        : "empty";
       let sourceSeatNo = null;
       let sourceVehicleId = state.activeVehicle;
 
@@ -7970,7 +8083,7 @@ function renderAll() {
           sourceSeatNo = duplicateDecision.sourceSeat?.number || null;
           sourceVehicleId = String(duplicateDecision.sourceSeat?.vehicleId || state.activeVehicle);
           finalStatus = duplicateDecision.moveStatus || "waiting_alt";
-        } else {
+        } else if (!memberEditingOwnNamedSeat) {
           finalStatus = "waiting";
         }
       }
@@ -8023,6 +8136,10 @@ function renderAll() {
     }
 
     async function handleMemberSave() {
+      if (isSecondVehicleMemberInputBlocked() && !state.isAdminAuthenticated) {
+        showSecondVehicleInputBlockedMessage();
+        return;
+      }
       if (state.nameEntryLocked && !state.isAdminAuthenticated) {
         alert("현재 전체 입력이 제한되어 있습니다.");
         return;
@@ -8080,6 +8197,10 @@ function renderAll() {
     }
 
     async function executeMemberCancel() {
+      if (isSecondVehicleMemberInputBlocked() && !state.isAdminAuthenticated) {
+        showSecondVehicleInputBlockedMessage();
+        return;
+      }
       if (state.nameEntryLocked && !state.isAdminAuthenticated) {
         alert("현재 전체 입력이 제한되어 있습니다.");
         state.pendingCancelSeat = null;
@@ -9047,6 +9168,7 @@ function renderAll() {
       byId("fleetBus1Btn")?.addEventListener("click", () => switchVehicle("1"));
       byId("fleetBus2Btn")?.addEventListener("click", () => switchVehicle("2"));
       byId("fleetOperationSaveBtn")?.addEventListener("click", saveFleetOperation);
+      byId("secondVehicleInputSaveBtn")?.addEventListener("click", saveSecondVehicleInputSetting);
       // A vehicle click must not blur/auto-save an unfinished seat into another vehicle.
       ["fleetBus1Btn", "fleetBus2Btn", "fleetOperationSaveBtn"].forEach((id) => {
         byId(id)?.addEventListener("pointerdown", (event) => event.preventDefault());
@@ -12039,6 +12161,7 @@ function renderAll() {
       }
 
       byId("memberChangeOldPasswordInput").value = "";
+      setMemberChangeOldPasswordReveal(false);
       byId("memberChangeNewPasswordInput").value = "";
       byId("memberChangeConfirmPasswordInput").value = "";
       byId("memberPasswordChangePanel")?.classList.remove("is-open");
@@ -12105,6 +12228,7 @@ function renderAll() {
       byId("memberPasswordChangePanel")?.classList.add("is-open");
       setMemberAuthViewMode("change");
       byId("memberChangeNameInput").value = name;
+      setMemberChangeOldPasswordReveal(true);
       byId("memberChangeOldPasswordInput").value = temporaryPassword;
       byId("memberChangeNewPasswordInput").value = "";
       byId("memberChangeConfirmPasswordInput").value = "";
@@ -12863,6 +12987,23 @@ if (action === "delete") {
   }
 
 
+  // 비밀번호 재설정으로 발급된 임시비밀번호만 기존비밀번호 칸에 평문 표시한다.
+  // 일반 비밀번호 변경 화면에서는 기존비밀번호를 다시 가림 처리한다.
+  function setMemberChangeOldPasswordReveal(reveal) {
+    const input = byId("memberChangeOldPasswordInput");
+    if (!input) return;
+    input.type = reveal ? "text" : "password";
+    if (reveal) {
+      input.style.webkitTextSecurity = "none";
+      input.style.textSecurity = "none";
+      input.setAttribute("data-temporary-password-visible", "1");
+    } else {
+      input.style.removeProperty("-webkit-text-security");
+      input.style.removeProperty("text-security");
+      input.removeAttribute("data-temporary-password-visible");
+    }
+  }
+
   function clearMemberJoinInputs() {
     [
       "memberJoinNameInput",
@@ -12946,6 +13087,7 @@ if (action === "delete") {
     byId("memberRecoverySubmitBtn")?.addEventListener("click", recoverMemberPassword);
     byId("memberPasswordChangeOpenBtn")?.addEventListener("click", () => {
       clearMemberAuthTypingInputsOnScreenSwitch();
+      setMemberChangeOldPasswordReveal(false);
       byId("memberSignupPanel")?.classList.remove("is-open");
       byId("memberPasswordChangePanel")?.classList.add("is-open");
       setMemberAuthViewMode("change");
@@ -12954,6 +13096,7 @@ if (action === "delete") {
 
     byId("memberPasswordChangeCloseBtn")?.addEventListener("click", () => {
       clearMemberAuthTypingInputsOnScreenSwitch();
+      setMemberChangeOldPasswordReveal(false);
       byId("memberPasswordChangePanel")?.classList.remove("is-open");
       byId("memberPasswordRecoveryPanel")?.classList.remove("is-open");
       byId("memberPasswordRecoveryPanel").hidden = true;
@@ -18319,6 +18462,20 @@ body.member-mode #boardImageModeBtn {
 #memberPasswordRecoveryPanel[hidden] { display:none !important; }
 </style>
 
+<style id="member-password-reset-change-flow-fix">
+/* 재설정/비밀번호 변경 화면에서는 최상단 로그인 입력/버튼 메뉴를 표시하지 않음 */
+.member-auth-box.change-open > .member-login-main-only {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* 재설정 완료 후 기존비밀번호 칸의 임시비밀번호는 가림 없이 표시 */
+#memberChangeOldPasswordInput[data-temporary-password-visible="1"] {
+  -webkit-text-security: none !important;
+  text-security: none !important;
+}
+</style>
+
 <style id="admin-match-member-ui-size-until-settings-open">
 /* 관리자 모드에 들어오기만 했을 때는 회원 입력 모드의 상/하 UI 크기를 그대로 유지 */
 body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-main-memo-open) .app {
@@ -18628,8 +18785,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
-    /* 키보드 안전 여백은 .controls가 담당한다. 여기에도 110px을 주면 입력제한 아래에 큰 빈 공간이 생긴다. */
-    padding-bottom: 0 !important;
+    padding-bottom: var(--admin-editor-bottom-space, 110px) !important;
     touch-action: pan-y !important;
   }
 
@@ -18783,5 +18939,86 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 })();
 </script>
 
+
+
+<!-- ===== GPT PATCH: 모바일 메인메모 상단 메뉴 고정 / 설정과 동일한 외부 스크롤 ===== -->
+<style id="mobile-main-memo-sticky-header-scroll-v487">
+@media (max-width: 760px), (pointer: coarse) {
+  /* 메인메모 실행 시 설정 화면과 동일하게 controls 자체만 세로 스크롤 */
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) .controls {
+    position: relative !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    touch-action: pan-y !important;
+  }
+
+  /* 상단 제목/메뉴를 항상 앞쪽에 유지 */
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) .card-title-row {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background: #fff !important;
+    margin-bottom: 0 !important;
+  }
+
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminPanel .admin-compact-action-row {
+    position: sticky !important;
+    top: 34px !important;
+    z-index: 99 !important;
+    background: #fff !important;
+    margin-top: 0 !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,.08) !important;
+  }
+
+  /* 메모 입력칸 자체의 별도 스크롤을 없애고, 뒤쪽 전체 내용이 움직이게 함 */
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #mainMemoText {
+    height: auto !important;
+    min-height: max(300px, calc(var(--admin-editor-vh, 100dvh) - 190px)) !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+    touch-action: auto !important;
+  }
+
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminMainMemoPanel,
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #busInfoEditor {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+}
+</style>
+<script id="mobile-main-memo-sticky-header-scroll-script-v487">
+(function(){
+  'use strict';
+  if (window.__mobileMainMemoStickyHeaderV487) return;
+  window.__mobileMainMemoStickyHeaderV487 = true;
+
+  function isMobile(){
+    return window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
+  }
+
+  function alignMemoScrollTop(){
+    if (!isMobile() || !document.body.classList.contains('admin-main-memo-open')) return;
+    var controls = document.querySelector('.controls');
+    if (controls) controls.scrollTop = 0;
+  }
+
+  var btn = document.getElementById('adminMainMemoBtn');
+  if (btn) {
+    btn.addEventListener('click', function(){
+      window.setTimeout(alignMemoScrollTop, 0);
+      window.setTimeout(alignMemoScrollTop, 120);
+    }, false);
+  }
+
+  window.addEventListener('orientationchange', function(){
+    window.setTimeout(alignMemoScrollTop, 220);
+  });
+})();
+</script>
 </body>
 </html>
