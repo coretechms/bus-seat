@@ -4083,9 +4083,9 @@ body.member-mode .alt-arrow-cell {
                 <button class="btn btn-primary" id="fleetOperationSaveBtn" type="button">운영 적용</button>
               </div>
               <div class="fleet-setting-row fleet-second-input-row">
-                <select id="secondVehicleInputSelect" aria-label="2호차 입력 가능 여부">
-                  <option value="enabled">2호차 입력 가능</option>
-                  <option value="disabled">2호차 입력 불가능</option>
+                <select id="secondVehicleInputSelect" aria-label="2호차 입력 설정">
+                  <option value="enabled">입력 가능</option>
+                  <option value="disabled">입력 제한</option>
                 </select>
                 <button class="btn btn-outline" id="secondVehicleInputSaveBtn" type="button">입력 적용</button>
               </div>
@@ -4607,6 +4607,16 @@ const firebaseConfig = {
       // alert가 닫힌 직후 blur/자동저장 경로에서 같은 안내가 다시 호출되는 것을 막는다.
       alert("관리자 설정에 의해 현재 2호차 입력이 불가능합니다.");
       secondVehicleInputBlockedMessageLockUntil = Date.now() + 1200;
+      return true;
+    }
+
+    let protectedPaidSeatMessageLockUntil = 0;
+    function showProtectedPaidSeatMessage() {
+      const now = Date.now();
+      if (now < protectedPaidSeatMessageLockUntil) return false;
+      // 모바일에서 한 번의 터치가 touch/click으로 연속 전달되어 같은 안내가 두 번 뜨는 것을 방지한다.
+      alert("완납 처리된 다른 회원 좌석은 회원 모드에서 접근할 수 없습니다.");
+      protectedPaidSeatMessageLockUntil = Date.now() + 1200;
       return true;
     }
 
@@ -7977,7 +7987,7 @@ function renderAll() {
         }
         const sameLoginNameSeat = isSeatNamedForCurrentMember(seat);
         if ((seat.status === "paid" || seat.status === "paid_new" || seat.status === "paid_new_move" || seat.status === "paid_reserved") && !sameLoginNameSeat) {
-          alert("완납 처리된 다른 회원 좌석은 회원 모드에서 접근할 수 없습니다.");
+          showProtectedPaidSeatMessage();
           return;
         }
         const duplicateRole = getDuplicateSeatRole(seat);
@@ -12195,64 +12205,196 @@ function renderAll() {
   async function recoverMemberPassword() {
     const btn = byId("memberRecoverySubmitBtn");
     if (btn?.disabled) return;
+
     const name = normalizeName(byId("memberRecoveryNameInput")?.value);
     const birth = normalizeBirthYear(byId("memberRecoveryBirthInput")?.value);
     const phone = normalizePhone(byId("memberRecoveryPhoneInput")?.value);
     const fail = (message) => setAuthMessage(message || "회원정보가 일치하지 않습니다.");
+
     if (!/^[가-힣]{2,}$/.test(name) || birth.length !== 6 || !isValidKoreanMobileDigits(phone)) {
       fail("이름, 생년월일 6자리, 휴대전화 전체 번호를 정확히 입력하세요.");
       return;
     }
+
+    const memberBirth6 = (member) => {
+      const raw = member?.raw && typeof member.raw === "object" ? member.raw : {};
+      const values = [
+        member?.birthDate, member?.rrn, member?.birth, member?.birthInput, member?.birthYear, member?.year,
+        raw.birthDate, raw.rrn, raw.birth, raw.birthInput, raw.birthYear, raw.year
+      ];
+      for (const value of values) {
+        const digits = normalizeBirthYear(value);
+        if (digits.length === 6) return digits;
+      }
+      return "";
+    };
+
+    const memberPhoneDigits = (member) => {
+      const raw = member?.raw && typeof member.raw === "object" ? member.raw : {};
+      const values = [
+        member?.phoneDigits, member?.phone, member?.tel, member?.contact, member?.phoneNumber,
+        raw.phoneDigits, raw.phone, raw.tel, raw.contact, raw.phoneNumber
+      ];
+      for (const value of values) {
+        const digits = normalizePhone(value);
+        if (digits) return digits;
+      }
+      return "";
+    };
+
+    const cleanMemberForSecureStore = (member) => {
+      const source = member && typeof member === "object" ? member : {};
+      const raw = source.raw && typeof source.raw === "object" ? source.raw : {};
+      const merged = { ...raw, ...source };
+      const clean = {};
+      Object.entries(merged).forEach(([key, value]) => {
+        if (key === "raw" || key.startsWith("__") || typeof value === "function" || typeof value === "undefined") return;
+        clean[key] = value;
+      });
+      return clean;
+    };
+
     if (btn) btn.disabled = true;
     try {
       setAuthMessage("회원정보를 확인하고 있습니다...");
-      const candidates = (await findMembersByName(name)).filter(m => {
-        const savedBirth = normalizeBirthYear(m.birthDate || m.rrn || m.birth || m.birthInput || "");
-        const savedPhone = normalizePhone(m.phoneDigits || m.phone || m.tel || "");
-        return memberNameMatches(m, name) && savedBirth.length === 6 && savedBirth === birth && savedPhone === phone && isMemberAllowedToLogin(m);
+
+      const foundMembers = await findMembersByName(name);
+      const candidates = foundMembers.filter((member) => {
+        return memberNameMatches(member, name) &&
+          memberBirth6(member) === birth &&
+          memberPhoneDigits(member) === phone &&
+          isMemberAllowedToLogin(member);
       });
-      const byCode = new Map(candidates.map(m => [String(m.code || ""), m]));
-      byCode.delete("");
-      if (byCode.size !== 1) { fail(byCode.size ? "일치하는 회원이 여러 명입니다. 관리자에게 문의하세요." : "회원정보가 일치하지 않습니다."); return; }
+
+      // 같은 회원이 여러 호환 DB 경로에서 검색되어도 회원코드 기준으로 한 명으로 병합한다.
+      const byCode = new Map();
+      candidates.forEach((member) => {
+        const code = String(member?.code || member?.memberCode || member?.joinCode || member?.id || "").trim();
+        if (!code) return;
+        const previous = byCode.get(code) || {};
+        byCode.set(code, mergeMemberCandidateForLogin(previous, { ...member, code }));
+      });
+
+      if (byCode.size !== 1) {
+        fail(byCode.size
+          ? "일치하는 회원이 여러 명입니다. 관리자에게 문의하세요."
+          : "회원정보가 일치하지 않습니다.");
+        return;
+      }
+
       const member = [...byCode.values()][0];
-      const code = String(member.code);
+      const code = String(member.code || "").trim();
+      if (!code) {
+        fail("회원코드를 확인하지 못했습니다. 관리자에게 문의하세요.");
+        return;
+      }
+
       const nameKey = makeNameKey(name);
-      const bytes = new Uint32Array(1);
-      crypto.getRandomValues(bytes);
-      const temporaryPassword = String(bytes[0] % 10000).padStart(4, "0");
+      let randomNumber = 0;
+      if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === "function") {
+        const bytes = new Uint32Array(1);
+        globalThis.crypto.getRandomValues(bytes);
+        randomNumber = bytes[0];
+      } else {
+        randomNumber = Math.floor(Math.random() * 0xFFFFFFFF);
+      }
+      const temporaryPassword = String(randomNumber % 10000).padStart(4, "0");
       const passwordHash = await sha256Hex(temporaryPassword);
       const now = Date.now();
-      const record = makeMemberLoginIndexRecord({ ...member, name, code, passwordHash, passwordChangedAt: now });
+
+      // memberList/joinCodes에만 있던 회원도 재설정 직후 정상 로그인/비밀번호변경이 되도록
+      // membershipSecure/members에 비밀번호만이 아니라 완전한 회원 레코드를 함께 보존한다.
+      const secureMember = {
+        ...cleanMemberForSecureStore(member),
+        code,
+        name,
+        nameKey,
+        birthDate: memberBirth6(member) || birth,
+        rrn: memberBirth6(member) || birth,
+        phone: member.phone || formatPhone344(phone),
+        phoneDigits: phone,
+        phoneLast4: phone.slice(-4),
+        passwordHash,
+        approved: member.approved !== false,
+        status: String(member.status || "active"),
+        role: String(member.role || (member.adminAccess ? "admin" : "member")),
+        adminAccess: !!member.adminAccess,
+        passwordChangedAt: now,
+        passwordResetAt: now,
+        updatedAt: now
+      };
+
+      const record = makeMemberLoginIndexRecord(secureMember);
       const updates = {
-        [`${MEMBERS_ROOT}/members/${code}/passwordHash`]: passwordHash,
-        [`${MEMBERS_ROOT}/members/${code}/passwordChangedAt`]: now,
-        [`${MEMBERS_ROOT}/members/${code}/updatedAt`]: now,
+        [`${MEMBERS_ROOT}/members/${code}`]: secureMember,
         [`${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${code}`]: record,
         [`${MEMBERS_ROOT}/nameIndex/${nameKey}/${code}`]: true
       };
+
+      setAuthMessage("임시 비밀번호를 발급하고 있습니다...");
       await update(ref(membershipDb), updates);
-      const check = await get(ref(membershipDb, `${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${code}/passwordHash`));
-      if (String(check.val() || "") !== passwordHash) throw new Error("저장 확인 실패");
+
+      const [loginCheck, memberCheck] = await Promise.all([
+        get(ref(membershipDb, `${MEMBER_LOGIN_INDEX_PATH}/${nameKey}/${code}/passwordHash`)),
+        get(ref(membershipDb, `${MEMBERS_ROOT}/members/${code}/passwordHash`))
+      ]);
+      if (String(loginCheck.val() || "") !== passwordHash || String(memberCheck.val() || "") !== passwordHash) {
+        throw new Error("비밀번호 저장 확인 실패");
+      }
+
+      // 실제 회원 검색에서도 새 임시비밀번호가 즉시 검증되는지 확인한다.
+      const verifyMembers = await findMembersByName(name);
+      const verified = verifyMembers.some((item) =>
+        String(item?.code || "").trim() === code && memberPasswordMatches(item, temporaryPassword, passwordHash)
+      );
+      if (!verified) throw new Error("임시 비밀번호 로그인 검증 실패");
+
       byId("memberPasswordRecoveryPanel")?.classList.remove("is-open");
-      byId("memberPasswordRecoveryPanel").hidden = true;
+      const recoveryPanel = byId("memberPasswordRecoveryPanel");
+      if (recoveryPanel) recoveryPanel.hidden = true;
       byId("memberAuthGate")?.classList.remove("recovery-open");
       byId("memberSignupPanel")?.classList.remove("is-open");
       byId("memberPasswordChangePanel")?.classList.add("is-open");
       setMemberAuthViewMode("change");
-      byId("memberChangeNameInput").value = name;
+
+      const changeName = byId("memberChangeNameInput");
+      const changeOld = byId("memberChangeOldPasswordInput");
+      const changeNew = byId("memberChangeNewPasswordInput");
+      const changeConfirm = byId("memberChangeConfirmPasswordInput");
+      const loginName = byId("memberLoginNameInput");
+      const loginPassword = byId("memberLoginPasswordInput");
+
+      if (changeName) changeName.value = name;
       setMemberChangeOldPasswordReveal(true);
-      byId("memberChangeOldPasswordInput").value = temporaryPassword;
-      byId("memberChangeNewPasswordInput").value = "";
-      byId("memberChangeConfirmPasswordInput").value = "";
-      byId("memberLoginNameInput").value = name;
-      byId("memberLoginPasswordInput").value = "";
-      ["memberRecoveryNameInput","memberRecoveryBirthInput","memberRecoveryPhoneInput"].forEach(id => { byId(id).value = ""; });
+      if (changeOld) changeOld.value = temporaryPassword;
+      if (changeNew) changeNew.value = "";
+      if (changeConfirm) changeConfirm.value = "";
+      if (loginName) loginName.value = name;
+      if (loginPassword) loginPassword.value = "";
+
+      ["memberRecoveryNameInput", "memberRecoveryBirthInput", "memberRecoveryPhoneInput"].forEach((id) => {
+        const input = byId(id);
+        if (input) input.value = "";
+      });
+
       setAuthMessage("기존 비밀번호 칸에 임시 비밀번호가 입력되었습니다. 새 비밀번호를 설정하세요.", true);
-      byId("memberChangeNewPasswordInput")?.focus();
+      if (changeNew) {
+        window.setTimeout(() => {
+          try { changeNew.focus({ preventScroll: true }); }
+          catch (_) { changeNew.focus(); }
+        }, 0);
+      }
     } catch (error) {
       console.error("비밀번호 재설정 오류:", error);
-      fail("비밀번호를 저장하지 못했습니다. 관리자에게 문의하세요.");
-    } finally { if (btn) btn.disabled = false; }
+      const code = String(error?.code || "");
+      if (code.includes("PERMISSION_DENIED") || code.includes("permission-denied")) {
+        fail("비밀번호 재설정 저장 권한이 없습니다. Firebase 보안 규칙을 확인하세요.");
+      } else {
+        fail(`비밀번호 재설정 오류: ${error?.message || error || "알 수 없는 오류"}`);
+      }
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   function clearMemberAuthInputValues() {
