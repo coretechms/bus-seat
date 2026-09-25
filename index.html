@@ -42,10 +42,8 @@
 
       back: Object.freeze({
         dedupeMs: 650,
-        exitBlankDelayMs: 120,
         armRetryMs: 300,
-        capacitorRetryMs: 500,
-        requiredPressCount: 3
+        capacitorRetryMs: 500
       }),
 
       ui: Object.freeze({
@@ -105,14 +103,15 @@
 <!-- ================= GPT SECTION: MOBILE_BACK_CONTROLLER ================= -->
 <script id="unified-mobile-back-controller">
     /* =========================================================
-       통합 뒤로가기 컨트롤러
-       모바일 동작 규칙
-       1회 : 어떤 화면이든 회원 입력 모드로 이동
-       2회 : 화면 동작 없음
-       3회 : 앱 종료 여부 확인
-       - 횟수 안내 토스트 없음
-       - popstate / Cordova backbutton / Capacitor backButton을 한 곳에서 처리
-       - 동일 물리 입력이 중복 이벤트로 들어오면 1회만 계산
+       통합 뒤로가기 컨트롤러 - 2단계 규칙
+
+       1회 : 현재 화면의 이전 단계로 이동
+       2회 : 무조건 회원 입력 모드로 이동
+       3회 이후 : 회원 입력 모드에서 아무 동작도 하지 않음
+
+       ※ 기존 3회 종료 / 앱 종료 / 종료 확인 기능은 완전히 제거
+       ※ 로그인 전에는 인증 화면을 우회하지 않음
+       ※ popstate / Cordova backbutton / Capacitor backButton 통합 처리
        ========================================================= */
     (function () {
       if (window.__busSeatUnifiedBackControllerApplied) return;
@@ -123,14 +122,24 @@
       var MOBILE_QUERY = GPT_CONFIG.mobileQuery || "(max-width: 760px), (pointer: coarse)";
 
       var backCount = 0;
-      var exiting = false;
       var lastHandledAt = 0;
       var guardKey = "busSeatUnifiedBackGuard";
       var DEDUPE_MS = Number(BACK_CONFIG.dedupeMs || 650);
-      var REQUIRED_PRESS_COUNT = Number(BACK_CONFIG.requiredPressCount || 3);
+      var lastMemberInputState = false;
 
       function isMobile() {
         return window.matchMedia(MOBILE_QUERY).matches;
+      }
+
+      function isVisible(el) {
+        if (!el) return false;
+        if (el.hidden || el.classList.contains("hidden")) return false;
+        try {
+          var style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+          return !(style && (style.display === "none" || style.visibility === "hidden"));
+        } catch (_) {
+          return true;
+        }
       }
 
       function loginGateVisible() {
@@ -138,32 +147,70 @@
           var gate = document.getElementById("memberAuthGate");
           if (!document.body || !document.body.classList.contains("membership-locked")) return false;
           if (!gate || gate.classList.contains("is-hidden")) return false;
-          var style = window.getComputedStyle ? window.getComputedStyle(gate) : null;
-          return !(style && (style.display === "none" || style.visibility === "hidden"));
+          return isVisible(gate);
+        } catch (_) {
+          return false;
+        }
+      }
+
+      function isMemberInputMode() {
+        try {
+          if (!document.body || loginGateVisible()) return false;
+          if (!document.body.classList.contains("member-mode")) return false;
+          var panel = document.getElementById("memberPanel");
+          return !panel || isVisible(panel);
         } catch (_) {
           return false;
         }
       }
 
       function armBackGuard() {
-        if (exiting) return;
         try {
           if (history.state && history.state[guardKey]) return;
-          history.pushState(Object.assign({}, history.state || {}, { [guardKey]: true }), "", location.href);
+          history.pushState(
+            Object.assign({}, history.state || {}, { [guardKey]: true }),
+            "",
+            location.href
+          );
         } catch (_) {}
       }
 
-      function closeTransientUi() {
-        try { window.__busSeatCloseSeatBubble?.(); } catch (_) {}
-        try { window.__busSeatCloseHikingNoticeDialog?.(); } catch (_) {}
-        try { document.getElementById("hikingNoticeOverlay")?.classList.add("hidden"); } catch (_) {}
+      function closeSeatBubbleOnly() {
+        try {
+          if (document.getElementById("seatNameBubble")) {
+            window.__busSeatCloseSeatBubble?.();
+            return true;
+          }
+        } catch (_) {}
+        return false;
+      }
+
+      function closeHikingNoticeOnly() {
+        try {
+          var overlay = document.getElementById("hikingNoticeOverlay");
+          if (overlay && isVisible(overlay)) {
+            try { window.__busSeatCloseHikingNoticeDialog?.(); } catch (_) {}
+            overlay.classList.add("hidden");
+            return true;
+          }
+        } catch (_) {}
+        return false;
+      }
+
+      function clickIfVisible(id) {
+        var el = document.getElementById(id);
+        if (!el || !isVisible(el)) return false;
+        try {
+          el.click();
+          return true;
+        } catch (_) {
+          return false;
+        }
       }
 
       function forceMemberInputMode() {
-        closeTransientUi();
-
-        // 로그인 전 상태에서는 인증을 우회하지 않고 로그인 화면을 그대로 유지한다.
-        if (loginGateVisible()) return;
+        // 로그인 전 상태에서는 인증을 우회하지 않는다.
+        if (loginGateVisible()) return false;
 
         try {
           if (typeof window.__busSeatSwitchMode === "function") {
@@ -171,10 +218,17 @@
           }
         } catch (_) {}
 
-        // 화면 전환 함수가 늦게 준비되거나 일부 패널 상태가 남아 있어도 회원 입력 화면으로 정리한다.
         try {
-          if (!document.body) return;
-          document.body.classList.remove("admin-mode", "member-manage-mode", "admin-entry-only", "approval-admin-mode");
+          if (!document.body) return false;
+
+          document.body.classList.remove(
+            "admin-mode",
+            "member-manage-mode",
+            "admin-entry-only",
+            "approval-admin-mode",
+            "admin-settings-open",
+            "admin-main-memo-open"
+          );
           document.body.classList.add("member-mode");
 
           document.getElementById("loginManagePanel")?.classList.add("hidden");
@@ -183,52 +237,90 @@
           document.getElementById("adminPanel")?.classList.add("hidden");
           document.getElementById("memberPanel")?.classList.remove("hidden");
 
+          document.getElementById("adminSettingsPanel")?.setAttribute("hidden", "");
+          document.getElementById("adminMainMemoPanel")?.classList.add("hidden");
+
           document.getElementById("memberTab")?.classList.add("active");
           document.getElementById("adminTab")?.classList.remove("active");
           document.getElementById("memberManageTab")?.classList.remove("active");
 
-          try { sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "member"); } catch (_) {}
+          try {
+            sessionStorage.setItem("bus-seat-admin-refresh-mode-v1", "member");
+          } catch (_) {}
         } catch (_) {}
+
+        backCount = 2;
+        armBackGuard();
+        return true;
       }
 
-      function closeApplication() {
-        if (exiting) return;
+      function goPreviousStep() {
+        // 좌석 이름 입력창이 열려 있으면 가장 먼저 그것만 닫는다.
+        if (closeSeatBubbleOnly()) return true;
 
-        if (!window.confirm("앱을 종료하시겠습니까?")) {
-          backCount = 0;
-          armBackGuard();
-          return;
+        // 산행공지 전체화면이 열려 있으면 공지만 닫는다.
+        if (closeHikingNoticeOnly()) return true;
+
+        // 로그인 화면 내부의 하위 단계는 로그인 메인으로 한 단계 돌아간다.
+        if (loginGateVisible()) {
+          var recoveryPanel = document.getElementById("memberPasswordRecoveryPanel");
+          if (recoveryPanel && isVisible(recoveryPanel)) {
+            return clickIfVisible("memberRecoveryCloseBtn");
+          }
+
+          var signupPanel = document.getElementById("memberSignupPanel");
+          if (signupPanel && signupPanel.classList.contains("is-open")) {
+            return clickIfVisible("memberJoinCloseBtn");
+          }
+
+          var changePanel = document.getElementById("memberPasswordChangePanel");
+          if (changePanel && changePanel.classList.contains("is-open")) {
+            return clickIfVisible("memberPasswordChangeCloseBtn");
+          }
+
+          // 로그인 메인 화면에서는 더 뒤로 나가지 않는다.
+          return true;
         }
 
-        exiting = true;
+        // 설정 → 관리자 기본화면
+        if (document.body?.classList.contains("admin-settings-open")) {
+          if (clickIfVisible("adminSettingsToggleBtn")) return true;
+          document.body.classList.remove("admin-settings-open");
+          document.getElementById("adminSettingsPanel")?.setAttribute("hidden", "");
+          return true;
+        }
 
-        try {
-          if (navigator.app && typeof navigator.app.exitApp === "function") {
-            navigator.app.exitApp();
-            return;
-          }
-        } catch (_) {}
+        // 메인메모 → 관리자 기본화면
+        if (document.body?.classList.contains("admin-main-memo-open")) {
+          if (clickIfVisible("adminMainMemoBtn")) return true;
+          document.body.classList.remove("admin-main-memo-open");
+          document.getElementById("adminMainMemoPanel")?.classList.add("hidden");
+          return true;
+        }
 
-        try {
-          if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App &&
-              typeof window.Capacitor.Plugins.App.exitApp === "function") {
-            window.Capacitor.Plugins.App.exitApp();
-            return;
-          }
-        } catch (_) {}
+        // 로그관리 → 회원관리
+        if (isVisible(document.getElementById("loginManagePanel"))) {
+          if (clickIfVisible("loginManageBackBtn")) return true;
+          document.getElementById("loginManagePanel")?.classList.add("hidden");
+          document.getElementById("memberManagePanel")?.classList.remove("hidden");
+          return true;
+        }
 
-        // 일반 모바일 브라우저/PWA는 자바스크립트로 앱 종료가 제한될 수 있다.
-        try { window.close(); } catch (_) {}
-        window.setTimeout(function () {
-          if (!window.closed) {
-            try { location.replace("about:blank"); } catch (_) {}
-          }
-        }, Number(BACK_CONFIG.exitBlankDelayMs || 120));
+        // 회원관리 → 이전 단계(나가기 버튼의 기존 동작 사용)
+        if (isVisible(document.getElementById("memberManagePanel"))) {
+          if (clickIfVisible("memberManageCloseBtn")) return true;
+        }
+
+        // 관리자 기본화면 → 이전 단계(관리자 종료의 기존 동작 사용)
+        if (document.body?.classList.contains("admin-mode")) {
+          if (clickIfVisible("adminLogoutBtn")) return true;
+        }
+
+        // 기타 화면은 회원 입력 모드가 이전 단계로 간주된다.
+        return forceMemberInputMode();
       }
 
-      function handleMobileBack(event, historyAlreadyPopped) {
-        if (!isMobile() || exiting) return;
-
+      function handleBack(event, historyAlreadyPopped) {
         if (event) {
           try { event.preventDefault?.(); } catch (_) {}
           try { event.stopImmediatePropagation?.(); } catch (_) {}
@@ -237,52 +329,53 @@
 
         var now = Date.now();
         if ((now - lastHandledAt) < DEDUPE_MS) {
-          // popstate가 먼저 발생해 보호 이력이 빠졌다면 즉시 다시 복구한다.
           if (historyAlreadyPopped) armBackGuard();
           return;
         }
         lastHandledAt = now;
 
-        if (historyAlreadyPopped) armBackGuard();
-        else armBackGuard();
+        armBackGuard();
+
+        // 회원 입력 모드에서는 3회, 4회, 그 이상 눌러도 절대 이동하지 않는다.
+        if (isMemberInputMode()) {
+          backCount = 2;
+          armBackGuard();
+          return;
+        }
+
+        // 로그인 전에는 인증 화면을 벗어나지 않는다.
+        if (loginGateVisible()) {
+          if (backCount === 0) {
+            backCount = 1;
+            goPreviousStep();
+          } else {
+            backCount = 2;
+          }
+          armBackGuard();
+          return;
+        }
 
         backCount += 1;
 
         if (backCount === 1) {
-          forceMemberInputMode();
+          goPreviousStep();
           armBackGuard();
           return;
         }
 
-        if (backCount === 2) {
-          // 요청 규칙: 두 번째 뒤로가기는 아무 화면 동작도 하지 않는다.
-          armBackGuard();
-          return;
-        }
-
-        // 설정된 횟수부터 종료 확인
-        if (backCount >= REQUIRED_PRESS_COUNT) {
-          backCount = REQUIRED_PRESS_COUNT;
-          closeApplication();
-        }
-      }
-
-      function handleDesktopBack(event) {
-        // 데스크톱은 기존 화면 이탈 방지 정도만 유지하고 모바일 3회 카운트는 사용하지 않는다.
-        if (isMobile() || exiting) return;
-        try { event.stopImmediatePropagation?.(); } catch (_) {}
-        closeTransientUi();
-        if (!loginGateVisible()) forceMemberInputMode();
+        // 두 번째부터는 반드시 회원 입력 모드.
+        backCount = 2;
+        forceMemberInputMode();
         armBackGuard();
       }
 
       window.addEventListener("popstate", function (event) {
-        if (isMobile()) handleMobileBack(event, true);
-        else handleDesktopBack(event);
+        handleBack(event, true);
       }, true);
 
       document.addEventListener("backbutton", function (event) {
-        handleMobileBack(event, false);
+        if (!isMobile()) return;
+        handleBack(event, false);
       }, true);
 
       function bindCapacitorBack() {
@@ -292,29 +385,53 @@
           if (window.__busSeatCapacitorBackBound) return;
           window.__busSeatCapacitorBackBound = true;
           appPlugin.addListener("backButton", function () {
-            handleMobileBack(null, false);
+            if (isMobile()) handleBack(null, false);
           });
         } catch (_) {}
       }
 
+      function syncManualModeChange() {
+        var nowMember = isMemberInputMode();
+
+        // 회원 입력 모드에서 사용자가 관리자/회원관리 등으로 새로 진입했을 때만
+        // 새로운 1회/2회 뒤로가기 순서를 시작한다.
+        if (lastMemberInputState && !nowMember && !loginGateVisible()) {
+          backCount = 0;
+        }
+
+        lastMemberInputState = nowMember;
+      }
+
       function initBackController() {
+        lastMemberInputState = isMemberInputMode();
         armBackGuard();
         bindCapacitorBack();
+
+        if (document.body && window.MutationObserver) {
+          new MutationObserver(syncManualModeChange).observe(document.body, {
+            attributes: true,
+            attributeFilter: ["class"]
+          });
+        }
+
         window.setTimeout(armBackGuard, Number(BACK_CONFIG.armRetryMs || 300));
         window.setTimeout(bindCapacitorBack, Number(BACK_CONFIG.capacitorRetryMs || 500));
       }
 
-      // 기존 코드에서 호출하는 이름과의 호환성 유지
+      // 기존 다른 모듈이 호출하는 이름은 호환성만 유지한다.
       window.__busSeatArmSeatBackGuard = armBackGuard;
       window.__busSeatEnsureAdminBackState = armBackGuard;
       window.__busSeatResetSeatBackCount = function () {
-        if (!isMobile()) backCount = 0;
+        if (!isMemberInputMode()) backCount = 0;
         armBackGuard();
       };
-      window.__busSeatUnifiedBackCount = function () { return backCount; };
+      window.__busSeatUnifiedBackCount = function () {
+        return backCount;
+      };
 
       document.addEventListener("DOMContentLoaded", initBackController);
       window.addEventListener("pageshow", function () {
+        syncManualModeChange();
         armBackGuard();
         bindCapacitorBack();
       });
@@ -1463,24 +1580,18 @@
       cursor: not-allowed;
     }
     @media (max-width:760px) {
-      /* 모바일 공지확인: 상단으로 올리고 하단 UI 경계까지 세로 확장 */
+      /* 모바일 공지확인: 크기는 열릴 때 실제 좌석 UI(.board-wrap) 크기에 맞춘다. */
       .hiking-notice-overlay {
         align-items: flex-start;
         justify-content: center;
         padding: 6px 9px 12px;
       }
       .hiking-notice-box {
-        width: 70vw;
-        height: calc(100dvh - 18px);
-        max-height: none;
+        min-width: 0;
         min-height: 0;
-        min-width: min(300px, calc(100vw - 18px));
+        max-width: none;
+        max-height: none;
         padding: 10px;
-      }
-      @supports not (height: 100dvh) {
-        .hiking-notice-box {
-          height: calc(100vh - 18px);
-        }
       }
       #hikingNoticeText { font-size: 13px; padding: 10px; }
       .hiking-notice-actions { gap: 5px; }
@@ -4077,15 +4188,15 @@ body.member-mode .alt-arrow-cell {
               <label for="fleetOperationSelect">운영 차량</label>
               <div class="fleet-setting-row">
                 <select id="fleetOperationSelect">
-                  <option value="1">1호차 운영</option>
-                  <option value="2">1 / 2호차 운영</option>
+                  <option value="1">1호차만 운영</option>
+                  <option value="2">1호차 + 2호차 운영</option>
                 </select>
                 <button class="btn btn-primary" id="fleetOperationSaveBtn" type="button">운영 적용</button>
               </div>
               <div class="fleet-setting-row fleet-second-input-row">
                 <select id="secondVehicleInputSelect" aria-label="2호차 입력 설정">
-                  <option value="enabled">2호차 입력가능</option>
-                  <option value="disabled">2호차 입력제한</option>
+                  <option value="enabled">입력 가능</option>
+                  <option value="disabled">입력 제한</option>
                 </select>
                 <button class="btn btn-outline" id="secondVehicleInputSaveBtn" type="button">입력 적용</button>
               </div>
@@ -7454,10 +7565,28 @@ function renderAll() {
       if (formatButtons) formatButtons.hidden = !editing;
     }
 
+    function syncHikingNoticeBoxToSeatUi() {
+      const box = document.querySelector(".hiking-notice-box");
+      const seatUi = document.querySelector(".board-wrap");
+      if (!box || !seatUi) return;
+
+      const rect = seatUi.getBoundingClientRect();
+      if (rect.width < 100 || rect.height < 100) return;
+
+      // transform: scaleY(...)까지 반영된 실제 화면상의 좌석 UI 크기를 그대로 사용한다.
+      box.style.width = `${Math.round(rect.width)}px`;
+      box.style.height = `${Math.round(rect.height)}px`;
+      box.style.maxWidth = "none";
+      box.style.maxHeight = "none";
+      box.style.minWidth = "0";
+      box.style.minHeight = "0";
+    }
+
     function openHikingNoticeDialog() {
       const overlay = byId("hikingNoticeOverlay");
       if (!overlay) return;
       overlay.classList.remove("hidden");
+      syncHikingNoticeBoxToSeatUi();
       hikingNoticeHistoryPushed = true;
       renderHikingNoticeDialog();
       const textEl = byId("hikingNoticeText");
