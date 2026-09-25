@@ -4077,15 +4077,15 @@ body.member-mode .alt-arrow-cell {
               <label for="fleetOperationSelect">운영 차량</label>
               <div class="fleet-setting-row">
                 <select id="fleetOperationSelect">
-                  <option value="1">1호차만 운영</option>
-                  <option value="2">1호차 + 2호차 운영</option>
+                  <option value="1">1호차 운영</option>
+                  <option value="2">1 / 2호차 운영</option>
                 </select>
                 <button class="btn btn-primary" id="fleetOperationSaveBtn" type="button">운영 적용</button>
               </div>
               <div class="fleet-setting-row fleet-second-input-row">
                 <select id="secondVehicleInputSelect" aria-label="2호차 입력 설정">
-                  <option value="enabled">입력 가능</option>
-                  <option value="disabled">입력 제한</option>
+                  <option value="enabled">2호차 입력가능</option>
+                  <option value="disabled">2호차 입력제한</option>
                 </select>
                 <button class="btn btn-outline" id="secondVehicleInputSaveBtn" type="button">입력 적용</button>
               </div>
@@ -18939,7 +18939,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
-    padding-bottom: var(--admin-editor-bottom-space, 110px) !important;
+    padding-bottom: 0 !important;
     touch-action: pan-y !important;
   }
 
