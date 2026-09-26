@@ -26,7 +26,7 @@
        1) BUS_SEAT_MAP_CONFIG : 숫자/동작 설정
        2) BUS_SEAT_MAP_MAP    : 화면/모듈 위치 확인
        3) 해당 id의 style/script만 수정
-       4) LATE_PATCH_ZONE에는 가능하면 새 코드를 추가하지 않음
+       4) CONSOLIDATED_UI_OVERRIDES는 최종 통합 규칙만 유지하고 중복 패치를 추가하지 않음
 
        [핵심 모듈]
        unified-mobile-back-controller
@@ -5545,11 +5545,23 @@ function removeGuideColorFromSelection(editor) {
       }
     }
 
+    function captureMainMemoSeatUiSize() {
+      const seatUi = document.querySelector(".board-wrap");
+      if (!seatUi) return;
+      const rect = seatUi.getBoundingClientRect();
+      if (rect.width < 100 || rect.height < 100) return;
+      document.documentElement.style.setProperty("--main-memo-seat-width", `${Math.round(rect.width)}px`);
+      document.documentElement.style.setProperty("--main-memo-seat-height", `${Math.round(rect.height)}px`);
+    }
+
     function toggleMainMemoPanel() {
       const panel = byId("adminMainMemoPanel");
       const button = byId("adminMainMemoBtn");
       if (!panel) return;
       const willOpen = panel.classList.contains("hidden");
+      if (willOpen && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) {
+        captureMainMemoSeatUiSize();
+      }
       if (willOpen && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches &&
           document.body.classList.contains("admin-settings-open")) {
         byId("adminSettingsToggleBtn")?.click();
@@ -10169,38 +10181,6 @@ function renderAll() {
     try{ window.scrollTo(0,0); }catch(e){}
   }
 
-  document.addEventListener("click", function(e){
-const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel #adminLogoutBtn") : null;
-    if(adminLogout){
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-      try {
-        if (typeof handleAdminLogout === "function") handleAdminLogout();
-        else if (typeof goToAdminEntryOnlyPatch === "function") goToAdminEntryOnlyPatch();
-      } catch (error) {
-        console.error("admin logout failed", error);
-        try { if (typeof goToAdminEntryOnlyPatch === "function") goToAdminEntryOnlyPatch(); } catch(e) {}
-      }
-      return;
-    }
-
-    const manageLogout = e.target && e.target.closest ? e.target.closest("#memberApprovalLoginMoveBtn") : null;
-    if(manageLogout){
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-      try {
-        if (typeof window.__busSeatMembershipLogout === "function") window.__busSeatMembershipLogout();
-        else showMemberLoginScreenPatch();
-      } catch (error) {
-        console.error("manage logout failed", error);
-        showMemberLoginScreenPatch();
-      }
-      return;
-    }
-  }, true);
-
 
   /* 요청 수정: 관리자 진입 전용 표시 상태 해제 */
   document.addEventListener("click", function(e){
@@ -13069,71 +13049,20 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
     startMemberManageActiveSessionList();
     startMemberManageLoginLogList();
     const panel = byId("memberApprovalPanel");
-    function forceMembershipLogout() {
-      removeCurrentActiveSession();
-      stopActiveSessionWatchers();
-      currentApprovedMemberSession = null;
-      memberApprovalAdminAuthed = false;
-
-      try {
-        localStorage.removeItem(LOGIN_SESSION_KEY);
-        sessionStorage.removeItem(LOGIN_SESSION_KEY);
-        // 기존 버전에서 다른 이름으로 남겼을 수 있는 로그인 흔적도 같이 제거
-        localStorage.removeItem("bus-seat-approved-member-session-v1");
-        sessionStorage.removeItem("bus-seat-approved-member-session-v1");
-      } catch (e) {}
-
-      // 앱 내부 관리자/시스템관리자 상태도 먼저 초기화한다.
-      if (typeof window.__busSeatForceFullLogoutFromMembership === "function") {
-        window.__busSeatForceFullLogoutFromMembership();
-      }
-
-      document.body.classList.add("membership-locked");
-      document.body.classList.remove("admin-mode", "member-manage-mode");
-
-      const gate = byId("memberAuthGate");
-      if (gate) gate.classList.remove("is-hidden");
-
-      const approvalPanel = byId("memberApprovalPanel");
-      if (approvalPanel) approvalPanel.classList.remove("is-open", "is-auth");
-      const approvalList = byId("memberApprovalList");
-      if (approvalList) approvalList.innerHTML = '<div class="member-approval-empty">관리자 로그인 후 회원관리를 사용할 수 있습니다.</div>';
-
-      const signupPanel = byId("memberSignupPanel");
-      if (signupPanel) signupPanel.classList.remove("is-open");
-      byId("memberPasswordChangePanel")?.classList.remove("is-open");
-
-      const nameInput = byId("memberLoginNameInput");
-      const passwordInput = byId("memberLoginPasswordInput");
-      if (nameInput) {
-        applySavedMemberLoginName();
-      }
-      if (passwordInput) {
-        passwordInput.value = "";
-        passwordInput.placeholder = "비밀번호 입력";
-      }
-
-      // 앱 내부 패널도 화면상 초기화. 로그인 후에는 회원입력 화면부터 다시 보이도록 한다.
-      byId("memberPanel")?.classList.remove("hidden");
-      byId("adminLoginPanel")?.classList.add("hidden");
-      byId("adminPanel")?.classList.add("hidden");
-      byId("memberManagePanel")?.classList.add("hidden");
-      byId("memberTab")?.classList.add("active");
-      byId("adminTab")?.classList.remove("active");
-      byId("memberManageTab")?.classList.remove("active");
-
-      setAuthMessage("로그아웃 되었습니다. 다시 로그인하세요.", true);
-      setTimeout(() => nameInput?.focus(), 50);
+    // 회원관리 로그아웃은 canonical membership logout 한 경로만 사용한다.
+    if (!window.__memberApprovalLogoutDelegatedBound) {
+      window.__memberApprovalLogoutDelegatedBound = true;
+      document.addEventListener("click", (event) => {
+        const btn = event.target && event.target.closest ? event.target.closest("#memberApprovalLoginMoveBtn") : null;
+        if (!btn) return;
+        event.preventDefault();
+        event.stopPropagation();
+        Promise.resolve(window.__busSeatMembershipLogout?.()).catch((error) => {
+          console.error("회원관리 로그아웃 오류:", error);
+          setAuthMessage("로그아웃 처리 중 오류가 발생했습니다.");
+        });
+      });
     }
-
-    byId("memberApprovalLoginMoveBtn")?.addEventListener("click", forceMembershipLogout);
-    // 버튼이 다시 렌더링되거나 위치가 바뀌어도 로그아웃이 작동하도록 보조 이벤트를 둔다.
-    document.addEventListener("click", (event) => {
-      const btn = event.target.closest("#memberApprovalLoginMoveBtn");
-      if (!btn) return;
-      event.preventDefault();
-      forceMembershipLogout();
-    });
     byId("memberApprovalRefreshBtn")?.addEventListener("click", () => {
       if (typeof window.__busSeatIsAdminAuthenticated === "function" && !window.__busSeatIsAdminAuthenticated()) {
         alert("관리자 로그인 후 사용할 수 있습니다.");
@@ -13867,7 +13796,7 @@ byId("memberLoginManageBtn")?.addEventListener("click", () => {
     const status = String(m && m.status || "");
     return status === "pending" || !m.approved;
   }
-  function updateMemberManageTabPendingBlink(pendingCount) {
+  function updateForcedMemberManageTabPendingBlink(pendingCount) {
     const tab = document.getElementById('memberManageTab');
     if (!tab) return;
     const count = Number(pendingCount || 0);
@@ -13879,12 +13808,12 @@ byId("memberLoginManageBtn")?.addEventListener("click", () => {
     const list = listNode();
     if (!list) return;
     if (!members.length) {
-      updateMemberManageTabPendingBlink(0);
+      updateForcedMemberManageTabPendingBlink(0);
       list.innerHTML = '<div class="member-approval-empty">가입자 DB에 저장된 회원이 없습니다. busSeatApp/membership 과 memberList/joinCodes 를 모두 확인했지만 표시할 회원이 없습니다. JSON 백업이 있으면 복구하세요.</div>';
       return;
     }
     const pendingCount = members.filter(m => String(m.status || '') === 'pending').length;
-    updateMemberManageTabPendingBlink(pendingCount);
+    updateForcedMemberManageTabPendingBlink(pendingCount);
     const approvedCount = members.filter(m => m.status === 'active' && m.approved).length;
     const duplicateJoinNames = buildDuplicateJoinNameSet(members);
     const duplicateJoinCount = members.filter(m => isDuplicateJoinMember(m, duplicateJoinNames)).length;
@@ -16121,14 +16050,6 @@ byId("memberLoginManageBtn")?.addEventListener("click", () => {
       document.getElementById("memberManageTab")?.classList.remove("active");
     }catch(e){}
   }
-  document.addEventListener("click", function(event){
-    const btn = event.target && event.target.closest ? event.target.closest("#adminPanel #adminLogoutBtn") : null;
-    if(!btn) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if(event.stopImmediatePropagation) event.stopImmediatePropagation();
-    showAdminEntryScreen();
-  }, true);
   window.addEventListener("pageshow", function(){
     let shouldRestore = false;
     try{
@@ -16190,35 +16111,6 @@ byId("memberLoginManageBtn")?.addEventListener("click", () => {
 
 <!-- patched: join same name + same phone = existing; same name + different phone/birth/dong = new memberList row -->
 
-<script id="admin-password-focus-cleanup-script">
-/* 요청 수정: 관리자종료 후 비밀번호 입력칸에 커서가 남지 않도록 보정 */
-(function(){
-  function clearAdminPasswordFocus(){
-    try{
-      const pw = document.getElementById("adminPasswordInput");
-      if(pw){
-        pw.value = "";
-        pw.blur && pw.blur();
-      }
-      if(document.activeElement && document.activeElement.id === "adminPasswordInput"){
-        document.activeElement.blur();
-      }
-      if(document.body){
-        if(!document.body.hasAttribute("tabindex")) document.body.setAttribute("tabindex", "-1");
-        document.body.focus && document.body.focus({preventScroll:true});
-      }
-    }catch(e){}
-  }
-
-  document.addEventListener("click", function(e){
-    const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel #adminLogoutBtn") : null;
-    if(!adminLogout) return;
-    setTimeout(clearAdminPasswordFocus, 0);
-    setTimeout(clearAdminPasswordFocus, 80);
-    setTimeout(clearAdminPasswordFocus, 220);
-  }, true);
-})();
-</script>
 
 
 <style id="title-main-no-wrap-readable-patch">
@@ -17946,13 +17838,13 @@ body.member-mode .help-text:empty {
 </style>
 
 <!-- ================================================================
-     MAP SECTION: LATE_PATCH_ZONE
+     MAP SECTION: CONSOLIDATED_UI_OVERRIDES
      목적: 과거 버전에서 </html> 뒤에 추가되었던 후속 패치 모음
      규칙: 새 기능은 가능한 한 기존 named module에 직접 반영합니다.
            이 구역은 호환성 유지 패치에만 사용합니다.
      ================================================================ -->
 <!-- ===== 패치: 좌석 이름 ↔ 회원관리 이름/닉네임 비교 후 미가입 좌석 이름 파랑 표시 / 깜빡임 OFF ===== -->
-<style id="seat-unregistered-member-blink-patch-style">
+<style id="bus-seat-consolidated-ui-overrides">
   .seat-name.seat-unregistered-member-blink {
     color: #1428c8 !important;
     font-weight: 400 !important;
@@ -18745,11 +18637,43 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 }
 </style>
 
-<style id="main-memo-notepad-white-space">
-#mainMemoText, #memberLoginMainMemoBox { white-space: pre-wrap !important; tab-size: 4; }
+
+
+<style id="main-memo-layout-consolidated">
+/* 메인메모 최종 규칙: 편집창은 부모 폭을 사용하고, 로그인 표시창만 기존 300px 폭을 유지한다. */
+#mainMemoText,
+#memberLoginMainMemoBox {
+  padding: 11px 14px !important;
+  font-family: Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.6 !important;
+  letter-spacing: normal !important;
+  color: #111 !important;
+  white-space: pre-wrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+  tab-size: 4 !important;
+  text-align: left !important;
+  box-sizing: border-box !important;
+}
+#mainMemoText {
+  width: 100% !important;
+  max-width: 100% !important;
+  left: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+}
+#memberLoginMainMemoBox {
+  width: min(300px, 92vw) !important;
+}
+@media (max-width: 760px) {
+  #mainMemoText, #memberLoginMainMemoBox { padding: 10px 12px !important; }
+}
 </style>
 
-<style id="admin-vehicle-settings-side-by-side">
+<style id="admin-settings-layout-consolidated">
+/* 관리자 설정 레이아웃: 운영차량/버스선택 + 입력제한/동작행을 한 블록에서 관리 */
 /* 화면 폭이 충분하면 운영 차량과 버스선택을 나란히 배치한다. */
 @media (min-width: 581px) {
   #adminSettingsPanel .admin-vehicle-settings-row {
@@ -18820,9 +18744,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     font-size: 8px !important;
   }
 }
-</style>
 
-<style id="admin-settings-two-action-rows">
 #adminSettingsPanel .admin-settings-action-row {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) 80px 106px;
@@ -18858,65 +18780,18 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   #adminSettingsPanel .admin-settings-action-row input { font-size: 9px; }
   #adminSettingsPanel .admin-lock-action-row #nameEntryLockStatus { font-size: 9px; }
 }
+
 </style>
 
-<style id="main-memo-editor-login-width-match">
-/* 편집창과 로그인 메모창의 외곽 폭 및 실제 글자 영역을 동일하게 맞춘다. */
-#mainMemoText {
-  width: min(300px, 92vw) !important;
-  max-width: none !important;
-  left: 50%;
-  position: relative;
-  transform: translateX(-50%);
-  margin: 0 !important;
-  padding: 11px 14px !important;
-  word-break: keep-all !important;
-  overflow-wrap: anywhere !important;
-  font-weight: 400 !important;
-}
-#memberLoginMainMemoBox { font-weight: 400 !important; }
-@media (max-width: 760px) {
-  #mainMemoText { padding: 10px 12px !important; }
-}
-</style>
 
-<style id="main-memo-editor-login-text-match">
-/* 기본 글자색/글꼴을 양쪽에서 통일한다. 선택한 글자의 색상 서식은 각 span이 유지한다. */
-#mainMemoText,
-#memberLoginMainMemoBox {
-  color: #111 !important;
-  font-family: Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif !important;
-  letter-spacing: normal !important;
-}
-</style>
 
-<style id="main-memo-shared-text-layout">
-/* 저장된 동일 HTML이 편집창과 로그인 메모창에서 같은 폭과 줄바꿈으로 보인다. */
-#mainMemoText,
-#memberLoginMainMemoBox {
-  width: min(300px, 92vw) !important;
-  padding: 11px 14px !important;
-  font-family: Arial, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif !important;
-  font-size: 13px !important;
-  font-weight: 400 !important;
-  line-height: 1.6 !important;
-  letter-spacing: normal !important;
-  color: #111 !important;
-  white-space: pre-wrap !important;
-  word-break: keep-all !important;
-  overflow-wrap: anywhere !important;
-  tab-size: 4 !important;
-  text-align: left !important;
-}
-@media (max-width: 760px) {
-  #mainMemoText,
-  #memberLoginMainMemoBox { padding: 10px 12px !important; }
-}
-</style>
+
+
+
 
 
 <!-- ================= MAP SECTION: MOBILE_ADMIN_EDITOR_LAYOUT ================= -->
-<!-- ======================= END LATE_PATCH_ZONE ==================== -->
+<!-- ======================= END CONSOLIDATED_UI_OVERRIDES ==================== -->
 
 
 
@@ -19060,21 +18935,30 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 
 
 <!-- ===== MAP PATCH: 모바일 메인메모 상단 메뉴 고정 / 설정과 동일한 외부 스크롤 ===== -->
-<style id="mobile-main-memo-sticky-header-scroll-v487">
+<style id="mobile-main-memo-seat-size-final">
 @media (max-width: 760px), (pointer: coarse) {
-  /* 메인메모 실행 시 설정 화면과 동일하게 controls 자체만 세로 스크롤 */
+  /* 메인메모 활성화 영역은 현재 좌석 UI(.board-wrap)의 실제 보이는 크기를 사용한다. */
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) .controls {
     position: relative !important;
+    width: var(--main-memo-seat-width, calc(100vw - 24px)) !important;
+    min-width: var(--main-memo-seat-width, calc(100vw - 24px)) !important;
+    max-width: var(--main-memo-seat-width, calc(100vw - 24px)) !important;
+    height: var(--main-memo-seat-height, auto) !important;
+    min-height: var(--main-memo-seat-height, 0px) !important;
+    max-height: var(--main-memo-seat-height, none) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-y: contain !important;
     touch-action: pan-y !important;
   }
-
-  /* 메인메모에서는 캡처/메인메모/설정 메뉴를 화면 최상단에 고정한다.
-     제목 행이 함께 sticky가 되면 모바일에서 두 영역이 겹쳐 메뉴가 가려질 수 있으므로
-     메인메모 실행 중에는 제목 행을 일반 흐름으로 두고 메뉴 행만 고정한다. */
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) .controls > .card {
+    width: 100% !important;
+    min-height: 100% !important;
+    box-sizing: border-box !important;
+  }
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) .card-title-row {
     position: relative !important;
     top: auto !important;
@@ -19082,7 +18966,6 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     background: #fff !important;
     margin-bottom: 0 !important;
   }
-
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminPanel .admin-compact-action-row {
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -19104,29 +18987,29 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     align-items: center !important;
     justify-content: center !important;
   }
-
-  /* 메모 입력칸 자체의 별도 스크롤을 없애고, 뒤쪽 전체 내용이 움직이게 함 */
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminMainMemoPanel,
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #busInfoEditor {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #mainMemoText {
+    width: 100% !important;
+    min-height: 180px !important;
     height: auto !important;
-    min-height: max(300px, calc(var(--admin-editor-vh, 100dvh) - 190px)) !important;
     max-height: none !important;
     overflow-y: visible !important;
     overflow-x: hidden !important;
     touch-action: auto !important;
   }
-
-  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminMainMemoPanel,
-  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #busInfoEditor {
-    overflow: visible !important;
-    max-height: none !important;
-  }
 }
 </style>
-<script id="mobile-main-memo-sticky-header-scroll-script-v487">
+<script id="mobile-main-memo-seat-size-script-final">
 (function(){
   'use strict';
-  if (window.__mobileMainMemoStickyHeaderV487) return;
-  window.__mobileMainMemoStickyHeaderV487 = true;
+  if (window.__mobileMainMemoSeatSizeFinal) return;
+  window.__mobileMainMemoSeatSizeFinal = true;
 
   function isMobile(){
     return window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
