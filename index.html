@@ -19,12 +19,12 @@
 <title>검암산악회</title>
 
   <!-- ==============================================================
-       Map MAINTENANCE ZONE
+       MAP MAINTENANCE ZONE
        이 파일을 수정할 때 가장 먼저 보는 영역입니다.
 
        [권장 수정 순서]
-       1) BUS_SEAT_Map_CONFIG : 숫자/동작 설정
-       2) BUS_SEAT_Map_MAP    : 화면/모듈 위치 확인
+       1) BUS_SEAT_MAP_CONFIG : 숫자/동작 설정
+       2) BUS_SEAT_MAP_MAP    : 화면/모듈 위치 확인
        3) 해당 id의 style/script만 수정
        4) LATE_PATCH_ZONE에는 가능하면 새 코드를 추가하지 않음
 
@@ -36,7 +36,7 @@
        bus-seat-member-manage-forced-render-script
        ============================================================== -->
   <script id="bus-seat-map-maintenance-config">
-    window.BUS_SEAT_map_CONFIG = Object.freeze({
+    window.BUS_SEAT_MAP_CONFIG = Object.freeze({
       version: "48.9-three-pass-verified",
       mobileQuery: "(max-width: 760px), (pointer: coarse)",
 
@@ -66,7 +66,7 @@
       })
     });
 
-    window.BUS_SEAT_map_MAP = Object.freeze({
+    window.BUS_SEAT_MAP_MAP = Object.freeze({
       screens: Object.freeze({
         memberLogin: "#memberAuthGate",
         memberInput: "#memberPanel",
@@ -97,10 +97,10 @@
       })
     });
   </script>
-  <!-- ==================== END Map MAINTENANCE ZONE ================= -->
+  <!-- ==================== END MAP MAINTENANCE ZONE ================= -->
 
   
-<!-- ================= Map SECTION: MOBILE_BACK_CONTROLLER ================= -->
+<!-- ================= MAP SECTION: MOBILE_BACK_CONTROLLER ================= -->
 <script id="unified-mobile-back-controller">
     /* =========================================================
        모바일 뒤로가기 - 이전 단계 전용
@@ -117,9 +117,9 @@
       if (window.__busSeatUnifiedBackControllerApplied) return;
       window.__busSeatUnifiedBackControllerApplied = true;
 
-      var Map_CONFIG = window.BUS_SEAT_Map_CONFIG || {};
-      var BACK_CONFIG = Map_CONFIG.back || {};
-      var MOBILE_QUERY = Map_CONFIG.mobileQuery || "(max-width: 760px), (pointer: coarse)";
+      var MAP_CONFIG = window.BUS_SEAT_MAP_CONFIG || {};
+      var BACK_CONFIG = MAP_CONFIG.back || {};
+      var MOBILE_QUERY = MAP_CONFIG.mobileQuery || "(max-width: 760px), (pointer: coarse)";
       var DEDUPE_MS = Number(BACK_CONFIG.dedupeMs || 650);
 
       var lastHandledAt = 0;
@@ -396,7 +396,7 @@
       });
     })();
   </script>
-  <script id="early-session-restore-script">
+<script id="early-session-restore-script">
     /* 새로고침 순간 회원 로그인 화면이 깜빡이지 않도록 관리자/회원관리 세션을 HTML 로딩 초기에 감지 */
     (function () {
       try {
@@ -411,7 +411,7 @@
     })();
   </script>
   
-<!-- ================= Map SECTION: CORE_UI_STYLE ================= -->
+<!-- ================= MAP SECTION: CORE_UI_STYLE ================= -->
 <style id="bus-seat-core-style">
     :root {
       --bg: #dcdcdc;
@@ -833,7 +833,6 @@
         white-space: nowrap;
       }
       #boardImageModeBtn,
-      #memberTopLogoutBtn,
       #captureBoardBtn,
       #boardingPointBtn {
         flex: 0 0 auto !important;
@@ -841,15 +840,7 @@
         font-size: 10px !important;
         white-space: nowrap !important;
       }
-   /* 회원 입력 모드 로그아웃 버튼 보임 */
-     body.member-mode #memberTopLogoutBtn {
-     display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      text-align: center !important;
-      line-height: 1 !important;
-     }     
-      .tabs {
+.tabs {
         flex: 0 0 auto;
       }
       .alt-arrow-cell { height: 37px; }
@@ -1283,7 +1274,7 @@
   display: none;
 }
 
-    /* 요청 수정: 공지사항 선택 서식 버튼 */
+    /* 요청 수정: 산행공지 선택 서식 버튼 */
     .hiking-notice-title-row {
       display: inline-flex;
       align-items: center;
@@ -2031,8 +2022,14 @@ body:not(.membership-locked) .member-current-badge {
   justify-content: flex-start !important;
   margin-left: 0 !important;
 }
-#boardImageModeBtn,
+
 #memberTopLogoutBtn {
+  flex: 0 0 auto !important;
+}
+body.admin-mode #memberTopLogoutBtn {
+  display: none !important;
+}
+#boardImageModeBtn {
   flex: 0 0 auto !important;
 }
 
@@ -2681,10 +2678,7 @@ body.admin-mode #adminMemberName,
 {
   display: none !important;
 }
-/* 관리자 모드 화면반전 옆 로그아웃은 숨김 */
-body.admin-mode #memberTopLogoutBtn {
-  display: none !important;
-}
+
 .admin-compact-action-row #adminStatus {
   width: 100% !important;
   height: 28px !important;
@@ -3914,7 +3908,7 @@ body.member-mode .alt-arrow-cell {
 <body class="membership-locked">
 
 <!-- ================================================================
-     Map SCREEN MAP
+     MAP SCREEN MAP
      #memberAuthGate     : 회원 로그인/인증 게이트
      #memberPanel        : 회원 입력
      #adminLoginPanel    : 관리자 로그인
@@ -4070,8 +4064,8 @@ body.member-mode .alt-arrow-cell {
           <div class="card-title-row">
             <div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; min-width:0; margin-left:0;">
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
-              <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="height:28px; padding:0 13px; font-size:12px; white-space:nowrap;">로그아웃</button>
-            </div>
+              <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">로그아웃</button>
+</div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
               <button class="tab" id="adminTab" type="button">관리자</button>
@@ -4154,8 +4148,8 @@ body.member-mode .alt-arrow-cell {
               </div>
               <div class="fleet-setting-row fleet-second-input-row">
                 <select id="secondVehicleInputSelect" aria-label="2호차 입력 설정">
-                  <option value="enabled">2호차 입력가능</option>
-                  <option value="disabled">2호차 입력제한</option>
+                  <option value="enabled">입력 가능</option>
+                  <option value="disabled">입력 제한</option>
                 </select>
                 <button class="btn btn-outline" id="secondVehicleInputSaveBtn" type="button">입력 적용</button>
               </div>
@@ -4425,8 +4419,8 @@ body.member-mode .alt-arrow-cell {
       </div>
       <div class="hiking-notice-head">
         <span class="hiking-notice-title-row">
-          <span id="hikingNoticeTitle">공지사항</span>
-          <span class="hiking-notice-format-buttons" id="hikingNoticeFormatButtons" aria-label="공지사항 선택 서식" hidden>
+          <span id="hikingNoticeTitle">산행공지</span>
+          <span class="hiking-notice-format-buttons" id="hikingNoticeFormatButtons" aria-label="산행공지 선택 서식" hidden>
             <button class="btn btn-outline" id="hikingNoticeBoldBtn" type="button">굵게</button>
             <button class="btn btn-outline" id="hikingNoticeBlueBtn" type="button">파랑</button>
             <button class="btn btn-outline" id="hikingNoticeRedBtn" type="button">빨강</button>
@@ -4448,7 +4442,7 @@ body.member-mode .alt-arrow-cell {
 <script id="firebase-database-compat-lib" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 
 
-<!-- ================= Map SECTION: CORE_APP_FIREBASE ================= -->
+<!-- ================= MAP SECTION: CORE_APP_FIREBASE ================= -->
 <script id="bus-seat-core-app-module" type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getDatabase, ref, onValue, get, set, update, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
@@ -5551,27 +5545,11 @@ function removeGuideColorFromSelection(editor) {
       }
     }
 
-    function captureMainMemoSeatUiSize() {
-      const seatUi = document.querySelector(".board-wrap");
-      if (!seatUi) return;
-
-      const rect = seatUi.getBoundingClientRect();
-      if (rect.width < 100 || rect.height < 100) return;
-
-      // 현재 화면에 실제로 보이는 좌석 UI 크기(transform 포함)를 메인메모 전체 크기로 사용한다.
-      document.documentElement.style.setProperty("--main-memo-seat-width", `${Math.round(rect.width)}px`);
-      document.documentElement.style.setProperty("--main-memo-seat-height", `${Math.round(rect.height)}px`);
-      document.documentElement.style.setProperty("--main-memo-seat-top", `${Math.max(0, Math.round(rect.top))}px`);
-    }
-
     function toggleMainMemoPanel() {
       const panel = byId("adminMainMemoPanel");
       const button = byId("adminMainMemoBtn");
       if (!panel) return;
       const willOpen = panel.classList.contains("hidden");
-      if (willOpen && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) {
-        captureMainMemoSeatUiSize();
-      }
       if (willOpen && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches &&
           document.body.classList.contains("admin-settings-open")) {
         byId("adminSettingsToggleBtn")?.click();
@@ -7454,7 +7432,7 @@ function renderAll() {
     let hikingNoticeHistoryPushed = false;
 
     function returnToBusSeatScreenFromHikingNotice() {
-      // 휴대폰 뒤로가기 버튼으로 공지사항 화면을 닫을 때는 회원 로그인 화면으로 보내지 않고
+      // 휴대폰 뒤로가기 버튼으로 산행공지 화면을 닫을 때는 회원 로그인 화면으로 보내지 않고
       // 현재 로그인 세션을 유지한 채 버스좌석 화면으로 복귀한다.
       closeHikingNoticeDialog();
       try {
@@ -7623,8 +7601,8 @@ function renderAll() {
         "meta/updatedAt": Date.now()
       }, {
         label: "saveHikingNoticeRemote",
-        permissionMessage: "공지사항 저장 권한이 없습니다.",
-        genericMessage: "공지사항 저장 실패"
+        permissionMessage: "산행공지 저장 권한이 없습니다.",
+        genericMessage: "산행공지 저장 실패"
       });
     }
 
@@ -7655,7 +7633,7 @@ function renderAll() {
 
     async function deleteHikingNotice() {
       if (state.hikingNotice.locked) { alert("잠금 상태에서는 삭제할 수 없습니다."); return; }
-      if (!confirm("공지사항 내용을 삭제할까요?")) return;
+      if (!confirm("산행공지 내용을 삭제할까요?")) return;
       state.hikingNotice.text = "";
       state.hikingNotice.editing = true;
       renderHikingNoticeDialog();
@@ -10192,22 +10170,7 @@ function renderAll() {
   }
 
   document.addEventListener("click", function(e){
-    const memberLogout = e.target && e.target.closest ? e.target.closest("#memberTopLogoutBtn") : null;
-    if(memberLogout){
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-      try {
-        if (typeof window.__busSeatMembershipLogout === "function") window.__busSeatMembershipLogout();
-        else showMemberLoginScreenPatch();
-      } catch (error) {
-        console.error("member logout failed", error);
-        showMemberLoginScreenPatch();
-      }
-      return;
-    }
-
-    const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel #adminLogoutBtn") : null;
+const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel #adminLogoutBtn") : null;
     if(adminLogout){
       e.preventDefault();
       e.stopPropagation();
@@ -12662,8 +12625,8 @@ function renderAll() {
     setAuthMessage("아이디와 비밀번호를 입력하세요.");
   }
 
-  function clearApprovedMemberSession() {
-    removeCurrentActiveSession();
+  async function clearApprovedMemberSession() {
+    try { await removeCurrentActiveSession(); } catch (e) {}
     stopActiveSessionWatchers();
     currentApprovedMemberSession = null;
     try {
@@ -12675,19 +12638,41 @@ function renderAll() {
     } catch (e) {}
   }
 
-  function showMembershipLoginScreenAfterLogout() {
-    try { document.documentElement.classList.remove("restore-admin-session"); } catch (e) {}
-    clearApprovedMemberSession();
+  async function showMembershipLoginScreenAfterLogout() {
+    try { document.documentElement.classList.remove("restore-admin-session", "logout-exit-pending"); } catch (e) {}
+
+    try {
+      await Promise.race([
+        clearApprovedMemberSession(),
+        new Promise((resolve) => setTimeout(resolve, 1200))
+      ]);
+    } catch (e) {}
+
     memberApprovalAdminAuthed = false;
+
     try {
       localStorage.removeItem("bus-seat-approved-member-session-v1");
       sessionStorage.removeItem("bus-seat-approved-member-session-v1");
+      sessionStorage.removeItem("bus-seat-logout-exit-pending-v1");
     } catch (e) {}
-    if (typeof window.__busSeatForceFullLogoutFromMembership === "function") {
-      window.__busSeatForceFullLogoutFromMembership();
-    }
+
+    try {
+      if (typeof window.__busSeatForceFullLogoutFromMembership === "function") {
+        window.__busSeatForceFullLogoutFromMembership();
+      }
+    } catch (e) {}
+
     document.body.classList.add("membership-locked");
-    document.body.classList.remove("admin-mode", "member-manage-mode", "admin-entry-only", "approval-admin-mode", "member-mode");
+    document.body.classList.remove(
+      "admin-mode",
+      "member-manage-mode",
+      "admin-entry-only",
+      "approval-admin-mode",
+      "member-mode",
+      "admin-settings-open",
+      "admin-main-memo-open"
+    );
+
     const gate = byId("memberAuthGate");
     if (gate) {
       gate.classList.remove("is-hidden");
@@ -12695,16 +12680,30 @@ function renderAll() {
       gate.style.visibility = "visible";
       gate.style.pointerEvents = "auto";
     }
+
     const app = document.querySelector(".app");
     if (app) {
+      app.style.display = "";
       app.style.visibility = "hidden";
       app.style.pointerEvents = "none";
     }
+
     byId("memberSignupPanel")?.classList.remove("is-open");
     byId("memberPasswordChangePanel")?.classList.remove("is-open");
+    byId("memberPasswordRecoveryPanel")?.classList.remove("is-open");
+    if (byId("memberPasswordRecoveryPanel")) byId("memberPasswordRecoveryPanel").hidden = true;
+
     clearMemberAuthInputValues();
     setMemberAuthViewMode("main");
     setAuthMessage("로그아웃되었습니다. 다시 로그인하세요.");
+
+    window.setTimeout(() => {
+      const appEl = document.querySelector(".app");
+      if (appEl) {
+        appEl.style.visibility = "";
+        appEl.style.pointerEvents = "";
+      }
+    }, 0);
   }
 
   window.__busSeatMembershipLogout = showMembershipLoginScreenAfterLogout;
@@ -13352,6 +13351,14 @@ if (action === "delete") {
       setAuthMessage("본인 확인 후 비밀번호를 변경하세요.");
     });
 
+    byId("memberTopLogoutBtn")?.addEventListener("click", (event) => {
+      event.preventDefault();
+      showMembershipLoginScreenAfterLogout().catch((error) => {
+        console.error("회원 로그아웃 오류:", error);
+        setAuthMessage("로그아웃 처리 중 오류가 발생했습니다.");
+      });
+    });
+
     byId("memberPasswordChangeCloseBtn")?.addEventListener("click", () => {
       clearMemberAuthTypingInputsOnScreenSwitch();
       setMemberChangeOldPasswordReveal(false);
@@ -13376,13 +13383,7 @@ if (action === "delete") {
         setAuthMessage("비밀번호 변경 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
       });
     });
-
-    byId("memberTopLogoutBtn")?.addEventListener("click", (event) => {
-      event.preventDefault();
-      showMembershipLoginScreenAfterLogout();
-    });
-
-    byId("memberLoginManageBtn")?.addEventListener("click", () => {
+byId("memberLoginManageBtn")?.addEventListener("click", () => {
       byId("memberManagePanel")?.classList.add("hidden");
       byId("loginManagePanel")?.classList.remove("hidden");
       loadLoginLogRetentionDays().then((days) => cleanupOldLoginLogs(days)).finally(() => {
@@ -15123,7 +15124,7 @@ if (action === "delete") {
   }
 
 
-  /* Map PATCH: orphan repair button action */
+  /* MAP PATCH: orphan repair button action */
   async function repairOrphanJoinCodesToLoginDb() {
     const ok = confirm(
       '고아코드 복구를 실행할까요?\n\n' +
@@ -16538,60 +16539,6 @@ body.admin-mode:not(.member-manage-mode) .controls {
     });
   }
 </script>
-
-
-<script id="logout-mode-return-script">
-/* 요청 수정: 회원 로그아웃은 로그인 화면을 반드시 다시 표시하고, 관리자종료는 관리자 진입 화면만 유지 */
-(function(){
-  function forceShowMemberLoginGate(){
-    try{ document.documentElement.classList.remove("restore-admin-session"); }catch(e){}
-    try{
-      sessionStorage.removeItem("bus-seat-admin-refresh-mode-v1");
-      sessionStorage.removeItem("bus-seat-admin-entry-refresh-v1");
-      localStorage.removeItem("bus-seat-admin-entry-persist-v1");
-    }catch(e){}
-    try{
-      document.body.classList.add("membership-locked");
-      document.body.classList.remove("admin-mode", "member-manage-mode", "admin-entry-only", "approval-admin-mode", "member-mode");
-      const gate = document.getElementById("memberAuthGate");
-      if(gate){
-        gate.classList.remove("is-hidden");
-        gate.style.display = "";
-        gate.style.visibility = "visible";
-        gate.style.pointerEvents = "auto";
-      }
-      const app = document.querySelector(".app");
-      if(app){
-        app.style.visibility = "hidden";
-        app.style.pointerEvents = "none";
-      }
-      const signup = document.getElementById("memberSignupPanel");
-      const change = document.getElementById("memberPasswordChangePanel");
-      if(signup) signup.classList.remove("is-open");
-      if(change) change.classList.remove("is-open");
-      const msg = document.getElementById("memberAuthMessage");
-      if(msg){
-        msg.classList.remove("ok");
-        msg.textContent = "로그아웃되었습니다. 다시 로그인하세요.";
-      }
-    }catch(e){}
-  }
-
-  document.addEventListener("click", function(event){
-    const btn = event.target && event.target.closest ? event.target.closest("#memberTopLogoutBtn") : null;
-    if(!btn) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if(event.stopImmediatePropagation) event.stopImmediatePropagation();
-    try{
-      if(typeof window.__busSeatMembershipLogout === "function") window.__busSeatMembershipLogout();
-    }catch(e){}
-    forceShowMemberLoginGate();
-  }, true);
-})();
-</script>
-
-
 <script id="memberLoginEnterNextFocusFix">
 /* 회원 로그인 아이디 입력 후 Enter/이동: 비밀번호 입력칸으로만 커서 이동 */
 (function(){
@@ -17393,7 +17340,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 <!-- ===== 전체 편집 버튼 토글 패치: 굵게/색상/깜빡임 적용-해제 ===== -->
 
 
-<!-- ================= Map SECTION: MAIN_MEMO_KEYBOARD ================= -->
+<!-- ================= MAP SECTION: MAIN_MEMO_KEYBOARD ================= -->
 <script id="main-memo-keyboard-isolation">
 (function () {
   function attach() {
@@ -17412,7 +17359,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 </script>
 
 
-<!-- ================= Map SECTION: GUIDE_TEXT_FORMATTING ================= -->
+<!-- ================= MAP SECTION: GUIDE_TEXT_FORMATTING ================= -->
 <script id="all-guide-format-toggle-final-patch">
 (function(){
   if (window.__allGuideFormatToggleFinalPatchApplied) return;
@@ -17999,7 +17946,7 @@ body.member-mode .help-text:empty {
 </style>
 
 <!-- ================================================================
-     Map SECTION: LATE_PATCH_ZONE
+     MAP SECTION: LATE_PATCH_ZONE
      목적: 과거 버전에서 </html> 뒤에 추가되었던 후속 패치 모음
      규칙: 새 기능은 가능한 한 기존 named module에 직접 반영합니다.
            이 구역은 호환성 유지 패치에만 사용합니다.
@@ -18968,94 +18915,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 </style>
 
 
-<!-- ================= Map SECTION: MOBILE_ADMIN_EDITOR_LAYOUT ================= -->
-<style id="mobile-admin-editor-fullscreen-v471">
-/* 모바일 관리자에서 메인메모/설정 편집 시 좌석판을 숨기고 하단 편집 UI에 화면을 배정한다. */
-@media (max-width: 760px), (pointer: coarse) {
-  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .app {
-    padding: 0 !important;
-    height: var(--admin-editor-vh, 100dvh) !important;
-    min-height: var(--admin-editor-vh, 100dvh) !important;
-  }
-  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .shell {
-    width: 100vw !important;
-    max-width: none !important;
-    height: var(--admin-editor-vh, 100dvh) !important;
-    max-height: var(--admin-editor-vh, 100dvh) !important;
-    gap: 0 !important;
-  }
-  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .board-wrap {
-    display: none !important;
-  }
-  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .controls {
-    margin-top: 0 !important;
-    flex: 1 1 auto !important;
-    height: var(--admin-editor-vh, 100dvh) !important;
-    min-height: 0 !important;
-    max-height: var(--admin-editor-vh, 100dvh) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    padding: 4px 5px max(var(--admin-editor-bottom-space, 110px), env(safe-area-inset-bottom)) !important;
-    scroll-padding-top: 78px !important;
-    scroll-padding-bottom: var(--admin-editor-bottom-space, 110px) !important;
-    overscroll-behavior-y: contain !important;
-    -webkit-overflow-scrolling: touch !important;
-    touch-action: pan-y !important;
-  }
-  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .controls > .card {
-    flex: 1 0 auto !important;
-    min-height: 100% !important;
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) .card-title-row {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 30 !important;
-    background: #fff !important;
-  }
-  body.admin-mode:not(.member-manage-mode):is(.admin-main-memo-open, .admin-settings-open) #adminPanel .admin-compact-action-row {
-    position: sticky !important;
-    top: 34px !important;
-    z-index: 29 !important;
-    background: #fff !important;
-  }
-  body.admin-mode.admin-main-memo-open #mainMemoText {
-    position: static !important;
-    left: auto !important;
-    transform: none !important;
-    width: 100% !important;
-    min-height: 260px !important;
-    height: auto !important;
-    max-height: max(280px, calc(var(--admin-editor-vh, 100dvh) - 190px)) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior-y: contain !important;
-    touch-action: pan-y !important;
-    resize: none !important;
-  }
-
-  body.admin-mode.admin-settings-open #adminSettingsPanel {
-    display: block !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    padding-bottom: 0 !important;
-    touch-action: pan-y !important;
-  }
-
-  body.admin-mode.admin-main-memo-open #adminMainMemoPanel {
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    padding-bottom: 48px !important;
-  }
-}
-</style>
+<!-- ================= MAP SECTION: MOBILE_ADMIN_EDITOR_LAYOUT ================= -->
 <!-- ======================= END LATE_PATCH_ZONE ==================== -->
 
 
@@ -19067,8 +18927,8 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   if (window.__adminEditorMinimalViewportV482) return;
   window.__adminEditorMinimalViewportV482 = true;
 
-  var cfg = (window.BUS_SEAT_Map_CONFIG && window.BUS_SEAT_Map_CONFIG.adminEditor) || {};
-  var mobileQuery = (window.BUS_SEAT_Map_CONFIG && window.BUS_SEAT_Map_CONFIG.mobileQuery) ||
+  var cfg = (window.BUS_SEAT_MAP_CONFIG && window.BUS_SEAT_MAP_CONFIG.adminEditor) || {};
+  var mobileQuery = (window.BUS_SEAT_MAP_CONFIG && window.BUS_SEAT_MAP_CONFIG.mobileQuery) ||
     "(max-width: 760px), (pointer: coarse)";
 
   function isMobile() {
@@ -19163,11 +19023,11 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   "use strict";
 
   window.BusSeatMaintainer = Object.freeze({
-    config: window.BUS_SEAT_Map_CONFIG,
-    map: window.BUS_SEAT_Map_MAP,
+    config: window.BUS_SEAT_MAP_CONFIG,
+    map: window.BUS_SEAT_MAP_MAP,
 
     getScreenElements: function () {
-      var screens = (window.BUS_SEAT_Map_MAP && window.BUS_SEAT_Map_MAP.screens) || {};
+      var screens = (window.BUS_SEAT_MAP_MAP && window.BUS_SEAT_MAP_MAP.screens) || {};
       var result = {};
       Object.keys(screens).forEach(function (key) {
         result[key] = document.querySelector(screens[key]);
@@ -19199,49 +19059,22 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 
 
 
-<!-- ===== Map PATCH: 모바일 메인메모 상단 메뉴 고정 / 설정과 동일한 외부 스크롤 ===== -->
+<!-- ===== MAP PATCH: 모바일 메인메모 상단 메뉴 고정 / 설정과 동일한 외부 스크롤 ===== -->
 <style id="mobile-main-memo-sticky-header-scroll-v487">
 @media (max-width: 760px), (pointer: coarse) {
-  /* 메인메모 전체 크기를 현재 좌석 UI(.board-wrap)의 실제 화면 크기와 동일하게 맞춘다. */
-  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) .shell {
-    width: 100vw !important;
-    max-width: 100vw !important;
-    height: var(--admin-editor-vh, 100dvh) !important;
-    max-height: var(--admin-editor-vh, 100dvh) !important;
-    align-items: center !important;
-    overflow: hidden !important;
-  }
-
+  /* 메인메모 실행 시 설정 화면과 동일하게 controls 자체만 세로 스크롤 */
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) .controls {
     position: relative !important;
-    width: var(--main-memo-seat-width, calc(100vw - 24px)) !important;
-    min-width: var(--main-memo-seat-width, calc(100vw - 24px)) !important;
-    max-width: var(--main-memo-seat-width, calc(100vw - 24px)) !important;
-    height: var(--main-memo-seat-height, calc(100dvh - 24px)) !important;
-    min-height: var(--main-memo-seat-height, calc(100dvh - 24px)) !important;
-    max-height: var(--main-memo-seat-height, calc(100dvh - 24px)) !important;
-    flex: 0 0 var(--main-memo-seat-height, calc(100dvh - 24px)) !important;
-    margin: var(--main-memo-seat-top, 0px) auto 0 !important;
-    padding: 0 !important;
-    overflow-y: hidden !important;
+    overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior: contain !important;
+    overscroll-behavior-y: contain !important;
     touch-action: pan-y !important;
   }
 
-  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) .controls > .card {
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    max-height: 100% !important;
-    flex: 0 0 100% !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    box-sizing: border-box !important;
-  }
-
-  /* 메인메모에서는 캡처/메인메모/설정 메뉴를 카드 상단에 고정 */
+  /* 메인메모에서는 캡처/메인메모/설정 메뉴를 화면 최상단에 고정한다.
+     제목 행이 함께 sticky가 되면 모바일에서 두 영역이 겹쳐 메뉴가 가려질 수 있으므로
+     메인메모 실행 중에는 제목 행을 일반 흐름으로 두고 메뉴 행만 고정한다. */
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) .card-title-row {
     position: relative !important;
     top: auto !important;
@@ -19262,7 +19095,6 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     padding-bottom: 4px !important;
     box-shadow: 0 2px 4px rgba(0,0,0,.08) !important;
   }
-
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminCaptureProxyBtn,
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminMainMemoBtn,
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminSettingsToggleBtn {
@@ -19273,36 +19105,20 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     justify-content: center !important;
   }
 
-  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminPanel {
-    min-height: 0 !important;
-    max-height: 100% !important;
-    overflow: visible !important;
-  }
-
-  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #busInfoEditor,
-  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminMainMemoPanel {
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow: visible !important;
-    box-sizing: border-box !important;
-  }
-
-  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminMainMemoPanel {
-    padding-bottom: 0 !important;
-  }
-
-  /* 좌석 UI 높이에 맞춘 전체 카드 안에서 메모 입력칸이 남은 공간을 사용 */
+  /* 메모 입력칸 자체의 별도 스크롤을 없애고, 뒤쪽 전체 내용이 움직이게 함 */
   body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #mainMemoText {
-    width: 100% !important;
-    height: max(180px, calc(var(--main-memo-seat-height, 520px) - 165px)) !important;
-    min-height: 180px !important;
-    max-height: max(180px, calc(var(--main-memo-seat-height, 520px) - 165px)) !important;
-    overflow-y: auto !important;
+    height: auto !important;
+    min-height: max(300px, calc(var(--admin-editor-vh, 100dvh) - 190px)) !important;
+    max-height: none !important;
+    overflow-y: visible !important;
     overflow-x: hidden !important;
-    box-sizing: border-box !important;
-    -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior-y: contain !important;
-    touch-action: pan-y !important;
+    touch-action: auto !important;
+  }
+
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #adminMainMemoPanel,
+  body.admin-mode.admin-main-memo-open:not(.member-manage-mode) #busInfoEditor {
+    overflow: visible !important;
+    max-height: none !important;
   }
 }
 </style>
