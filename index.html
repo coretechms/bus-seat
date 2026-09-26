@@ -1283,7 +1283,7 @@
   display: none;
 }
 
-    /* 요청 수정: 산행공지 선택 서식 버튼 */
+    /* 요청 수정: 공지사항 선택 서식 버튼 */
     .hiking-notice-title-row {
       display: inline-flex;
       align-items: center;
@@ -4154,8 +4154,8 @@ body.member-mode .alt-arrow-cell {
               </div>
               <div class="fleet-setting-row fleet-second-input-row">
                 <select id="secondVehicleInputSelect" aria-label="2호차 입력 설정">
-                  <option value="enabled">입력 가능</option>
-                  <option value="disabled">입력 제한</option>
+                  <option value="enabled">2호차 입력가능</option>
+                  <option value="disabled">2호차 입력제한</option>
                 </select>
                 <button class="btn btn-outline" id="secondVehicleInputSaveBtn" type="button">입력 적용</button>
               </div>
@@ -4425,8 +4425,8 @@ body.member-mode .alt-arrow-cell {
       </div>
       <div class="hiking-notice-head">
         <span class="hiking-notice-title-row">
-          <span id="hikingNoticeTitle">산행공지</span>
-          <span class="hiking-notice-format-buttons" id="hikingNoticeFormatButtons" aria-label="산행공지 선택 서식" hidden>
+          <span id="hikingNoticeTitle">공지사항</span>
+          <span class="hiking-notice-format-buttons" id="hikingNoticeFormatButtons" aria-label="공지사항 선택 서식" hidden>
             <button class="btn btn-outline" id="hikingNoticeBoldBtn" type="button">굵게</button>
             <button class="btn btn-outline" id="hikingNoticeBlueBtn" type="button">파랑</button>
             <button class="btn btn-outline" id="hikingNoticeRedBtn" type="button">빨강</button>
@@ -7454,7 +7454,7 @@ function renderAll() {
     let hikingNoticeHistoryPushed = false;
 
     function returnToBusSeatScreenFromHikingNotice() {
-      // 휴대폰 뒤로가기 버튼으로 산행공지 화면을 닫을 때는 회원 로그인 화면으로 보내지 않고
+      // 휴대폰 뒤로가기 버튼으로 공지사항 화면을 닫을 때는 회원 로그인 화면으로 보내지 않고
       // 현재 로그인 세션을 유지한 채 버스좌석 화면으로 복귀한다.
       closeHikingNoticeDialog();
       try {
@@ -7623,8 +7623,8 @@ function renderAll() {
         "meta/updatedAt": Date.now()
       }, {
         label: "saveHikingNoticeRemote",
-        permissionMessage: "산행공지 저장 권한이 없습니다.",
-        genericMessage: "산행공지 저장 실패"
+        permissionMessage: "공지사항 저장 권한이 없습니다.",
+        genericMessage: "공지사항 저장 실패"
       });
     }
 
@@ -7655,7 +7655,7 @@ function renderAll() {
 
     async function deleteHikingNotice() {
       if (state.hikingNotice.locked) { alert("잠금 상태에서는 삭제할 수 없습니다."); return; }
-      if (!confirm("산행공지 내용을 삭제할까요?")) return;
+      if (!confirm("공지사항 내용을 삭제할까요?")) return;
       state.hikingNotice.text = "";
       state.hikingNotice.editing = true;
       renderHikingNoticeDialog();
