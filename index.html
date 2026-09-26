@@ -396,26 +396,7 @@
       });
     })();
   </script>
-  <script id="logout-exit-early-guard">
-    /* 로그아웃 후 브라우저가 자동으로 닫히지 않은 경우:
-       같은 탭 새로고침으로 로그인 화면에 재진입하지 않도록 조기 차단.
-       실제 앱/탭을 닫고 새로 열면 sessionStorage가 새로 시작되어 정상 로그인 화면을 표시한다. */
-    (function () {
-      try {
-        if (sessionStorage.getItem("bus-seat-logout-exit-pending-v1") === "1") {
-          document.documentElement.classList.add("logout-exit-pending");
-        }
-      } catch (_) {}
-    })();
-  </script>
-  <style id="logout-exit-early-style">
-    html.logout-exit-pending .app,
-    html.logout-exit-pending #memberAuthGate {
-      display: none !important;
-    }
-  </style>
-
-  <script id="early-session-restore-script">
+<script id="early-session-restore-script">
     /* 새로고침 순간 회원 로그인 화면이 깜빡이지 않도록 관리자/회원관리 세션을 HTML 로딩 초기에 감지 */
     (function () {
       try {
@@ -2040,6 +2021,13 @@ body:not(.membership-locked) .member-current-badge {
 .card-title-row > div:first-child {
   justify-content: flex-start !important;
   margin-left: 0 !important;
+}
+
+#memberTopLogoutBtn {
+  flex: 0 0 auto !important;
+}
+body.admin-mode #memberTopLogoutBtn {
+  display: none !important;
 }
 #boardImageModeBtn {
   flex: 0 0 auto !important;
@@ -4076,6 +4064,7 @@ body.member-mode .alt-arrow-cell {
           <div class="card-title-row">
             <div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; min-width:0; margin-left:0;">
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
+              <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">로그아웃</button>
 </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
@@ -12649,104 +12638,9 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
     } catch (e) {}
   }
 
-  function showLogoutExitScreen() {
-    try {
-      document.documentElement.classList.remove("restore-admin-session");
-      document.documentElement.classList.add("logout-exit-pending");
-    } catch (e) {}
+  async function showMembershipLoginScreenAfterLogout() {
+    try { document.documentElement.classList.remove("restore-admin-session", "logout-exit-pending"); } catch (e) {}
 
-    try {
-      document.body.classList.remove(
-        "membership-locked",
-        "admin-mode",
-        "member-manage-mode",
-        "admin-entry-only",
-        "approval-admin-mode",
-        "member-mode",
-        "admin-settings-open",
-        "admin-main-memo-open"
-      );
-    } catch (e) {}
-
-    const gate = byId("memberAuthGate");
-    if (gate) {
-      gate.classList.add("is-hidden");
-      gate.style.display = "none";
-      gate.style.visibility = "hidden";
-      gate.style.pointerEvents = "none";
-    }
-
-    const app = document.querySelector(".app");
-    if (app) {
-      app.style.display = "none";
-      app.style.visibility = "hidden";
-      app.style.pointerEvents = "none";
-    }
-
-    let screen = document.getElementById("logoutExitScreen");
-    if (!screen) {
-      screen = document.createElement("div");
-      screen.id = "logoutExitScreen";
-      screen.setAttribute("role", "status");
-      screen.setAttribute("aria-live", "polite");
-      screen.style.cssText = [
-        "position:fixed",
-        "inset:0",
-        "z-index:2147483647",
-        "display:flex",
-        "align-items:center",
-        "justify-content:center",
-        "padding:24px",
-        "background:#f3f4f6",
-        "color:#111827",
-        "font-family:Arial,'Malgun Gothic','Apple SD Gothic Neo',sans-serif",
-        "text-align:center"
-      ].join(";");
-      screen.innerHTML =
-        '<div style="max-width:360px;width:100%;background:#fff;border:1px solid #ddd;border-radius:18px;padding:24px 18px;box-shadow:0 4px 18px rgba(0,0,0,.10);">' +
-          '<div style="font-size:18px;font-weight:800;margin-bottom:10px;">로그아웃 완료</div>' +
-          '<div style="font-size:14px;line-height:1.6;">앱 종료를 요청했습니다.<br>화면이 자동으로 닫히지 않으면 앱 또는 브라우저 창을 닫은 뒤 다시 실행해 주세요.</div>' +
-        '</div>';
-      document.body.appendChild(screen);
-    }
-  }
-
-  function requestAppCloseAfterLogout() {
-    // Cordova
-    try {
-      if (navigator.app && typeof navigator.app.exitApp === "function") {
-        navigator.app.exitApp();
-        return true;
-      }
-    } catch (e) {}
-
-    // Capacitor
-    try {
-      const appPlugin = window.Capacitor?.Plugins?.App;
-      if (appPlugin && typeof appPlugin.exitApp === "function") {
-        appPlugin.exitApp();
-        return true;
-      }
-    } catch (e) {}
-
-    // 일반 브라우저/PWA: 브라우저 정책에 따라 차단될 수 있다.
-    try {
-      window.close();
-      return true;
-    } catch (e) {}
-
-    return false;
-  }
-
-  let membershipLogoutInProgress = false;
-
-  async function logoutAndCloseApplication() {
-    if (membershipLogoutInProgress) return;
-    membershipLogoutInProgress = true;
-
-    try { document.documentElement.classList.remove("restore-admin-session"); } catch (e) {}
-
-    // Firebase 로그아웃 기록과 활성 세션 제거를 가능한 한 완료한 뒤 종료한다.
     try {
       await Promise.race([
         clearApprovedMemberSession(),
@@ -12759,9 +12653,7 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
     try {
       localStorage.removeItem("bus-seat-approved-member-session-v1");
       sessionStorage.removeItem("bus-seat-approved-member-session-v1");
-
-      // 같은 브라우저 탭이 자동으로 닫히지 않았을 때 로그인 화면으로 되돌아가지 않게 한다.
-      sessionStorage.setItem("bus-seat-logout-exit-pending-v1", "1");
+      sessionStorage.removeItem("bus-seat-logout-exit-pending-v1");
     } catch (e) {}
 
     try {
@@ -12770,15 +12662,51 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
       }
     } catch (e) {}
 
-    showLogoutExitScreen();
+    document.body.classList.add("membership-locked");
+    document.body.classList.remove(
+      "admin-mode",
+      "member-manage-mode",
+      "admin-entry-only",
+      "approval-admin-mode",
+      "member-mode",
+      "admin-settings-open",
+      "admin-main-memo-open"
+    );
 
-    // UI 정리가 끝난 다음 종료 요청.
-    window.setTimeout(function () {
-      requestAppCloseAfterLogout();
-    }, 120);
+    const gate = byId("memberAuthGate");
+    if (gate) {
+      gate.classList.remove("is-hidden");
+      gate.style.display = "";
+      gate.style.visibility = "visible";
+      gate.style.pointerEvents = "auto";
+    }
+
+    const app = document.querySelector(".app");
+    if (app) {
+      app.style.display = "";
+      app.style.visibility = "hidden";
+      app.style.pointerEvents = "none";
+    }
+
+    byId("memberSignupPanel")?.classList.remove("is-open");
+    byId("memberPasswordChangePanel")?.classList.remove("is-open");
+    byId("memberPasswordRecoveryPanel")?.classList.remove("is-open");
+    if (byId("memberPasswordRecoveryPanel")) byId("memberPasswordRecoveryPanel").hidden = true;
+
+    clearMemberAuthInputValues();
+    setMemberAuthViewMode("main");
+    setAuthMessage("로그아웃되었습니다. 다시 로그인하세요.");
+
+    window.setTimeout(() => {
+      const appEl = document.querySelector(".app");
+      if (appEl) {
+        appEl.style.visibility = "";
+        appEl.style.pointerEvents = "";
+      }
+    }, 0);
   }
 
-  window.__busSeatMembershipLogout = logoutAndCloseApplication;
+  window.__busSeatMembershipLogout = showMembershipLoginScreenAfterLogout;
 
   // 로그인 상태는 로그아웃 버튼을 누를 때만 해제한다.
   // window.addEventListener("pagehide", clearApprovedMemberSession);
@@ -13421,6 +13349,14 @@ if (action === "delete") {
       byId("memberPasswordChangePanel")?.classList.add("is-open");
       setMemberAuthViewMode("change");
       setAuthMessage("본인 확인 후 비밀번호를 변경하세요.");
+    });
+
+    byId("memberTopLogoutBtn")?.addEventListener("click", (event) => {
+      event.preventDefault();
+      showMembershipLoginScreenAfterLogout().catch((error) => {
+        console.error("회원 로그아웃 오류:", error);
+        setAuthMessage("로그아웃 처리 중 오류가 발생했습니다.");
+      });
     });
 
     byId("memberPasswordChangeCloseBtn")?.addEventListener("click", () => {
@@ -16603,55 +16539,6 @@ body.admin-mode:not(.member-manage-mode) .controls {
     });
   }
 </script>
-
-
-
-
-<script id="logout-exit-state-restore-script">
-(function () {
-  function restoreLogoutExitState() {
-    try {
-      if (sessionStorage.getItem("bus-seat-logout-exit-pending-v1") !== "1") return;
-    } catch (_) {
-      return;
-    }
-
-    try {
-      document.documentElement.classList.add("logout-exit-pending");
-    } catch (_) {}
-
-    const gate = document.getElementById("memberAuthGate");
-    if (gate) {
-      gate.classList.add("is-hidden");
-      gate.style.display = "none";
-      gate.style.visibility = "hidden";
-      gate.style.pointerEvents = "none";
-    }
-
-    const app = document.querySelector(".app");
-    if (app) {
-      app.style.display = "none";
-      app.style.visibility = "hidden";
-      app.style.pointerEvents = "none";
-    }
-
-    if (!document.getElementById("logoutExitScreen")) {
-      const screen = document.createElement("div");
-      screen.id = "logoutExitScreen";
-      screen.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:24px;background:#f3f4f6;color:#111827;font-family:Arial,'Malgun Gothic','Apple SD Gothic Neo',sans-serif;text-align:center;";
-      screen.innerHTML = '<div style="max-width:360px;width:100%;background:#fff;border:1px solid #ddd;border-radius:18px;padding:24px 18px;box-shadow:0 4px 18px rgba(0,0,0,.10);"><div style="font-size:18px;font-weight:800;margin-bottom:10px;">로그아웃 완료</div><div style="font-size:14px;line-height:1.6;">앱 또는 브라우저 창을 닫은 뒤 다시 실행해 주세요.</div></div>';
-      document.body.appendChild(screen);
-    }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", restoreLogoutExitState, { once: true });
-  } else {
-    restoreLogoutExitState();
-  }
-})();
-</script>
-
 <script id="memberLoginEnterNextFocusFix">
 /* 회원 로그인 아이디 입력 후 Enter/이동: 비밀번호 입력칸으로만 커서 이동 */
 (function(){
