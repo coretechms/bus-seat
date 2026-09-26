@@ -19,12 +19,12 @@
 <title>검암산악회</title>
 
   <!-- ==============================================================
-       GPT MAINTENANCE ZONE
+       MAP MAINTENANCE ZONE
        이 파일을 수정할 때 가장 먼저 보는 영역입니다.
 
        [권장 수정 순서]
-       1) BUS_SEAT_GPT_CONFIG : 숫자/동작 설정
-       2) BUS_SEAT_GPT_MAP    : 화면/모듈 위치 확인
+       1) BUS_SEAT_MAP_CONFIG : 숫자/동작 설정
+       2) BUS_SEAT_MAP_MAP    : 화면/모듈 위치 확인
        3) 해당 id의 style/script만 수정
        4) LATE_PATCH_ZONE에는 가능하면 새 코드를 추가하지 않음
 
@@ -35,8 +35,8 @@
        bus-seat-membership-gate-script
        bus-seat-member-manage-forced-render-script
        ============================================================== -->
-  <script id="bus-seat-gpt-maintenance-config">
-    window.BUS_SEAT_GPT_CONFIG = Object.freeze({
+  <script id="bus-seat-map-maintenance-config">
+    window.BUS_SEAT_MAP_CONFIG = Object.freeze({
       version: "48.9-three-pass-verified",
       mobileQuery: "(max-width: 760px), (pointer: coarse)",
 
@@ -66,7 +66,7 @@
       })
     });
 
-    window.BUS_SEAT_GPT_MAP = Object.freeze({
+    window.BUS_SEAT_MAP_MAP = Object.freeze({
       screens: Object.freeze({
         memberLogin: "#memberAuthGate",
         memberInput: "#memberPanel",
@@ -97,10 +97,10 @@
       })
     });
   </script>
-  <!-- ==================== END GPT MAINTENANCE ZONE ================= -->
+  <!-- ==================== END MAP MAINTENANCE ZONE ================= -->
 
   
-<!-- ================= GPT SECTION: MOBILE_BACK_CONTROLLER ================= -->
+<!-- ================= MAP SECTION: MOBILE_BACK_CONTROLLER ================= -->
 <script id="unified-mobile-back-controller">
     /* =========================================================
        모바일 뒤로가기 - 이전 단계 전용
@@ -117,9 +117,9 @@
       if (window.__busSeatUnifiedBackControllerApplied) return;
       window.__busSeatUnifiedBackControllerApplied = true;
 
-      var GPT_CONFIG = window.BUS_SEAT_GPT_CONFIG || {};
-      var BACK_CONFIG = GPT_CONFIG.back || {};
-      var MOBILE_QUERY = GPT_CONFIG.mobileQuery || "(max-width: 760px), (pointer: coarse)";
+      var MAP_CONFIG = window.BUS_SEAT_MAP_CONFIG || {};
+      var BACK_CONFIG = MAP_CONFIG.back || {};
+      var MOBILE_QUERY = MAP_CONFIG.mobileQuery || "(max-width: 760px), (pointer: coarse)";
       var DEDUPE_MS = Number(BACK_CONFIG.dedupeMs || 650);
 
       var lastHandledAt = 0;
@@ -430,7 +430,7 @@
     })();
   </script>
   
-<!-- ================= GPT SECTION: CORE_UI_STYLE ================= -->
+<!-- ================= MAP SECTION: CORE_UI_STYLE ================= -->
 <style id="bus-seat-core-style">
     :root {
       --bg: #dcdcdc;
@@ -852,7 +852,6 @@
         white-space: nowrap;
       }
       #boardImageModeBtn,
-      #memberTopLogoutBtn,
       #captureBoardBtn,
       #boardingPointBtn {
         flex: 0 0 auto !important;
@@ -860,15 +859,7 @@
         font-size: 10px !important;
         white-space: nowrap !important;
       }
-   /* 회원 입력 모드 로그아웃 버튼 보임 */
-     body.member-mode #memberTopLogoutBtn {
-     display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      text-align: center !important;
-      line-height: 1 !important;
-     }     
-      .tabs {
+.tabs {
         flex: 0 0 auto;
       }
       .alt-arrow-cell { height: 37px; }
@@ -2050,8 +2041,7 @@ body:not(.membership-locked) .member-current-badge {
   justify-content: flex-start !important;
   margin-left: 0 !important;
 }
-#boardImageModeBtn,
-#memberTopLogoutBtn {
+#boardImageModeBtn {
   flex: 0 0 auto !important;
 }
 
@@ -2700,10 +2690,7 @@ body.admin-mode #adminMemberName,
 {
   display: none !important;
 }
-/* 관리자 모드 화면반전 옆 로그아웃은 숨김 */
-body.admin-mode #memberTopLogoutBtn {
-  display: none !important;
-}
+
 .admin-compact-action-row #adminStatus {
   width: 100% !important;
   height: 28px !important;
@@ -3933,7 +3920,7 @@ body.member-mode .alt-arrow-cell {
 <body class="membership-locked">
 
 <!-- ================================================================
-     GPT SCREEN MAP
+     MAP SCREEN MAP
      #memberAuthGate     : 회원 로그인/인증 게이트
      #memberPanel        : 회원 입력
      #adminLoginPanel    : 관리자 로그인
@@ -4089,8 +4076,7 @@ body.member-mode .alt-arrow-cell {
           <div class="card-title-row">
             <div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; min-width:0; margin-left:0;">
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
-              <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="height:28px; padding:0 13px; font-size:12px; white-space:nowrap;">로그아웃</button>
-            </div>
+</div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
               <button class="tab" id="adminTab" type="button">관리자</button>
@@ -4467,7 +4453,7 @@ body.member-mode .alt-arrow-cell {
 <script id="firebase-database-compat-lib" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 
 
-<!-- ================= GPT SECTION: CORE_APP_FIREBASE ================= -->
+<!-- ================= MAP SECTION: CORE_APP_FIREBASE ================= -->
 <script id="bus-seat-core-app-module" type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getDatabase, ref, onValue, get, set, update, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
@@ -10195,22 +10181,7 @@ function renderAll() {
   }
 
   document.addEventListener("click", function(e){
-    const memberLogout = e.target && e.target.closest ? e.target.closest("#memberTopLogoutBtn") : null;
-    if(memberLogout){
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-      try {
-        if (typeof window.__busSeatMembershipLogout === "function") window.__busSeatMembershipLogout();
-        else showMemberLoginScreenPatch();
-      } catch (error) {
-        console.error("member logout failed", error);
-        showMemberLoginScreenPatch();
-      }
-      return;
-    }
-
-    const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel #adminLogoutBtn") : null;
+const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel #adminLogoutBtn") : null;
     if(adminLogout){
       e.preventDefault();
       e.stopPropagation();
@@ -13476,13 +13447,7 @@ if (action === "delete") {
         setAuthMessage("비밀번호 변경 오류: Firebase 연결 또는 저장 규칙을 확인하세요.");
       });
     });
-
-    byId("memberTopLogoutBtn")?.addEventListener("click", (event) => {
-      event.preventDefault();
-      logoutAndCloseApplication();
-    });
-
-    byId("memberLoginManageBtn")?.addEventListener("click", () => {
+byId("memberLoginManageBtn")?.addEventListener("click", () => {
       byId("memberManagePanel")?.classList.add("hidden");
       byId("loginManagePanel")?.classList.remove("hidden");
       loadLoginLogRetentionDays().then((days) => cleanupOldLoginLogs(days)).finally(() => {
@@ -15223,7 +15188,7 @@ if (action === "delete") {
   }
 
 
-  /* GPT PATCH: orphan repair button action */
+  /* MAP PATCH: orphan repair button action */
   async function repairOrphanJoinCodesToLoginDb() {
     const ok = confirm(
       '고아코드 복구를 실행할까요?\n\n' +
@@ -17488,7 +17453,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 <!-- ===== 전체 편집 버튼 토글 패치: 굵게/색상/깜빡임 적용-해제 ===== -->
 
 
-<!-- ================= GPT SECTION: MAIN_MEMO_KEYBOARD ================= -->
+<!-- ================= MAP SECTION: MAIN_MEMO_KEYBOARD ================= -->
 <script id="main-memo-keyboard-isolation">
 (function () {
   function attach() {
@@ -17507,7 +17472,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 </script>
 
 
-<!-- ================= GPT SECTION: GUIDE_TEXT_FORMATTING ================= -->
+<!-- ================= MAP SECTION: GUIDE_TEXT_FORMATTING ================= -->
 <script id="all-guide-format-toggle-final-patch">
 (function(){
   if (window.__allGuideFormatToggleFinalPatchApplied) return;
@@ -18094,7 +18059,7 @@ body.member-mode .help-text:empty {
 </style>
 
 <!-- ================================================================
-     GPT SECTION: LATE_PATCH_ZONE
+     MAP SECTION: LATE_PATCH_ZONE
      목적: 과거 버전에서 </html> 뒤에 추가되었던 후속 패치 모음
      규칙: 새 기능은 가능한 한 기존 named module에 직접 반영합니다.
            이 구역은 호환성 유지 패치에만 사용합니다.
@@ -19063,7 +19028,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 </style>
 
 
-<!-- ================= GPT SECTION: MOBILE_ADMIN_EDITOR_LAYOUT ================= -->
+<!-- ================= MAP SECTION: MOBILE_ADMIN_EDITOR_LAYOUT ================= -->
 <style id="mobile-admin-editor-fullscreen-v471">
 /* 모바일 관리자에서 메인메모/설정 편집 시 좌석판을 숨기고 하단 편집 UI에 화면을 배정한다. */
 @media (max-width: 760px), (pointer: coarse) {
@@ -19162,8 +19127,8 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   if (window.__adminEditorMinimalViewportV482) return;
   window.__adminEditorMinimalViewportV482 = true;
 
-  var cfg = (window.BUS_SEAT_GPT_CONFIG && window.BUS_SEAT_GPT_CONFIG.adminEditor) || {};
-  var mobileQuery = (window.BUS_SEAT_GPT_CONFIG && window.BUS_SEAT_GPT_CONFIG.mobileQuery) ||
+  var cfg = (window.BUS_SEAT_MAP_CONFIG && window.BUS_SEAT_MAP_CONFIG.adminEditor) || {};
+  var mobileQuery = (window.BUS_SEAT_MAP_CONFIG && window.BUS_SEAT_MAP_CONFIG.mobileQuery) ||
     "(max-width: 760px), (pointer: coarse)";
 
   function isMobile() {
@@ -19258,11 +19223,11 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   "use strict";
 
   window.BusSeatMaintainer = Object.freeze({
-    config: window.BUS_SEAT_GPT_CONFIG,
-    map: window.BUS_SEAT_GPT_MAP,
+    config: window.BUS_SEAT_MAP_CONFIG,
+    map: window.BUS_SEAT_MAP_MAP,
 
     getScreenElements: function () {
-      var screens = (window.BUS_SEAT_GPT_MAP && window.BUS_SEAT_GPT_MAP.screens) || {};
+      var screens = (window.BUS_SEAT_MAP_MAP && window.BUS_SEAT_MAP_MAP.screens) || {};
       var result = {};
       Object.keys(screens).forEach(function (key) {
         result[key] = document.querySelector(screens[key]);
@@ -19294,7 +19259,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 
 
 
-<!-- ===== GPT PATCH: 모바일 메인메모 상단 메뉴 고정 / 설정과 동일한 외부 스크롤 ===== -->
+<!-- ===== MAP PATCH: 모바일 메인메모 상단 메뉴 고정 / 설정과 동일한 외부 스크롤 ===== -->
 <style id="mobile-main-memo-sticky-header-scroll-v487">
 @media (max-width: 760px), (pointer: coarse) {
   /* 메인메모 실행 시 설정 화면과 동일하게 controls 자체만 세로 스크롤 */
