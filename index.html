@@ -37,7 +37,7 @@
        ============================================================== -->
   <script id="bus-seat-map-maintenance-config">
     window.BUS_SEAT_MAP_CONFIG = Object.freeze({
-      version: "48.9-three-pass-verified",
+      version: "50.1-member-manage-single-run",
       mobileQuery: "(max-width: 760px), (pointer: coarse)",
 
       back: Object.freeze({
@@ -3958,7 +3958,7 @@ body.member-mode .alt-arrow-cell {
         <div class="member-auth-row"><label for="memberRecoveryNameInput">아이디</label><input id="memberRecoveryNameInput" type="text" placeholder="이름" autocomplete="off"></div>
         <div class="member-auth-row"><label for="memberRecoveryBirthInput">생년월일</label><input id="memberRecoveryBirthInput" type="text" inputmode="numeric" maxlength="6" placeholder="YYMMDD" autocomplete="off"></div>
         <div class="member-auth-row"><label for="memberRecoveryPhoneInput">전화번호</label><input id="memberRecoveryPhoneInput" type="tel" inputmode="numeric" placeholder="휴대전화 전체 번호" autocomplete="off"></div>
-        <div class="member-password-change-actions"><button id="memberRecoverySubmitBtn" type="button">확인</button><button id="memberRecoveryCloseBtn" type="button">나가기</button></div>
+        <div class="member-password-change-actions"><button id="memberRecoverySubmitBtn" type="button">확인</button></div>
       </div>
       <div id="memberPasswordChangePanel" class="member-password-change-panel">
         <h3 class="member-password-panel-title">비밀번호 변경</h3>
@@ -4257,12 +4257,13 @@ body.member-mode .alt-arrow-cell {
             <div style="border:1px solid #cfd8ff; border-radius:16px; padding:10px; background:#f7f9ff;">
               <div class="member-manage-topbar">
                 <div class="member-manage-header-actions member-manage-main-actions">
-                  <button class="btn btn-outline" id="memberManageCloseBtn" type="button">나가기</button>
-                  <button class="btn btn-outline" id="memberManageMemberListBtn" type="button" title="회원정보 페이지로 이동">회원정보</button>
-                  <button class="btn btn-outline" id="memberApprovedToggleBtn" type="button" aria-expanded="false">회원보기</button>
-                  <button class="btn btn-outline" id="memberLoginManageBtn" type="button">로그관리</button>
-                  <button class="btn btn-outline" id="memberApprovalRefreshBtn" type="button">새로고침</button>
-                  <button class="btn btn-outline" id="memberManageAdminToggleBtn" type="button" aria-expanded="false">관리자</button>
+                  <button class="btn btn-outline" id="memberManageCloseBtn" type="button">     나가기     </button>
+                  <button class="btn btn-outline" id="memberLoginManageBtn" type="button">  로그관리  </button>
+                  <button class="btn btn-outline" id="memberManageMemberListBtn" type="button" title="회원정보 페이지로 이동">회원 데이터</button>
+                  <button class="btn btn-outline" id="memberApprovedToggleBtn" type="button" aria-expanded="false">가입회원보기</button>
+
+
+                  <button class="btn btn-outline" id="memberManageAdminToggleBtn" type="button" aria-expanded="false">  관리자  </button>
                   <div id="memberManageAdminGroupPanel" class="member-manage-admin-group-panel" hidden>
                     <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
                     <button class="btn btn-outline" id="memberJsonRestoreBtn" type="button">복구</button>
@@ -4295,8 +4296,8 @@ body.member-mode .alt-arrow-cell {
               <div class="login-manage-topbar">
                 <div class="login-manage-title">로그관리</div>
                 <div class="login-manage-actions">
-                  <button class="btn btn-outline" id="loginManageBackBtn" type="button">나가기</button>
-                  <button class="btn btn-outline" id="loginLogRefreshBtn" type="button">새로고침</button>
+                  <button class="btn btn-outline" id="loginManageBackBtn" type="button">   나가기   </button>
+
                   <button class="btn btn-outline" id="loginLogDownloadBtn" type="button">텍스트저장</button>
                   <button class="btn btn-outline" id="loginLogDeleteBtn" type="button">기록삭제</button>
                 </div>
@@ -9125,16 +9126,10 @@ function renderAll() {
       state.editName = "";
       renderAll();
       if (nextMode === "memberManage") {
+        // 회원관리 진입은 이 경로 하나만 사용한다.
+        // 실시간 리스너의 최초 onValue 묶음이 목록을 1회 로드하므로 별도 강제 로딩은 하지 않는다.
         if (typeof window.__startMemberManageRealtimeWatch === "function") {
           window.__startMemberManageRealtimeWatch();
-        }
-        if (typeof window.__loadMembershipApprovalMembers === "function") {
-          window.__loadMembershipApprovalMembers().catch((error) => {
-            console.error("회원관리 목록 불러오기 오류:", error);
-            if (typeof window.__setMembershipAuthMessage === "function") {
-              window.__setMembershipAuthMessage("회원관리 목록을 불러오지 못했습니다.");
-            }
-          });
         }
       }
     }
@@ -12809,9 +12804,27 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
     if (btn) {
       btn.classList.toggle("is-open", !!visible);
       btn.setAttribute("aria-expanded", visible ? "true" : "false");
-      btn.textContent = visible ? "회원닫기" : "회원보기";
+      btn.textContent = visible ? "가입회원닫기" : "가입회원보기";
     }
     applyMemberApprovalSearchFilter();
+  }
+
+  // 다른 type=module 회원관리 렌더러에서도 동일 토글 상태/필터를 사용하도록
+  // 명시적인 window 브리지로만 공유한다. 모듈 지역함수 직접 참조 금지.
+  window.__isMemberApprovedListVisible = isMemberApprovedListVisible;
+  window.__setMemberApprovedListVisible = setMemberApprovedListVisible;
+
+  function isMemberPendingCard(card) {
+    if (!card) return false;
+    if (card.classList && card.classList.contains("pending-member")) return true;
+    const text = String(card.textContent || "");
+    return /가입대기|승인대기|미승인/.test(text) && !isMemberApprovedCard(card);
+  }
+
+  function isMemberApprovedCard(card) {
+    if (!card) return false;
+    if (card.classList && card.classList.contains("approved-member")) return true;
+    return /승인완료/.test(String(card.textContent || ""));
   }
 
   function applyMemberApprovalSearchFilter() {
@@ -12830,9 +12843,13 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
       const code = normalizeMemberApprovalSearchText(card.dataset ? card.dataset.memberCode : "");
       const text = normalizeMemberApprovalSearchText(card.textContent || "");
       const matched = !query || name.includes(query) || code.includes(query) || text.includes(query);
-      const isPendingCard = card.classList.contains("pending-member");
-      const isApprovedCard = card.classList.contains("approved-member");
-      const allowedByToggle = showApproved ? (isPendingCard || isApprovedCard) : isPendingCard;
+      const isPendingCard = isMemberPendingCard(card);
+      const isApprovedCard = isMemberApprovedCard(card);
+
+      // 기본 화면: 가입대기자만 표시.
+      // 가입회원보기 상태: 가입대기자 + 승인완료 회원 표시.
+      // 다시 닫으면 승인완료 회원은 즉시 감춘다.
+      const allowedByToggle = isPendingCard || (showApproved && isApprovedCard);
       const visible = matched && allowedByToggle;
       card.style.display = visible ? "" : "none";
       if (visible) visibleCount += 1;
@@ -12842,6 +12859,8 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
       emptyEl.classList.toggle("is-visible", !!query && cards.length > 0 && visibleCount === 0);
     }
   }
+
+  window.__applyMemberApprovalSearchFilter = applyMemberApprovalSearchFilter;
 
   function updateMemberManageTabPendingBlink(pendingCount) {
     const tab = byId("memberManageTab") || document.getElementById("memberManageTab");
@@ -12925,8 +12944,22 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
 
   const memberApprovedToggleBtn = byId("memberApprovedToggleBtn");
   if (memberApprovedToggleBtn) {
-    memberApprovedToggleBtn.textContent = isMemberApprovedListVisible() ? "회원닫기" : "회원보기";
-    memberApprovedToggleBtn.setAttribute("aria-expanded", isMemberApprovedListVisible() ? "true" : "false");
+    const approvedListOpen = isMemberApprovedListVisible();
+    memberApprovedToggleBtn.classList.toggle("is-open", approvedListOpen);
+    memberApprovedToggleBtn.textContent = approvedListOpen ? "가입회원닫기" : "가입회원보기";
+    memberApprovedToggleBtn.setAttribute("aria-expanded", approvedListOpen ? "true" : "false");
+  }
+
+  // 회원목록이 실시간 갱신/강제 렌더링되어 DOM이 교체되더라도
+  // 현재 가입회원 보기/감추기 상태를 한 곳에서 다시 적용한다.
+  const memberApprovalListForToggle = byId("memberApprovalList");
+  if (memberApprovalListForToggle && window.MutationObserver && !memberApprovalListForToggle.__memberApprovedToggleObserverBound) {
+    memberApprovalListForToggle.__memberApprovedToggleObserverBound = true;
+    let memberApprovedToggleObserverTimer = null;
+    new MutationObserver(() => {
+      clearTimeout(memberApprovedToggleObserverTimer);
+      memberApprovedToggleObserverTimer = setTimeout(applyMemberApprovalSearchFilter, 0);
+    }).observe(memberApprovalListForToggle, { childList: true, subtree: true });
   }
 
   async function updateMemberApprovalStatus(code, action) {
@@ -13914,8 +13947,8 @@ byId("memberLoginManageBtn")?.addEventListener("click", () => {
           </div>
         </div>`;
       }).join('')}`;
-    if (typeof applyMemberApprovalSearchFilter === 'function') {
-      applyMemberApprovalSearchFilter();
+    if (typeof window.__applyMemberApprovalSearchFilter === 'function') {
+      window.__applyMemberApprovalSearchFilter();
     }
   }
   function makeMemberJsonBackupFileName() {
@@ -15908,10 +15941,8 @@ byId("memberLoginManageBtn")?.addEventListener("click", () => {
   }
 
   function startMemberManageRealtimeWatch() {
-    if (memberManageRealtimeStarted) {
-      scheduleMemberManageRealtimeReload();
-      return;
-    }
+    // 이미 연결된 경우 재로딩까지 발생시키지 않는다.
+    if (memberManageRealtimeStarted) return;
     memberManageRealtimeStarted = true;
     memberManageRealtimeUnsubs = MEMBER_MANAGE_REALTIME_PATHS.map((path) => {
       try {
@@ -15953,12 +15984,6 @@ byId("memberLoginManageBtn")?.addEventListener("click", () => {
   });
 
   document.addEventListener('click', (event) => {
-    const manageTab = event.target.closest('#memberManageTab');
-    if (manageTab) {
-      startMemberManageRealtimeWatch();
-      setTimeout(forceLoadMemberManageList, 180);
-      return;
-    }
     const refresh = event.target.closest('#memberManagePanel #memberApprovalRefreshBtn');
     if (refresh) {
       event.preventDefault();
@@ -15968,7 +15993,17 @@ byId("memberLoginManageBtn")?.addEventListener("click", () => {
     const memberApprovedToggleBtn = event.target.closest('#memberManagePanel #memberApprovedToggleBtn');
     if (memberApprovedToggleBtn) {
       event.preventDefault();
-      setMemberApprovedListVisible(!isMemberApprovedListVisible());
+      const isVisible = (typeof window.__isMemberApprovedListVisible === 'function')
+        ? window.__isMemberApprovedListVisible()
+        : (window.__memberApprovedListVisible === true);
+      if (typeof window.__setMemberApprovedListVisible === 'function') {
+        window.__setMemberApprovedListVisible(!isVisible);
+      } else {
+        window.__memberApprovedListVisible = !isVisible;
+        memberApprovedToggleBtn.classList.toggle('is-open', !isVisible);
+        memberApprovedToggleBtn.setAttribute('aria-expanded', !isVisible ? 'true' : 'false');
+        memberApprovedToggleBtn.textContent = !isVisible ? '가입회원닫기' : '가입회원보기';
+      }
       return;
     }
     const memberManageMemberListBtn = event.target.closest('#memberManagePanel #memberManageMemberListBtn');
@@ -16073,19 +16108,9 @@ byId("memberLoginManageBtn")?.addEventListener("click", () => {
     }
   }, true);
 
-  // 회원관리 탭이 이미 열려 있거나 관리자 모드에서 패널이 보이면 자동 표시한다.
-  setInterval(() => {
-    const panel = q('#memberManagePanel');
-    const list = listNode();
-    if (!panel || !list) return;
-    const panelVisible = !panel.classList.contains('hidden') && panel.offsetParent !== null;
-    const needsLoad = /회원관리 탭|관리자 로그인|불러옵니다|사용할 수 있습니다/.test(list.textContent || '');
-    if (panelVisible) startMemberManageRealtimeWatch();
-    if (panelVisible && needsLoad && !window.__memberManageAutoLoading) {
-      window.__memberManageAutoLoading = true;
-      forceLoadMemberManageList().finally(() => setTimeout(() => { window.__memberManageAutoLoading = false; }, 1000));
-    }
-  }, 1000);
+  // 회원관리 자동 로딩은 switchMode + 실시간 onValue 디바운스 경로로 통합했다.
+  // 주기적 setInterval 재호출은 중복 실행 원인이므로 사용하지 않는다.
+
 </script>
 
 
@@ -16495,38 +16520,28 @@ body.admin-mode:not(.member-manage-mode) .controls {
     }
   }
 
+  var memberManageRestoreDone = false;
+
   function restoreAndLoadIfNeeded(){
-    if(!isMemberManageModeSaved()) return;
+    if(memberManageRestoreDone || !isMemberManageModeSaved()) return;
+    memberManageRestoreDone = true;
     restoreMemberManageScreen();
+    // F5 복구에서만 목록을 1회 로드한다. 일반 탭 클릭 로딩은 core switchMode가 담당한다.
     setTimeout(function(){ loadMemberManageListWithRetry(0); }, 350);
-    setTimeout(function(){
-      var list = $("memberApprovalList");
-      var text = list ? String(list.textContent || "") : "";
-      if(/불러오는 중|불러옵니다|관리자 로그인 후 회원관리|회원관리 탭/.test(text)){
-        loadMemberManageListWithRetry(0);
-      }
-    }, 1600);
   }
 
   document.addEventListener("click", function(event){
     var tab = event.target && event.target.closest ? event.target.closest("#memberManageTab") : null;
     if(!tab) return;
     rememberMemberManageMode();
-    setTimeout(function(){ loadMemberManageListWithRetry(0); }, 250);
   }, true);
 
   window.addEventListener("beforeunload", function(){
     if(isMemberManageVisible()) rememberMemberManageMode();
   });
 
-  document.addEventListener("DOMContentLoaded", function(){
-    restoreAndLoadIfNeeded();
-    setTimeout(restoreAndLoadIfNeeded, 700);
-  });
-  window.addEventListener("pageshow", function(){
-    restoreAndLoadIfNeeded();
-    setTimeout(restoreAndLoadIfNeeded, 700);
-  });
+  document.addEventListener("DOMContentLoaded", restoreAndLoadIfNeeded);
+  window.addEventListener("pageshow", restoreAndLoadIfNeeded);
 })();
 </script>
 
@@ -16623,23 +16638,14 @@ body.admin-mode:not(.member-manage-mode) .controls {
       approvalPanel.style.overflowY = "auto";
     }
 
-    var list = document.getElementById("memberApprovalList");
-    var text = list ? String(list.textContent || "") : "";
-    if (/회원관리 탭을 열면|불러오는 중/.test(text)) {
-      var loader = window.__forceLoadMemberManageList || window.__loadMembershipApprovalMembers;
-      if (typeof loader === "function") {
-        Promise.resolve(loader()).catch(function(error){
-          console.error("모바일 회원관리 승인대기 목록 표시 보정 오류:", error);
-        });
-      }
-    }
+    // 모바일 보정은 화면 표시만 담당한다.
+    // 회원 목록 데이터 로딩은 core 회원관리 진입/실시간 감시 경로에서만 수행한다.
   }
 
   document.addEventListener("click", function(event){
     var target = event.target && event.target.closest ? event.target.closest("#memberManageTab,#memberApprovalRefreshBtn") : null;
     if (!target) return;
     setTimeout(fixMobileMemberApprovalVisible, 80);
-    setTimeout(fixMobileMemberApprovalVisible, 350);
   }, true);
 
   document.addEventListener("DOMContentLoaded", function(){
@@ -17645,102 +17651,7 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
 
 
-<script id="member-approved-box-toggle-final-fix">
-(function(){
-  "use strict";
-  window.__memberApprovedListVisible = window.__memberApprovedListVisible === true;
-
-  function norm(value){
-    return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
-  }
-
-  function isPendingCard(card){
-    if (!card) return false;
-    if (card.classList && card.classList.contains("pending-member")) return true;
-    var text = card.textContent || "";
-    return /가입대기|승인대기|미승인/.test(text) && !isApprovedCard(card);
-  }
-
-  function isApprovedCard(card){
-    if (!card) return false;
-    if (card.classList && card.classList.contains("approved-member")) return true;
-    var text = card.textContent || "";
-    return /승인완료/.test(text);
-  }
-
-  function updateButton(){
-    var btn = document.getElementById("memberApprovedToggleBtn");
-    if (!btn) return;
-    var open = window.__memberApprovedListVisible === true;
-    btn.classList.toggle("is-open", open);
-    btn.setAttribute("aria-expanded", open ? "true" : "false");
-    btn.textContent = open ? "회원닫기" : "회원보기";
-  }
-
-  function applyApprovedBoxToggle(){
-    var panel = document.getElementById("memberManagePanel");
-    if (!panel) return;
-    var list = panel.querySelector("#memberApprovalList") || document.getElementById("memberApprovalList");
-    if (!list) return;
-
-    var input = panel.querySelector("#memberApprovalSearchInput") || document.getElementById("memberApprovalSearchInput");
-    var query = norm(input ? input.value : "");
-    var showApproved = window.__memberApprovedListVisible === true;
-    var cards = Array.prototype.slice.call(list.querySelectorAll(".member-approval-card"));
-    var visibleCount = 0;
-
-    cards.forEach(function(card){
-      var text = norm((card.dataset ? ((card.dataset.memberName || "") + " " + (card.dataset.memberCode || "")) : "") + " " + (card.textContent || ""));
-      var matched = !query || text.indexOf(query) !== -1;
-      var pending = isPendingCard(card);
-      var approved = isApprovedCard(card);
-
-      // 기본 화면: 신규회원 가입대기자만 표시.
-      // 가입회원보기 열림: 가입대기자 + 승인완료 회원만 표시.
-      var allowed = pending || (showApproved && approved);
-      card.style.display = (matched && allowed) ? "" : "none";
-      if (matched && allowed) visibleCount += 1;
-    });
-
-    var empty = panel.querySelector("#memberApprovalSearchEmpty") || document.getElementById("memberApprovalSearchEmpty");
-    if (empty) empty.classList.toggle("is-visible", !!query && cards.length > 0 && visibleCount === 0);
-    updateButton();
-  }
-
-  window.__applyApprovedBoxToggleFinalFix = applyApprovedBoxToggle;
-
-  document.addEventListener("click", function(event){
-    var btn = event.target && event.target.closest ? event.target.closest("#memberManagePanel #memberApprovedToggleBtn") : null;
-    if (!btn) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
-    window.__memberApprovedListVisible = !(window.__memberApprovedListVisible === true);
-    applyApprovedBoxToggle();
-  }, true);
-
-  document.addEventListener("input", function(event){
-    if (event.target && event.target.id === "memberApprovalSearchInput") {
-      setTimeout(applyApprovedBoxToggle, 0);
-    }
-  }, true);
-
-  function startObserver(){
-    updateButton();
-    applyApprovedBoxToggle();
-    var list = document.querySelector("#memberManagePanel #memberApprovalList") || document.getElementById("memberApprovalList");
-    if (list && window.MutationObserver && !list.__approvedBoxToggleObserverAttached) {
-      list.__approvedBoxToggleObserverAttached = true;
-      new MutationObserver(function(){ setTimeout(applyApprovedBoxToggle, 0); }).observe(list, { childList:true, subtree:true });
-    }
-  }
-
-  document.addEventListener("DOMContentLoaded", startObserver);
-  window.addEventListener("load", startObserver);
-  setTimeout(startObserver, 300);
-  setTimeout(startObserver, 1200);
-})();
-</script>
+<!-- 가입회원보기/닫기 기능: 기존 회원관리 모듈 단일 처리 + 목록 재렌더링 시 감추기 상태 재적용 -->
 
 
 <!-- ver32: 회원입력 모드 회비 계좌번호 길게 누르기 복사 -->
