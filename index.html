@@ -5132,21 +5132,41 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       temp.innerHTML = String(html || "");
       const allowedClasses = new Set(["guide-bold", "guide-blue", "guide-red", "guide-blink"]);
       function cleanNode(node) {
-        if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.nodeValue || "");
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = escapeHtml(node.nodeValue || "");
+          return preserveMemoLines ? text.replace(/\r\n?/g, "\n").replace(/\n/g, "<br>") : text;
+        }
         if (node.nodeType !== Node.ELEMENT_NODE) return "";
         const tag = node.tagName.toLowerCase();
-        const children = Array.from(node.childNodes).map(cleanNode).join("");
+        const children = cleanChildren(node);
         if (tag === "br") return "<br>";
-        if (!children && tag !== "br") return "";
+        if (!children && tag !== "br" && !(preserveMemoLines && (tag === "div" || tag === "p"))) return "";
         if (tag === "b" || tag === "strong") return `<b>${children}</b>`;
         if (tag === "span") {
           const classes = Array.from(node.classList || []).filter((name) => allowedClasses.has(name));
           return classes.length ? `<span class="${classes.join(" ")}">${children}</span>` : children;
         }
-        if (tag === "div" || tag === "p") return children ? `${children}<br>` : "<br>";
+        if (tag === "div" || tag === "p") {
+          if (preserveMemoLines && /<br>$/.test(children)) return children;
+          return children ? `${children}<br>` : "<br>";
+        }
         return children;
       }
-      const clean = Array.from(temp.childNodes).map(cleanNode).join("")
+      function cleanChildren(parent) {
+        let result = "";
+        for (const child of parent.childNodes) {
+          const html = cleanNode(child);
+          // 기본 Enter가 만든 div/p 앞에도 줄바꿈을 유지한다.
+          // 이미 br로 끝난 줄에는 중복 줄바꿈을 추가하지 않는다.
+          if (preserveMemoLines && html && child.nodeType === Node.ELEMENT_NODE &&
+              /^(div|p)$/i.test(child.tagName) && result && !/<br>$/.test(result)) {
+            result += "<br>";
+          }
+          result += html;
+        }
+        return result;
+      }
+      const clean = cleanChildren(temp)
         .replace(/<span class="guide-[^"]+"><\/span>/g, "");
       // 메모장은 연속된 빈 줄과 마지막 줄바꿈까지 그대로 저장한다.
       return preserveMemoLines ? clean : clean.replace(/(<br>){3,}/g, "<br><br>").replace(/(<br>)+$/g, "");
@@ -17356,7 +17376,8 @@ body.admin-mode:not(.member-manage-mode) .controls {
     // 편집기 자체에서 상위 단축키 전파를 막는다. document 캡처에서 막으면
     // 편집기의 Enter/붙여넣기/입력 핸들러까지 도달하지 못한다.
     ["keydown", "keyup", "keypress", "beforeinput", "paste"].forEach(type => {
-      editor.addEventListener(type, event => event.stopPropagation(), true);
+      // 대상의 줄바꿈/붙여넣기 핸들러 실행 후 상위 단축키만 차단한다.
+      editor.addEventListener(type, event => event.stopPropagation());
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", attach);
