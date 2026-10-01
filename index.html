@@ -1256,6 +1256,11 @@
     .guide-red { color: #d80000 !important; font-weight: 800 !important; }
     .guide-blink { animation: guideTextBlink 1.3s steps(2, start) infinite; font-weight: 900 !important; }
     @keyframes guideTextBlink { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+    /* 메인메모 기본 글자와 선택 서식: 색상과 굵기는 독립 적용 */
+    #mainMemoText, #memberLoginMainMemoBox { color: #000; font-weight: 400; }
+    #mainMemoText :is(.guide-blue, .guide-red, .guide-blink),
+    #memberLoginMainMemoBox :is(.guide-blue, .guide-red, .guide-blink) { font-weight: inherit !important; }
+    #mainMemoText .guide-bold, #memberLoginMainMemoBox .guide-bold { font-weight: 900 !important; }
     /* 메인메모 전용: 깜빡임 속도를 안내메모보다 조금 느리게 적용 */
     #mainMemoText .guide-blink,
     #memberLoginMainMemoBox .guide-blink {
@@ -5232,7 +5237,10 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       const button = byId(buttonId);
       if (!button) return;
       // 포맷 버튼을 누를 때 선택 영역을 유지한다. 마우스와 터치 모두 같은 경로를 사용한다.
-      button.addEventListener("pointerdown", (event) => event.preventDefault());
+      button.addEventListener("pointerdown", (event) => {
+        if (buttonId.startsWith("mainMemo")) rememberMainMemoSelection();
+        event.preventDefault();
+      });
     }
 
 
@@ -5432,78 +5440,108 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
 
 
 
-async function applyMainMemoFormat(formatType) {
-  const editor = byId("mainMemoText");
-  if (!editor) return;
+    let mainMemoSelectionRange = null;
 
-  const classMap = {
-    bold: "guide-bold",
-    blue: "guide-blue",
-    red: "guide-red",
-    blink: "guide-blink"
-  };
-
-  const className = classMap[formatType];
-  if (!className) return;
-
-
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-    alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
-    return;
-  }
-
-  const range = selection.getRangeAt(0);
-  let node = range.startContainer;
-  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
-
-  const existing = node && node.closest && node.closest("." + className);
-
-  if (existing && editor.contains(existing)) {
-    existing.classList.remove(className);
-
-    if (formatType === "blue" || formatType === "red") {
-      existing.classList.remove("guide-blue", "guide-red");
+    function rememberMainMemoSelection() {
+      const editor = byId("mainMemoText");
+      const selection = window.getSelection();
+      if (!editor || !selection?.rangeCount) return;
+      const range = selection.getRangeAt(0);
+      if (!editor.contains(range.commonAncestorContainer)) return;
+      mainMemoSelectionRange = range.collapsed ? null : range.cloneRange();
     }
 
-    if (!existing.className.trim()) {
-      existing.replaceWith(...existing.childNodes);
+    function mainMemoRangeLength(fragment) {
+      return (fragment.textContent || "").length + fragment.querySelectorAll("br").length;
     }
 
-    await saveMainMemoEditorValue(editor);
-    return;
-  }
-
-  if (formatType === "blue" || formatType === "red") {
-    removeGuideColorFromSelection(editor);
-  }
-
-  if (!applyGuideFormatToSelection(editor, className)) {
-    alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
-    return;
-  }
-
-  await saveMainMemoEditorValue(editor);
-}
-
-function removeGuideColorFromSelection(editor) {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return;
-
-  const range = selection.getRangeAt(0);
-  const spans = editor.querySelectorAll(".guide-blue, .guide-red");
-
-  spans.forEach((span) => {
-    if (range.intersectsNode(span)) {
-      span.classList.remove("guide-blue", "guide-red");
-      if (!span.className.trim()) {
-        span.replaceWith(...span.childNodes);
+    async function applyMainMemoFormat(formatType) {
+      const editor = byId("mainMemoText");
+      const classes = { bold: "guide-bold", blue: "guide-blue", red: "guide-red", blink: "guide-blink" };
+      const className = classes[formatType];
+      const selection = window.getSelection();
+      if (!editor || !className || !selection) return;
+      let range = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+      if (!range || range.collapsed || !editor.contains(range.commonAncestorContainer)) {
+        range = mainMemoSelectionRange?.cloneRange();
       }
+      if (!range || range.collapsed || !editor.contains(range.commonAncestorContainer)) {
+        alert("효과를 적용하거나 해제할 글자 또는 문장을 먼저 선택하세요.");
+        return;
+      }
+      const prefix = document.createRange();
+      prefix.selectNodeContents(editor);
+      prefix.setEnd(range.startContainer, range.startOffset);
+      const start = mainMemoRangeLength(prefix.cloneContents());
+      prefix.setEnd(range.endContainer, range.endOffset);
+      const end = mainMemoRangeLength(prefix.cloneContents());
+      const runs = [];
+      function collect(node, inherited) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          if (node.data) runs.push({ text: node.data, classes: new Set(inherited) });
+          return;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        const active = new Set(inherited);
+        if (/^(B|STRONG)$/.test(node.tagName)) active.add("guide-bold");
+        Object.values(classes).forEach(name => { if (node.classList.contains(name)) active.add(name); });
+        if (node.classList.contains("guide-red")) active.delete("guide-blue");
+        if (node.classList.contains("guide-blue")) active.delete("guide-red");
+        if (node.tagName === "BR") runs.push({ text: "\n", br: true, classes: active });
+        else Array.from(node.childNodes).forEach(child => collect(child, active));
+      }
+      Array.from(editor.childNodes).forEach(node => collect(node, new Set()));
+      let position = 0;
+      const pieces = [];
+      runs.forEach(run => {
+        const runStart = position;
+        const runEnd = position + run.text.length;
+        const cuts = [runStart, Math.max(runStart, Math.min(runEnd, start)), Math.max(runStart, Math.min(runEnd, end)), runEnd];
+        [...new Set(cuts)].sort((a,b) => a-b).forEach((cut, i, points) => {
+          if (i === points.length - 1 || cut === points[i+1]) return;
+          pieces.push({ text: run.text.slice(cut-runStart, points[i+1]-runStart), br: run.br,
+            classes: new Set(run.classes), selected: cut >= start && points[i+1] <= end });
+        });
+        position = runEnd;
+      });
+      const selected = pieces.filter(piece => piece.selected);
+      if (!selected.length) return;
+      // 같은 특성이 선택 글자 전체에 적용된 경우 기본 검정/가는 글자로 복귀한다.
+      const reset = selected.every(piece => piece.classes.has(className));
+      selected.forEach(piece => {
+        if (reset) piece.classes.clear();
+        else {
+          if (formatType === "blue" || formatType === "red") {
+            piece.classes.delete("guide-blue");
+            piece.classes.delete("guide-red");
+          }
+          piece.classes.add(className);
+        }
+      });
+      const fragment = document.createDocumentFragment();
+      const nextRange = document.createRange();
+      let first = null, last = null;
+      pieces.forEach(piece => {
+        const node = piece.br ? document.createElement("br") : document.createTextNode(piece.text);
+        if (piece.classes.size) {
+          const span = document.createElement("span");
+          span.className = [...piece.classes].join(" ");
+          span.appendChild(node);
+          fragment.appendChild(span);
+        } else fragment.appendChild(node);
+        if (piece.selected) { if (!first) first = node; last = node; }
+      });
+      editor.focus({ preventScroll: true });
+      editor.replaceChildren(fragment);
+      if (first.nodeType === Node.TEXT_NODE) nextRange.setStart(first, 0);
+      else nextRange.setStartBefore(first);
+      if (last.nodeType === Node.TEXT_NODE) nextRange.setEnd(last, last.data.length);
+      else nextRange.setEndAfter(last);
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+      mainMemoSelectionRange = nextRange.cloneRange();
+      await saveMainMemoEditorValue(editor);
     }
-  });
-}
-
-
 
     function normalizeExternalLinkUrl(rawUrl) {
       const text = String(rawUrl || "").trim();
@@ -8515,6 +8553,7 @@ function renderAll() {
         return;
       }
       if (state.isSystemAdminAuthenticated) {
+        state.isSystemAdminAuthenticated = false;
         renderPanels();
         return;
       }
@@ -9527,6 +9566,7 @@ function renderAll() {
       bindIfPresent("infoSeatGuideText", "input", async (e) => { await saveInfoGuideEditorValue(e.target); });
       bindIfPresent("adminInfoGuideBtn", "click", toggleInfoGuidePanel);
       bindIfPresent("adminMainMemoBtn", "click", toggleMainMemoPanel);
+      document.addEventListener("selectionchange", rememberMainMemoSelection);
       bindIfPresent("mainMemoText", "keydown", handleMainMemoNotepadKeydown);
       bindIfPresent("mainMemoText", "beforeinput", handleMainMemoBeforeInput);
       bindIfPresent("mainMemoText", "paste", handleMainMemoPlainPaste);
@@ -17398,10 +17438,6 @@ body.admin-mode:not(.member-manage-mode) .controls {
     infoGuideRedBtn:    { editorId: "infoSeatGuideText", className: "guide-red",   type: "color", saveName: "saveInfoGuideEditorValue" },
     infoGuideBlinkBtn:  { editorId: "infoSeatGuideText", className: "guide-blink", type: "blink", saveName: "saveInfoGuideEditorValue" },
 
-    mainMemoBoldBtn:    { editorId: "mainMemoText", className: "guide-bold",  type: "bold",  saveName: "saveMainMemoEditorValue" },
-    mainMemoBlueBtn:    { editorId: "mainMemoText", className: "guide-blue",  type: "color", saveName: "saveMainMemoEditorValue" },
-    mainMemoRedBtn:     { editorId: "mainMemoText", className: "guide-red",   type: "color", saveName: "saveMainMemoEditorValue" },
-    mainMemoBlinkBtn:   { editorId: "mainMemoText", className: "guide-blink", type: "blink", saveName: "saveMainMemoEditorValue" },
 
     hikingNoticeBoldBtn:   { editorId: "hikingNoticeText", className: "guide-bold",  type: "bold",  saveName: "saveHikingNoticeEditorValue" },
     hikingNoticeBlueBtn:   { editorId: "hikingNoticeText", className: "guide-blue",  type: "color", saveName: "saveHikingNoticeEditorValue" },
