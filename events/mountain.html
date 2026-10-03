@@ -73,13 +73,13 @@ button{font-family:inherit}
 <div class="progress-wrap"><div class="progress-text"><span id="cycleText">1회차</span><span id="bankText">문제은행</span></div><div class="progress"><div class="progress-bar" id="progressBar"></div></div></div>
 </div>
 </section>
-<div class="notice">산 문제는 mountin-data.html 내부에 직접 저장된 정적 데이터로 출제합니다.</div>
+<div class="notice">산 문제는 mountain-data.html 내부에 직접 저장된 정적 데이터로 출제합니다.</div>
 </div></main>
 
 <script>
 (function(){
 "use strict";
-var DATA_URL="mountin-data.html"; // 정적 산 문제 데이터 파일
+var DATA_URL="mountain-data.html"; // 정적 산 문제 데이터 파일
 var SESSION_KEY="geomam-event-session";
 var STATE_KEY="geomam-mountin-quiz-v1";
 var CACHE_KEY="geomam-mountin-data-cache-v2";
@@ -93,7 +93,7 @@ function loadData(){
   var done=false,frame=document.createElement("iframe");frame.hidden=true;frame.src=DATA_URL+"?v=2";document.body.appendChild(frame);
   function clean(){window.removeEventListener("message",msg);if(frame.parentNode)frame.remove()}
   function finish(items){if(done)return;var n=normalize(items);if(n.length<4)return;done=true;mountains=n;try{localStorage.setItem(CACHE_KEY,JSON.stringify(n))}catch(e){}setStatus("국내산 문제은행 "+n.length+"개 불러오기 완료","ready");clean();resolve()}
-  function msg(ev){var d=ev.data||{};if(d.type==="MOUNTIN_DATABASE_READY")finish(d.items)}
+  function msg(ev){var d=ev.data||{};if(d.type==="MOUNTAIN_DATABASE_READY")finish(d.items)}
   window.addEventListener("message",msg);
   frame.onerror=function(){var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){mountains=c;done=true;setStatus("데이터 파일 연결 실패 · 저장자료 "+c.length+"개 사용","error");clean();resolve()}else{clean();reject(new Error("mountin-data.html 연결 실패"))}};
   setTimeout(function(){if(done)return;var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){mountains=c;done=true;setStatus("응답 지연 · 저장자료 "+c.length+"개 사용","error");clean();resolve()}else{clean();reject(new Error("문제은행 응답시간 초과"))}},5000);
@@ -124,8 +124,8 @@ function reset(){if(!mountains.length)return;if(!confirm("기록을 처음부터
 function home(){location.href=new URL("index.html",location.href).href}
 $("nextBtn").onclick=next;$("resetBtn").onclick=reset;$("backBtn").onclick=home;
 session=loadSession();
-loadData().then(function(){state=loadState();render()}).catch(function(e){setStatus(e.message||"문제은행 연결 실패","error");$("hintText").textContent="mountin-data.html 파일 위치를 확인하세요."});
-try{if(parent&&parent!==window)parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"mountin"},"*")}catch(e){}
+loadData().then(function(){state=loadState();render()}).catch(function(e){setStatus(e.message||"문제은행 연결 실패","error");$("hintText").textContent="mountain-data.html 파일 위치를 확인하세요."});
+try{if(parent&&parent!==window)parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"mountain"},"*")}catch(e){}
 window.addEventListener("message",function(ev){var d=ev.data||{};if(d.type==="BUS_SEAT_EVENT_SESSION"&&d.session){var old=stateKey();session=d.session;if(mountains.length&&old!==stateKey()){state=loadState();render()}}});
 })();
 </script>
