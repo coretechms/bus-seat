@@ -4179,7 +4179,7 @@ body.member-mode .alt-arrow-cell {
             <div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; min-width:0; margin-left:0;">
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
               <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">로그아웃</button>
-              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">행운뽑기</button>
+              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">이 벤 트</button>
 </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
@@ -19505,7 +19505,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   if (window.__busSeatExternalEventBridgeApplied) return;
   window.__busSeatExternalEventBridgeApplied = true;
 
-  var EVENT_PATH = "events/lucky.html";
+  var EVENT_PATH = "events/index.html";
   var host = null;
   var frame = null;
 
@@ -19534,14 +19534,14 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 
     frame = document.createElement("iframe");
     frame.id = "busSeatExternalEventFrame";
-    frame.title = "오늘의 행운뽑기";
+    frame.title = "오늘의 이벤트";
     frame.setAttribute("allow", "fullscreen");
     frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     host.appendChild(frame);
     document.body.appendChild(host);
   }
 
-  function openLuckyEvent() {
+  function openEventMain() {
     var session = getMemberSession();
     if (!session) {
       alert("회원 로그인 후 이용할 수 있습니다.");
@@ -19569,16 +19569,32 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
 
   window.addEventListener("message", function (event) {
     if (!frame || event.source !== frame.contentWindow) return;
+
     var data = event.data || {};
-    if (data.type === "BUS_SEAT_EVENT_READY" && data.event === "lucky") {
+
+    /* 이벤트 메인(index) 또는 하위 이벤트가 준비되면 현재 로그인 회원정보 전달 */
+    if (data.type === "BUS_SEAT_EVENT_READY") {
       var session = getMemberSession();
-      if (!session) { closeEvent(); return; }
+      if (!session) {
+        closeEvent();
+        return;
+      }
+
+      var eventName = String(data.event || "index");
+
       try {
-        frame.contentWindow.postMessage({ type: "BUS_SEAT_EVENT_SESSION", event: "lucky", session: session }, event.origin || "*");
+        frame.contentWindow.postMessage({
+          type: "BUS_SEAT_EVENT_SESSION",
+          event: eventName,
+          session: session
+        }, event.origin || "*");
       } catch (_) {}
+
       return;
     }
-    if (data.type === "BUS_SEAT_EVENT_EXIT" && data.event === "lucky") {
+
+    /* index / lucky / quiz 및 앞으로 추가되는 모든 이벤트의 나가기 공통 처리 */
+    if (data.type === "BUS_SEAT_EVENT_EXIT") {
       closeEvent();
     }
   });
@@ -19587,7 +19603,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     var btn = event.target && event.target.closest ? event.target.closest("#memberLuckyEventBtn") : null;
     if (!btn) return;
     event.preventDefault();
-    openLuckyEvent();
+    openEventMain();
   }, true);
 })();
 </script>
