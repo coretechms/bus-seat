@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#4a2b75">
+<title>오늘의 운세</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;min-height:100%;font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#222;background:#f4effa}
+body{min-height:100vh;min-height:100dvh}
+button,select{font-family:inherit}
+.app{min-height:100vh;min-height:100dvh;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));background:radial-gradient(circle at 15% 5%,rgba(255,255,255,.85),transparent 28%),linear-gradient(180deg,#eee3fa 0%,#faf8fd 48%,#f2edf7 100%)}
+.shell{width:min(760px,100%);margin:0 auto}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.title-wrap h1{margin:0;font-size:22px;font-weight:900;color:#4a2b75;letter-spacing:-.04em}.date{margin-top:4px;font-size:12px;color:#776a84}
+.actions{display:flex;gap:6px}.top-btn{height:38px;min-width:62px;padding:0 12px;border:0;border-radius:14px;font-weight:900;font-size:13px;cursor:pointer}.back{background:#fff;border:1px solid #cfc2dd;color:#59357d}.exit{background:#3c2d50;color:#fff}
+.member{padding:11px 14px;margin-bottom:10px;background:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.95);border-radius:16px;box-shadow:0 8px 22px rgba(60,40,80,.07);font-size:14px}
+.selector{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 12px;background:#fff;border:1px solid #e1d7eb;border-radius:16px}
+.selector label{font-size:13px;font-weight:900;color:#51316f;white-space:nowrap}.selector select{flex:1;height:38px;border:1px solid #d5c8df;border-radius:12px;padding:0 10px;background:#fff;font-size:14px}
+.hero{padding:22px 18px;border-radius:26px;background:linear-gradient(135deg,#5c3784,#7a4da7);color:#fff;box-shadow:0 18px 40px rgba(78,44,110,.22);text-align:center}
+.zodiac{font-size:42px;line-height:1;margin-bottom:8px}.hero-title{font-size:15px;font-weight:800;opacity:.9}.fortune-score{font-size:42px;font-weight:900;line-height:1.1;margin:8px 0}.fortune-summary{font-size:18px;font-weight:900;line-height:1.55;word-break:keep-all}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.card{background:#fff;border:1px solid #e6ddec;border-radius:19px;padding:14px;box-shadow:0 8px 22px rgba(60,40,80,.06)}
+.card h3{margin:0 0 7px;font-size:14px;color:#5a347e}.card p{margin:0;font-size:13px;line-height:1.55;color:#4d4654;word-break:keep-all}
+.lucky{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.lucky-box{background:#fff;border:1px solid #e2d7eb;border-radius:17px;padding:12px 8px;text-align:center}.lucky-label{font-size:11px;color:#867791;margin-bottom:5px}.lucky-value{font-size:15px;font-weight:900;color:#533276}
+.message{margin-top:12px;padding:17px;border-radius:20px;background:#fff8df;border:1px solid #eedb8e;color:#6d5700;text-align:center;font-size:15px;font-weight:900;line-height:1.6}
+.notice{margin-top:12px;text-align:center;color:#8a7e92;font-size:11px;line-height:1.5}
+@media(max-width:520px){.title-wrap h1{font-size:18px}.top-btn{height:36px;min-width:56px;padding:0 9px;font-size:12px}.hero{padding:19px 14px}.fortune-summary{font-size:16px}.grid{grid-template-columns:1fr}.lucky{gap:6px}.lucky-value{font-size:13px}}
+</style>
+</head>
+<body>
+<main class="app"><div class="shell">
+<header class="topbar">
+  <div class="title-wrap"><h1>🔮 오늘의 운세</h1><div class="date" id="dateText"></div></div>
+  <div class="actions"><button type="button" class="top-btn back" id="backBtn">이벤트</button><button type="button" class="top-btn exit" id="exitBtn">나가기</button></div>
+</header>
+
+<div class="member" id="memberText">회원 정보를 확인하는 중입니다.</div>
+
+<div class="selector">
+  <label for="zodiacSelect">내 띠</label>
+  <select id="zodiacSelect">
+    <option value="쥐">🐭 쥐띠</option>
+    <option value="소">🐮 소띠</option>
+    <option value="호랑이">🐯 호랑이띠</option>
+    <option value="토끼">🐰 토끼띠</option>
+    <option value="용">🐲 용띠</option>
+    <option value="뱀">🐍 뱀띠</option>
+    <option value="말">🐴 말띠</option>
+    <option value="양">🐑 양띠</option>
+    <option value="원숭이">🐵 원숭이띠</option>
+    <option value="닭">🐔 닭띠</option>
+    <option value="개">🐶 개띠</option>
+    <option value="돼지">🐷 돼지띠</option>
+  </select>
+</div>
+
+<section class="hero">
+  <div class="zodiac" id="zodiacEmoji">🔮</div>
+  <div class="hero-title" id="heroTitle">오늘의 총운</div>
+  <div class="fortune-score" id="fortuneScore">88</div>
+  <div class="fortune-summary" id="fortuneSummary"></div>
+</section>
+
+<section class="grid">
+  <article class="card"><h3>💪 건강운</h3><p id="healthText"></p></article>
+  <article class="card"><h3>💰 금전운</h3><p id="moneyText"></p></article>
+  <article class="card"><h3>🤝 인간관계운</h3><p id="relationText"></p></article>
+  <article class="card"><h3>🥾 산행운</h3><p id="hikingText"></p></article>
+</section>
+
+<section class="lucky">
+  <div class="lucky-box"><div class="lucky-label">행운의 색</div><div class="lucky-value" id="colorText"></div></div>
+  <div class="lucky-box"><div class="lucky-label">행운 숫자</div><div class="lucky-value" id="numberText"></div></div>
+  <div class="lucky-box"><div class="lucky-label">좋은 시간</div><div class="lucky-value" id="timeText"></div></div>
+</section>
+
+<div class="message" id="messageText"></div>
+<div class="notice">오늘의 운세는 재미로 즐기는 콘텐츠입니다. 실제 미래를 예측하거나 중요한 결정을 대신하지 않습니다.</div>
+</div></main>
+
+<script>
+(function(){
+"use strict";
+
+var SESSION_KEY="geomam-event-session";
+var ZODIAC_KEY="geomam-fortune-zodiac-v1:";
+var session=null;
+
+var zodiacEmoji={
+  "쥐":"🐭","소":"🐮","호랑이":"🐯","토끼":"🐰","용":"🐲","뱀":"🐍",
+  "말":"🐴","양":"🐑","원숭이":"🐵","닭":"🐔","개":"🐶","돼지":"🐷"
+};
+
+var summaries=[
+  "작은 기회가 자연스럽게 찾아오는 날입니다. 서두르지 말고 흐름을 살펴보세요.",
+  "익숙한 사람과의 대화에서 좋은 힌트를 얻을 수 있는 날입니다.",
+  "평소 미뤄둔 일을 하나 정리하면 마음까지 가벼워지는 날입니다.",
+  "욕심보다 균형을 택하면 결과가 더 편안하게 따라오는 날입니다.",
+  "기분 좋은 변화가 생길 수 있습니다. 열린 마음으로 하루를 시작해 보세요.",
+  "한 번 더 확인하는 습관이 좋은 결과로 이어지는 날입니다.",
+  "주변 사람에게 건넨 따뜻한 말 한마디가 다시 좋은 기운으로 돌아옵니다.",
+  "오늘은 꾸준함이 힘을 발휘하는 날입니다. 천천히 가도 방향만 맞으면 좋습니다."
+];
+
+var health=[
+  "몸을 급하게 움직이기보다 가볍게 스트레칭하고 천천히 리듬을 올려보세요.",
+  "충분한 수분과 휴식이 컨디션 유지에 도움이 되는 날입니다.",
+  "평소보다 몸의 신호를 잘 살피고 무리한 일정은 조금 줄여보세요.",
+  "가벼운 걷기와 규칙적인 식사가 기분 전환에 도움이 될 수 있습니다.",
+  "잠깐의 휴식이 오히려 하루 전체의 집중력을 높여줄 수 있습니다."
+];
+
+var money=[
+  "충동구매보다 필요한 것인지 한 번 더 생각하면 만족도가 높아집니다.",
+  "작은 절약이 기분 좋은 성취감으로 이어질 수 있는 날입니다.",
+  "큰 결정보다는 기존 지출을 정리하고 점검하기에 좋은 날입니다.",
+  "사소한 할인이나 유용한 정보를 발견할 수 있으니 꼼꼼히 살펴보세요.",
+  "오늘은 쓰는 즐거움보다 남기는 즐거움에 조금 더 무게를 둬보세요."
+];
+
+var relation=[
+  "먼저 안부를 건네면 예상보다 따뜻한 반응을 얻을 수 있습니다.",
+  "상대의 말을 끝까지 들어주는 것이 좋은 분위기를 만드는 날입니다.",
+  "가벼운 농담과 미소가 어색한 분위기를 풀어줄 수 있습니다.",
+  "작은 오해는 오래 두지 말고 부드럽게 풀어보는 것이 좋습니다.",
+  "오래 알고 지낸 사람에게 감사의 말을 전하기 좋은 날입니다."
+];
+
+var hiking=[
+  "오늘 산행에서는 속도보다 일정한 페이스를 유지해 보세요.",
+  "오르막에서는 호흡을 일정하게, 내리막에서는 보폭을 조금 줄여보세요.",
+  "좋은 풍경을 발견하면 잠시 멈춰 주변을 즐겨보는 것도 좋습니다.",
+  "출발 전에 물과 준비물을 한 번 더 확인하면 마음이 편해집니다.",
+  "일행과 적당한 간격을 유지하며 함께 걷는 즐거움을 느껴보세요."
+];
+
+var colors=["파랑","초록","노랑","주황","하늘색","보라","흰색","분홍","연두","남색"];
+var times=["오전 8~10시","오전 10~12시","오후 1~3시","오후 3~5시","오후 5~7시"];
+var messages=[
+  "오늘도 좋은 사람들과 좋은 시간을 만들어 보세요.",
+  "천천히 가도 괜찮습니다. 즐겁게 가는 것이 더 중요합니다.",
+  "작은 웃음 하나가 하루의 분위기를 바꿀 수 있습니다.",
+  "좋은 기분은 나누면 더 커집니다.",
+  "오늘의 한 걸음이 내일의 좋은 기억이 됩니다.",
+  "기대하지 않았던 곳에서 작은 즐거움을 발견해 보세요.",
+  "너무 완벽하려 하지 말고 오늘을 편안하게 즐겨보세요."
+];
+
+function $(id){return document.getElementById(id)}
+
+function koreaDateKey(){
+  try{
+    var parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+    var m={};parts.forEach(function(p){m[p.type]=p.value});
+    return m.year+"-"+m.month+"-"+m.day;
+  }catch(e){
+    var d=new Date();
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  }
+}
+
+function displayDate(){
+  try{
+    return new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"numeric",month:"long",day:"numeric",weekday:"long"}).format(new Date());
+  }catch(e){return koreaDateKey()}
+}
+
+function normalizeSession(data){
+  if(!data||typeof data!=="object")return null;
+  return {
+    code:String(data.code||data.memberCode||data.loginCode||data.id||"guest").trim()||"guest",
+    name:String(data.name||data.memberName||data.userName||"회원").trim()||"회원"
+  };
+}
+
+function loadSession(){
+  try{
+    var raw=sessionStorage.getItem(SESSION_KEY);
+    if(raw)return normalizeSession(JSON.parse(raw));
+  }catch(e){}
+  return {code:"guest",name:"회원"};
+}
+
+function hashText(text){
+  var h=2166136261;
+  for(var i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619)}
+  return h>>>0;
+}
+
+function pick(arr,seed,salt){
+  return arr[hashText(seed+"|"+salt)%arr.length];
+}
+
+function loadZodiac(){
+  try{
+    return localStorage.getItem(ZODIAC_KEY+session.code)||"쥐";
+  }catch(e){return "쥐"}
+}
+
+function saveZodiac(value){
+  try{localStorage.setItem(ZODIAC_KEY+session.code,value)}catch(e){}
+}
+
+function render(){
+  var zodiac=$("zodiacSelect").value;
+  saveZodiac(zodiac);
+
+  var seed=koreaDateKey()+"|"+session.code+"|"+zodiac;
+  var score=70+(hashText(seed+"|score")%30);
+
+  $("zodiacEmoji").textContent=zodiacEmoji[zodiac]||"🔮";
+  $("heroTitle").textContent=zodiac+"띠 · 오늘의 총운";
+  $("fortuneScore").textContent=score;
+  $("fortuneSummary").textContent=pick(summaries,seed,"summary");
+  $("healthText").textContent=pick(health,seed,"health");
+  $("moneyText").textContent=pick(money,seed,"money");
+  $("relationText").textContent=pick(relation,seed,"relation");
+  $("hikingText").textContent=pick(hiking,seed,"hiking");
+  $("colorText").textContent=pick(colors,seed,"color");
+  $("numberText").textContent=String(1+(hashText(seed+"|number")%9));
+  $("timeText").textContent=pick(times,seed,"time");
+  $("messageText").textContent="✨ "+pick(messages,seed,"message");
+}
+
+function goEventMain(){
+  window.location.href=new URL("index.html",window.location.href).href;
+}
+
+$("backBtn").addEventListener("click",goEventMain);
+$("exitBtn").addEventListener("click",goEventMain);
+$("zodiacSelect").addEventListener("change",render);
+
+$("dateText").textContent=displayDate();
+session=loadSession();
+$("memberText").textContent=session.name+" 회원님 · 오늘의 운세를 재미로 확인해 보세요.";
+$("zodiacSelect").value=loadZodiac();
+render();
+
+})();
+</script>
+</body>
+</html>
