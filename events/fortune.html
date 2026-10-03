@@ -22,10 +22,10 @@ button,select{font-family:inherit}
 
 .profile-card{margin-bottom:8px;padding:10px 12px;background:#fff;border:1px solid #e1d7eb;border-radius:16px;box-shadow:0 6px 18px rgba(60,40,80,.06)}
 .profile-title{margin-bottom:7px;font-size:12px;font-weight:900;color:#5b3a75}
-.profile-row{display:grid;grid-template-columns:92px 1fr;gap:7px;align-items:center;padding:7px 0;border-top:1px solid #eee7f3}
+.profile-row{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:8px 0;border-top:1px solid #eee7f3}
 .profile-row:first-of-type{border-top:0}
 .profile-label{font-size:11px;font-weight:900;color:#756580}
-.profile-value{font-size:14px;font-weight:900;color:#352443;word-break:keep-all}
+.profile-value{width:100%;font-size:14px;font-weight:900;color:#352443;word-break:keep-all;line-height:1.5}
 .profile-value .sub{font-size:11px;font-weight:600;color:#8b7c95;margin-left:4px}
 .profile-warning{display:none;margin-top:6px;padding:7px 9px;border-radius:10px;background:#fff4e8;color:#945114;font-size:11px;line-height:1.4}
 
@@ -40,14 +40,14 @@ button,select{font-family:inherit}
 .fortune-score{font-size:34px;font-weight:900;line-height:1.1;margin:5px 0}
 .fortune-summary{font-size:15px;font-weight:900;line-height:1.45;word-break:keep-all}
 
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+.grid{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}
 .card{background:#fff;border:1px solid #e6ddec;border-radius:15px;padding:10px;box-shadow:0 5px 16px rgba(60,40,80,.05)}
 .card h3{margin:0 0 5px;font-size:12px;color:#5a347e}
 .card p{margin:0;font-size:11px;line-height:1.45;color:#4d4654;word-break:keep-all}
 
-.lucky{margin-top:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.lucky-box{background:#fff;border:1px solid #e2d7eb;border-radius:14px;padding:8px 5px;text-align:center}
-.lucky-label{font-size:9px;color:#867791;margin-bottom:3px}
+.lucky{margin-top:8px;display:grid;grid-template-columns:1fr;gap:6px}
+.lucky-box{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e2d7eb;border-radius:14px;padding:9px 11px;text-align:left}
+.lucky-label{font-size:10px;color:#867791;margin-bottom:0}
 .lucky-value{font-size:12px;font-weight:900;color:#533276}
 .message{margin-top:8px;padding:11px;border-radius:15px;background:#fff8df;border:1px solid #eedb8e;color:#6d5700;text-align:center;font-size:12px;font-weight:900;line-height:1.45}
 .notice{margin-top:7px;text-align:center;color:#8a7e92;font-size:9px;line-height:1.35}
@@ -60,7 +60,7 @@ button,select{font-family:inherit}
   .top-btn{height:31px;min-width:52px;padding:0 8px;font-size:11px}
   .profile-card{padding:8px 10px;margin-bottom:6px;border-radius:13px}
   .profile-title{margin-bottom:4px;font-size:11px}
-  .profile-row{grid-template-columns:82px 1fr;padding:5px 0}
+  .profile-row{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:6px 0}
   .profile-label{font-size:10px}
   .profile-value{font-size:12px}
   .profile-value .sub{font-size:9px}
@@ -269,6 +269,37 @@ function loadSession(){
   return {code:"guest",name:"회원",birthDate:""};
 }
 
+function saveSession(nextSession){
+  session=normalizeSession(nextSession)||{code:"guest",name:"회원",birthDate:""};
+  try{
+    sessionStorage.setItem(SESSION_KEY,JSON.stringify(session));
+  }catch(e){}
+  registeredBirth=parseBirth6(session.birthDate);
+}
+
+function requestSessionFromBusSeat(){
+  try{
+    if(window.parent&&window.parent!==window){
+      window.parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"fortune"},"*");
+    }
+  }catch(e){}
+}
+
+window.addEventListener("message",function(event){
+  var data=event.data||{};
+  if(data.type!=="BUS_SEAT_EVENT_SESSION")return;
+  if(data.event && data.event!=="fortune" && data.event!=="index")return;
+
+  saveSession(data.session);
+
+  var defaultZodiac=registeredBirth?zodiacForYear(registeredBirth.year):"쥐";
+  var savedZodiac=loadSelectedZodiac(defaultZodiac);
+  if(zodiacOrder.indexOf(savedZodiac)<0)savedZodiac=defaultZodiac;
+  $("zodiacSelect").value=savedZodiac;
+
+  renderFortune();
+});
+
 function parseBirth6(value){
   var digits=String(value||"").replace(/\D/g,"");
   if(digits.length!==6)return null;
@@ -290,7 +321,11 @@ function parseBirth6(value){
 }
 
 function zodiacForYear(year){
-  var idx=((year-2020)%12+12)%12;
+  /* 한국 연도 기준 띠:
+     1972년 = 쥐띠, 1973년 = 소띠
+     이후 12년 주기로 반복 */
+  var baseYear = 1972; // 쥐띠
+  var idx = ((Number(year) - baseYear) % 12 + 12) % 12;
   return zodiacOrder[idx];
 }
 
@@ -349,7 +384,7 @@ function renderProfiles(){
   if(!registeredBirth){
     $("registeredProfile").textContent="가입정보의 생년월일을 확인할 수 없습니다.";
     $("selectedProfile").textContent="출생년도 확인 후 계산할 수 있습니다.";
-    warning.textContent="bus-seat 최신 버전으로 로그인한 뒤 다시 들어오면 가입정보가 연동됩니다.";
+    warning.textContent="가입정보를 다시 불러오는 중입니다. 잠시 후에도 표시되지 않으면 bus-seat에서 다시 로그인해 주세요.";
     warning.style.display="block";
     return null;
   }
@@ -407,12 +442,24 @@ $("exitBtn").addEventListener("click",goEventMain);
 $("zodiacSelect").addEventListener("change",renderFortune);
 
 $("dateText").textContent=displayDate();
-session=loadSession();
-registeredBirth=parseBirth6(session.birthDate);
+
+saveSession(loadSession());
 
 var defaultZodiac=registeredBirth?zodiacForYear(registeredBirth.year):"쥐";
-$("zodiacSelect").value=loadSelectedZodiac(defaultZodiac);
+var initialZodiac=loadSelectedZodiac(defaultZodiac);
+if(zodiacOrder.indexOf(initialZodiac)<0)initialZodiac=defaultZodiac;
+$("zodiacSelect").value=initialZodiac;
+
 renderFortune();
+
+/* fortune 화면이 직접 bus-seat에 로그인 회원정보를 다시 요청 */
+requestSessionFromBusSeat();
+window.setTimeout(function(){
+  if(!registeredBirth)requestSessionFromBusSeat();
+},500);
+window.setTimeout(function(){
+  if(!registeredBirth)requestSessionFromBusSeat();
+},1500);
 
 })();
 </script>
