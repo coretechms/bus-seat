@@ -10,23 +10,79 @@
 html,body{margin:0;width:100%;min-height:100%;font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#222;background:#f4effa}
 body{min-height:100vh;min-height:100dvh}
 button,select{font-family:inherit}
-.app{min-height:100vh;min-height:100dvh;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));background:radial-gradient(circle at 15% 5%,rgba(255,255,255,.85),transparent 28%),linear-gradient(180deg,#eee3fa 0%,#faf8fd 48%,#f2edf7 100%)}
+.app{min-height:100vh;min-height:100dvh;padding:max(9px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom));background:radial-gradient(circle at 15% 5%,rgba(255,255,255,.85),transparent 28%),linear-gradient(180deg,#eee3fa 0%,#faf8fd 48%,#f2edf7 100%)}
 .shell{width:min(760px,100%);margin:0 auto}
-.topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
-.title-wrap h1{margin:0;font-size:22px;font-weight:900;color:#4a2b75;letter-spacing:-.04em}.date{margin-top:4px;font-size:12px;color:#776a84}
-.actions{display:flex;gap:6px}.top-btn{height:38px;min-width:62px;padding:0 12px;border:0;border-radius:14px;font-weight:900;font-size:13px;cursor:pointer}.back{background:#fff;border:1px solid #cfc2dd;color:#59357d}.exit{background:#3c2d50;color:#fff}
-.member{padding:11px 14px;margin-bottom:10px;background:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.95);border-radius:16px;box-shadow:0 8px 22px rgba(60,40,80,.07);font-size:14px}
-.selector{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 12px;background:#fff;border:1px solid #e1d7eb;border-radius:16px}
-.selector label{font-size:13px;font-weight:900;color:#51316f;white-space:nowrap}.selector select{flex:1;height:38px;border:1px solid #d5c8df;border-radius:12px;padding:0 10px;background:#fff;font-size:14px}
-.hero{padding:22px 18px;border-radius:26px;background:linear-gradient(135deg,#5c3784,#7a4da7);color:#fff;box-shadow:0 18px 40px rgba(78,44,110,.22);text-align:center}
-.zodiac{font-size:42px;line-height:1;margin-bottom:8px}.hero-title{font-size:15px;font-weight:800;opacity:.9}.fortune-score{font-size:42px;font-weight:900;line-height:1.1;margin:8px 0}.fortune-summary{font-size:18px;font-weight:900;line-height:1.55;word-break:keep-all}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-.card{background:#fff;border:1px solid #e6ddec;border-radius:19px;padding:14px;box-shadow:0 8px 22px rgba(60,40,80,.06)}
-.card h3{margin:0 0 7px;font-size:14px;color:#5a347e}.card p{margin:0;font-size:13px;line-height:1.55;color:#4d4654;word-break:keep-all}
-.lucky{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.lucky-box{background:#fff;border:1px solid #e2d7eb;border-radius:17px;padding:12px 8px;text-align:center}.lucky-label{font-size:11px;color:#867791;margin-bottom:5px}.lucky-value{font-size:15px;font-weight:900;color:#533276}
-.message{margin-top:12px;padding:17px;border-radius:20px;background:#fff8df;border:1px solid #eedb8e;color:#6d5700;text-align:center;font-size:15px;font-weight:900;line-height:1.6}
-.notice{margin-top:12px;text-align:center;color:#8a7e92;font-size:11px;line-height:1.5}
-@media(max-width:520px){.title-wrap h1{font-size:18px}.top-btn{height:36px;min-width:56px;padding:0 9px;font-size:12px}.hero{padding:19px 14px}.fortune-summary{font-size:16px}.grid{grid-template-columns:1fr}.lucky{gap:6px}.lucky-value{font-size:13px}}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+.title-wrap h1{margin:0;font-size:20px;font-weight:900;color:#4a2b75;letter-spacing:-.04em}
+.date{margin-top:2px;font-size:11px;color:#776a84}
+.actions{display:flex;gap:5px}
+.top-btn{height:35px;min-width:58px;padding:0 10px;border:0;border-radius:12px;font-weight:900;font-size:12px;cursor:pointer}
+.back{background:#fff;border:1px solid #cfc2dd;color:#59357d}
+.exit{background:#3c2d50;color:#fff}
+
+.profile-card{margin-bottom:8px;padding:10px 12px;background:#fff;border:1px solid #e1d7eb;border-radius:16px;box-shadow:0 6px 18px rgba(60,40,80,.06)}
+.profile-title{margin-bottom:7px;font-size:12px;font-weight:900;color:#5b3a75}
+.profile-row{display:grid;grid-template-columns:92px 1fr;gap:7px;align-items:center;padding:7px 0;border-top:1px solid #eee7f3}
+.profile-row:first-of-type{border-top:0}
+.profile-label{font-size:11px;font-weight:900;color:#756580}
+.profile-value{font-size:14px;font-weight:900;color:#352443;word-break:keep-all}
+.profile-value .sub{font-size:11px;font-weight:600;color:#8b7c95;margin-left:4px}
+.profile-warning{display:none;margin-top:6px;padding:7px 9px;border-radius:10px;background:#fff4e8;color:#945114;font-size:11px;line-height:1.4}
+
+.selector{display:flex;align-items:center;gap:7px;margin-bottom:8px;padding:8px 10px;background:#fff;border:1px solid #e1d7eb;border-radius:14px}
+.selector label{font-size:12px;font-weight:900;color:#51316f;white-space:nowrap}
+.selector select{flex:1;height:34px;border:1px solid #d5c8df;border-radius:10px;padding:0 9px;background:#fff;font-size:13px}
+.selector-note{font-size:10px;color:#8a7e92;line-height:1.35;margin-top:2px}
+
+.hero{padding:16px 14px;border-radius:20px;background:linear-gradient(135deg,#5c3784,#7a4da7);color:#fff;box-shadow:0 12px 28px rgba(78,44,110,.20);text-align:center}
+.zodiac{font-size:34px;line-height:1;margin-bottom:5px}
+.hero-title{font-size:13px;font-weight:800;opacity:.9}
+.fortune-score{font-size:34px;font-weight:900;line-height:1.1;margin:5px 0}
+.fortune-summary{font-size:15px;font-weight:900;line-height:1.45;word-break:keep-all}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+.card{background:#fff;border:1px solid #e6ddec;border-radius:15px;padding:10px;box-shadow:0 5px 16px rgba(60,40,80,.05)}
+.card h3{margin:0 0 5px;font-size:12px;color:#5a347e}
+.card p{margin:0;font-size:11px;line-height:1.45;color:#4d4654;word-break:keep-all}
+
+.lucky{margin-top:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.lucky-box{background:#fff;border:1px solid #e2d7eb;border-radius:14px;padding:8px 5px;text-align:center}
+.lucky-label{font-size:9px;color:#867791;margin-bottom:3px}
+.lucky-value{font-size:12px;font-weight:900;color:#533276}
+.message{margin-top:8px;padding:11px;border-radius:15px;background:#fff8df;border:1px solid #eedb8e;color:#6d5700;text-align:center;font-size:12px;font-weight:900;line-height:1.45}
+.notice{margin-top:7px;text-align:center;color:#8a7e92;font-size:9px;line-height:1.35}
+
+@media(max-width:520px){
+  .app{padding:max(6px,env(safe-area-inset-top)) 7px max(7px,env(safe-area-inset-bottom))}
+  .topbar{margin-bottom:5px}
+  .title-wrap h1{font-size:17px}
+  .date{font-size:9px}
+  .top-btn{height:31px;min-width:52px;padding:0 8px;font-size:11px}
+  .profile-card{padding:8px 10px;margin-bottom:6px;border-radius:13px}
+  .profile-title{margin-bottom:4px;font-size:11px}
+  .profile-row{grid-template-columns:82px 1fr;padding:5px 0}
+  .profile-label{font-size:10px}
+  .profile-value{font-size:12px}
+  .profile-value .sub{font-size:9px}
+  .selector{padding:6px 8px;margin-bottom:6px}
+  .selector select{height:31px;font-size:12px}
+  .selector-note{font-size:9px}
+  .hero{padding:12px 10px;border-radius:16px}
+  .zodiac{font-size:28px;margin-bottom:3px}
+  .hero-title{font-size:11px}
+  .fortune-score{font-size:28px;margin:3px 0}
+  .fortune-summary{font-size:13px;line-height:1.35}
+  .grid{gap:5px;margin-top:6px}
+  .card{padding:8px;border-radius:12px}
+  .card h3{font-size:11px;margin-bottom:3px}
+  .card p{font-size:10px;line-height:1.35}
+  .lucky{margin-top:6px;gap:5px}
+  .lucky-box{padding:6px 3px;border-radius:11px}
+  .lucky-label{font-size:8px}
+  .lucky-value{font-size:11px}
+  .message{margin-top:6px;padding:8px;font-size:11px}
+  .notice{font-size:8px;margin-top:5px}
+}
 </style>
 </head>
 <body>
@@ -36,30 +92,49 @@ button,select{font-family:inherit}
   <div class="actions"><button type="button" class="top-btn back" id="backBtn">이벤트</button><button type="button" class="top-btn exit" id="exitBtn">나가기</button></div>
 </header>
 
-<div class="member" id="memberText">회원 정보를 확인하는 중입니다.</div>
+<section class="profile-card">
+  <div class="profile-title">회원 출생정보</div>
+
+  <div class="profile-row">
+    <div class="profile-label">1. 가입정보 기준</div>
+    <div class="profile-value" id="registeredProfile">확인 중...</div>
+  </div>
+
+  <div class="profile-row">
+    <div class="profile-label">2. 본인선택 기준</div>
+    <div class="profile-value" id="selectedProfile">띠를 선택해 주세요.</div>
+  </div>
+
+  <div class="profile-warning" id="profileWarning"></div>
+</section>
 
 <div class="selector">
-  <label for="zodiacSelect">내 띠</label>
-  <select id="zodiacSelect">
-    <option value="쥐">🐭 쥐띠</option>
-    <option value="소">🐮 소띠</option>
-    <option value="호랑이">🐯 호랑이띠</option>
-    <option value="토끼">🐰 토끼띠</option>
-    <option value="용">🐲 용띠</option>
-    <option value="뱀">🐍 뱀띠</option>
-    <option value="말">🐴 말띠</option>
-    <option value="양">🐑 양띠</option>
-    <option value="원숭이">🐵 원숭이띠</option>
-    <option value="닭">🐔 닭띠</option>
-    <option value="개">🐶 개띠</option>
-    <option value="돼지">🐷 돼지띠</option>
-  </select>
+  <div style="flex:1;min-width:0">
+    <div style="display:flex;align-items:center;gap:7px">
+      <label for="zodiacSelect">본인 띠 선택</label>
+      <select id="zodiacSelect">
+        <option value="쥐">🐭 쥐띠</option>
+        <option value="소">🐮 소띠</option>
+        <option value="호랑이">🐯 호랑이띠</option>
+        <option value="토끼">🐰 토끼띠</option>
+        <option value="용">🐲 용띠</option>
+        <option value="뱀">🐍 뱀띠</option>
+        <option value="말">🐴 말띠</option>
+        <option value="양">🐑 양띠</option>
+        <option value="원숭이">🐵 원숭이띠</option>
+        <option value="닭">🐔 닭띠</option>
+        <option value="개">🐶 개띠</option>
+        <option value="돼지">🐷 돼지띠</option>
+      </select>
+    </div>
+    <div class="selector-note">가입 출생년도와 다른 띠를 선택하면 가장 가까운 위·아래 출생년도로 자동 보정합니다.</div>
+  </div>
 </div>
 
 <section class="hero">
   <div class="zodiac" id="zodiacEmoji">🔮</div>
   <div class="hero-title" id="heroTitle">오늘의 총운</div>
-  <div class="fortune-score" id="fortuneScore">88</div>
+  <div class="fortune-score" id="fortuneScore">--</div>
   <div class="fortune-summary" id="fortuneSummary"></div>
 </section>
 
@@ -85,9 +160,11 @@ button,select{font-family:inherit}
 "use strict";
 
 var SESSION_KEY="geomam-event-session";
-var ZODIAC_KEY="geomam-fortune-zodiac-v1:";
+var ZODIAC_KEY="geomam-fortune-zodiac-v2:";
 var session=null;
+var registeredBirth=null;
 
+var zodiacOrder=["쥐","소","호랑이","토끼","용","뱀","말","양","원숭이","닭","개","돼지"];
 var zodiacEmoji={
   "쥐":"🐭","소":"🐮","호랑이":"🐯","토끼":"🐰","용":"🐲","뱀":"🐍",
   "말":"🐴","양":"🐑","원숭이":"🐵","닭":"🐔","개":"🐶","돼지":"🐷"
@@ -150,15 +227,23 @@ var messages=[
 
 function $(id){return document.getElementById(id)}
 
-function koreaDateKey(){
+function getKoreaNowParts(){
   try{
-    var parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
-    var m={};parts.forEach(function(p){m[p.type]=p.value});
-    return m.year+"-"+m.month+"-"+m.day;
+    var parts=new Intl.DateTimeFormat("en-CA",{
+      timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"
+    }).formatToParts(new Date());
+    var m={};
+    parts.forEach(function(p){m[p.type]=p.value});
+    return {year:Number(m.year),month:Number(m.month),day:Number(m.day)};
   }catch(e){
     var d=new Date();
-    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    return {year:d.getFullYear(),month:d.getMonth()+1,day:d.getDate()};
   }
+}
+
+function koreaDateKey(){
+  var p=getKoreaNowParts();
+  return p.year+"-"+String(p.month).padStart(2,"0")+"-"+String(p.day).padStart(2,"0");
 }
 
 function displayDate(){
@@ -171,7 +256,8 @@ function normalizeSession(data){
   if(!data||typeof data!=="object")return null;
   return {
     code:String(data.code||data.memberCode||data.loginCode||data.id||"guest").trim()||"guest",
-    name:String(data.name||data.memberName||data.userName||"회원").trim()||"회원"
+    name:String(data.name||data.memberName||data.userName||"회원").trim()||"회원",
+    birthDate:String(data.birthDate||data.rrn||data.birth||data.birthYear||"").replace(/\D/g,"").slice(0,6)
   };
 }
 
@@ -180,7 +266,59 @@ function loadSession(){
     var raw=sessionStorage.getItem(SESSION_KEY);
     if(raw)return normalizeSession(JSON.parse(raw));
   }catch(e){}
-  return {code:"guest",name:"회원"};
+  return {code:"guest",name:"회원",birthDate:""};
+}
+
+function parseBirth6(value){
+  var digits=String(value||"").replace(/\D/g,"");
+  if(digits.length!==6)return null;
+
+  var yy=Number(digits.slice(0,2));
+  var month=Number(digits.slice(2,4));
+  var day=Number(digits.slice(4,6));
+  var now=getKoreaNowParts();
+  var currentYY=now.year%100;
+
+  /* 현재 연도보다 큰 두 자리 연도는 1900년대, 그 이하는 2000년대로 해석 */
+  var year=yy<=currentYY?2000+yy:1900+yy;
+
+  if(month<1||month>12||day<1||day>31)return null;
+  var test=new Date(year,month-1,day);
+  if(test.getFullYear()!==year||test.getMonth()!==month-1||test.getDate()!==day)return null;
+
+  return {year:year,month:month,day:day,raw:digits};
+}
+
+function zodiacForYear(year){
+  var idx=((year-2020)%12+12)%12;
+  return zodiacOrder[idx];
+}
+
+function ageAtToday(year,month,day){
+  var now=getKoreaNowParts();
+  var age=now.year-year;
+  if(now.month<month || (now.month===month && now.day<day))age--;
+  return age;
+}
+
+function nearestYearForZodiac(baseYear,zodiac){
+  var best=null;
+  for(var delta=-24;delta<=24;delta++){
+    var y=baseYear+delta;
+    if(zodiacForYear(y)!==zodiac)continue;
+    var candidate={year:y,delta:delta,distance:Math.abs(delta)};
+    if(!best ||
+       candidate.distance<best.distance ||
+       (candidate.distance===best.distance && candidate.year<best.year)){
+      best=candidate;
+    }
+  }
+  return best?best.year:baseYear;
+}
+
+function profileText(year,month,day,zodiac){
+  var age=ageAtToday(year,month,day);
+  return year+"년생 · 만 "+age+"세 · "+zodiac+"띠";
 }
 
 function hashText(text){
@@ -193,21 +331,57 @@ function pick(arr,seed,salt){
   return arr[hashText(seed+"|"+salt)%arr.length];
 }
 
-function loadZodiac(){
+function loadSelectedZodiac(defaultValue){
   try{
-    return localStorage.getItem(ZODIAC_KEY+session.code)||"쥐";
-  }catch(e){return "쥐"}
+    return localStorage.getItem(ZODIAC_KEY+session.code)||defaultValue;
+  }catch(e){return defaultValue}
 }
 
-function saveZodiac(value){
+function saveSelectedZodiac(value){
   try{localStorage.setItem(ZODIAC_KEY+session.code,value)}catch(e){}
 }
 
-function render(){
-  var zodiac=$("zodiacSelect").value;
-  saveZodiac(zodiac);
+function renderProfiles(){
+  var warning=$("profileWarning");
+  warning.style.display="none";
+  warning.textContent="";
 
-  var seed=koreaDateKey()+"|"+session.code+"|"+zodiac;
+  if(!registeredBirth){
+    $("registeredProfile").textContent="가입정보의 생년월일을 확인할 수 없습니다.";
+    $("selectedProfile").textContent="출생년도 확인 후 계산할 수 있습니다.";
+    warning.textContent="bus-seat 최신 버전으로 로그인한 뒤 다시 들어오면 가입정보가 연동됩니다.";
+    warning.style.display="block";
+    return null;
+  }
+
+  var registeredZodiac=zodiacForYear(registeredBirth.year);
+  $("registeredProfile").textContent=profileText(
+    registeredBirth.year,registeredBirth.month,registeredBirth.day,registeredZodiac
+  );
+
+  var selected=$("zodiacSelect").value;
+  var adjustedYear=nearestYearForZodiac(registeredBirth.year,selected);
+
+  $("selectedProfile").innerHTML=
+    profileText(adjustedYear,registeredBirth.month,registeredBirth.day,selected)+
+    (adjustedYear!==registeredBirth.year
+      ? '<span class="sub">(가입년도 '+registeredBirth.year+'년 → '+adjustedYear+'년 보정)</span>'
+      : '<span class="sub">(가입년도와 일치)</span>');
+
+  return {
+    selectedZodiac:selected,
+    adjustedYear:adjustedYear,
+    age:ageAtToday(adjustedYear,registeredBirth.month,registeredBirth.day)
+  };
+}
+
+function renderFortune(){
+  var profile=renderProfiles();
+  var zodiac=$("zodiacSelect").value;
+  saveSelectedZodiac(zodiac);
+
+  var birthSeed=profile?String(profile.adjustedYear):"unknown";
+  var seed=koreaDateKey()+"|"+session.code+"|"+birthSeed+"|"+zodiac;
   var score=70+(hashText(seed+"|score")%30);
 
   $("zodiacEmoji").textContent=zodiacEmoji[zodiac]||"🔮";
@@ -230,13 +404,15 @@ function goEventMain(){
 
 $("backBtn").addEventListener("click",goEventMain);
 $("exitBtn").addEventListener("click",goEventMain);
-$("zodiacSelect").addEventListener("change",render);
+$("zodiacSelect").addEventListener("change",renderFortune);
 
 $("dateText").textContent=displayDate();
 session=loadSession();
-$("memberText").textContent=session.name+" 회원님 · 오늘의 운세를 재미로 확인해 보세요.";
-$("zodiacSelect").value=loadZodiac();
-render();
+registeredBirth=parseBirth6(session.birthDate);
+
+var defaultZodiac=registeredBirth?zodiacForYear(registeredBirth.year):"쥐";
+$("zodiacSelect").value=loadSelectedZodiac(defaultZodiac);
+renderFortune();
 
 })();
 </script>
