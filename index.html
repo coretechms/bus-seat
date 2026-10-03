@@ -12315,11 +12315,16 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
       return;
     }
 
+    const sessionBirthDate = normalizeBirthYear(
+      matched.birthDate || matched.rrn || matched.birth || matched.birthInput || matched.birthYear || matched.year || ""
+    );
+
     const session = {
       code: matched.code,
       name: matched.name,
       role: matched.role || "member",
       adminAccess: !!matched.adminAccess,
+      birthDate: sessionBirthDate.length === 6 ? sessionBirthDate : "",
       loginAt: Date.now()
     };
     const registeredSession = await registerActiveMemberSession(session);
@@ -19621,12 +19626,22 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     try {
       if (typeof window.__busSeatGetCurrentMemberSession === "function") {
         var live = window.__busSeatGetCurrentMemberSession();
-        if (live && live.code) return { code: live.code, name: live.name || "", role: live.role || "member" };
+        if (live && live.code) return {
+          code: live.code,
+          name: live.name || "",
+          role: live.role || "member",
+          birthDate: String(live.birthDate || live.rrn || live.birth || live.birthYear || "").replace(/\D/g, "").slice(0, 6)
+        };
       }
     } catch (_) {}
     try {
       var saved = JSON.parse(sessionStorage.getItem("bus-seat-approved-member-session-v1") || "null");
-      return saved && saved.code ? { code: saved.code, name: saved.name || "", role: saved.role || "member" } : null;
+      return saved && saved.code ? {
+        code: saved.code,
+        name: saved.name || "",
+        role: saved.role || "member",
+        birthDate: String(saved.birthDate || saved.rrn || saved.birth || saved.birthYear || "").replace(/\D/g, "").slice(0, 6)
+      } : null;
     } catch (_) { return null; }
   }
 
