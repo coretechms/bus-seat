@@ -12,7 +12,7 @@
    검암산악회 - 산 이름 맞히기 정적 문제 데이터
 
    GitHub 배포 파일명
-   events/mountin-data.html
+   events/mountain-data.html
 
    중요
    1. 이 파일은 외부 API / 문제은행에 연결하지 않습니다.
@@ -28,7 +28,7 @@
    desc   : 정답 후 표시되는 산 해설
    ============================================================ */
 
-window.MOUNTIN_DATABASE = [
+window.MOUNTAIN_DATABASE = [
   {
     "name": "설악산",
     "region": "강원특별자치도 속초시·양양군·인제군",
@@ -823,8 +823,8 @@ window.MOUNTIN_DATABASE = [
     if (window.parent && window.parent !== window) {
       window.parent.postMessage(
         {
-          type: "MOUNTIN_DATABASE_READY",
-          items: window.MOUNTIN_DATABASE
+          type: "MOUNTAIN_DATABASE_READY",
+          items: window.MOUNTAIN_DATABASE
         },
         "*"
       );
