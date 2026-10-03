@@ -4199,7 +4199,7 @@ body.member-mode .alt-arrow-cell {
             <div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; min-width:0; margin-left:0;">
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
               <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">로그아웃</button>
-              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">이 벤 트</button>
+              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap; background:#f7a8c4 !important; border-color:#e98aae !important; color:#5b1731 !important;">이 벤 트</button>
 </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
@@ -11866,6 +11866,7 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
         name: nextSession.name,
         role: nextSession.role || "member",
         adminAccess: !!nextSession.adminAccess,
+        birthDate: String(nextSession.birthDate || "").replace(/\D/g, "").slice(0, 6),
         deviceId,
         deviceLabel,
         loginAt: nextSession.loginAt,
@@ -12315,9 +12316,29 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
       return;
     }
 
-    const sessionBirthDate = normalizeBirthYear(
-      matched.birthDate || matched.rrn || matched.birth || matched.birthInput || matched.birthYear || matched.year || ""
-    );
+    const matchedRaw = matched?.raw && typeof matched.raw === "object" ? matched.raw : {};
+    const sessionBirthCandidates = [
+      matched?.birthDate,
+      matched?.rrn,
+      matched?.birth,
+      matched?.birthInput,
+      matched?.birthYear,
+      matched?.year,
+      matchedRaw.birthDate,
+      matchedRaw.rrn,
+      matchedRaw.birth,
+      matchedRaw.birthInput,
+      matchedRaw.birthYear,
+      matchedRaw.year
+    ];
+    let sessionBirthDate = "";
+    for (const value of sessionBirthCandidates) {
+      const digits = normalizeBirthYear(value);
+      if (digits.length === 6) {
+        sessionBirthDate = digits;
+        break;
+      }
+    }
 
     const session = {
       code: matched.code,
@@ -19630,7 +19651,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
           code: live.code,
           name: live.name || "",
           role: live.role || "member",
-          birthDate: String(live.birthDate || live.rrn || live.birth || live.birthYear || "").replace(/\D/g, "").slice(0, 6)
+          birthDate: String(live.birthDate || live.rrn || live.birth || live.birthYear || live.raw?.birthDate || live.raw?.rrn || "").replace(/\D/g, "").slice(0, 6)
         };
       }
     } catch (_) {}
@@ -19640,7 +19661,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
         code: saved.code,
         name: saved.name || "",
         role: saved.role || "member",
-        birthDate: String(saved.birthDate || saved.rrn || saved.birth || saved.birthYear || "").replace(/\D/g, "").slice(0, 6)
+        birthDate: String(saved.birthDate || saved.rrn || saved.birth || saved.birthYear || saved.raw?.birthDate || saved.raw?.rrn || "").replace(/\D/g, "").slice(0, 6)
       } : null;
     } catch (_) { return null; }
   }
