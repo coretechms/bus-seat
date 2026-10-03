@@ -4070,6 +4070,7 @@ body.member-mode .alt-arrow-cell {
             <div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; min-width:0; margin-left:0;">
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
               <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">로그아웃</button>
+              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">행운뽑기</button>
 </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
@@ -19206,5 +19207,119 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   });
 })();
 </script>
+
+<!-- ================= MAP SECTION: EXTERNAL_EVENT_BRIDGE ================= -->
+<style id="bus-seat-external-event-style">
+  #busSeatExternalEventHost {
+    position: fixed;
+    inset: 0;
+    z-index: 20050;
+    background: #fff;
+  }
+  #busSeatExternalEventHost[hidden] { display: none !important; }
+  #busSeatExternalEventFrame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: #fff;
+  }
+  body:not(.member-mode) #memberLuckyEventBtn,
+  body.membership-locked #memberLuckyEventBtn { display: none !important; }
+</style>
+<script id="bus-seat-external-event-bridge">
+(function () {
+  "use strict";
+  if (window.__busSeatExternalEventBridgeApplied) return;
+  window.__busSeatExternalEventBridgeApplied = true;
+
+  var EVENT_PATH = "events/lucky.html";
+  var host = null;
+  var frame = null;
+
+  function getMemberSession() {
+    try {
+      if (typeof window.__busSeatGetCurrentMemberSession === "function") {
+        var live = window.__busSeatGetCurrentMemberSession();
+        if (live && live.code) return { code: live.code, name: live.name || "", role: live.role || "member" };
+      }
+    } catch (_) {}
+    try {
+      var saved = JSON.parse(sessionStorage.getItem("bus-seat-approved-member-session-v1") || "null");
+      return saved && saved.code ? { code: saved.code, name: saved.name || "", role: saved.role || "member" } : null;
+    } catch (_) { return null; }
+  }
+
+  function eventUrl() {
+    return new URL(EVENT_PATH, window.location.href).href;
+  }
+
+  function ensureHost() {
+    if (host && frame) return;
+    host = document.createElement("div");
+    host.id = "busSeatExternalEventHost";
+    host.hidden = true;
+
+    frame = document.createElement("iframe");
+    frame.id = "busSeatExternalEventFrame";
+    frame.title = "오늘의 행운뽑기";
+    frame.setAttribute("allow", "fullscreen");
+    frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+    host.appendChild(frame);
+    document.body.appendChild(host);
+  }
+
+  function openLuckyEvent() {
+    var session = getMemberSession();
+    if (!session) {
+      alert("회원 로그인 후 이용할 수 있습니다.");
+      return;
+    }
+    ensureHost();
+    host.hidden = false;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    frame.src = eventUrl();
+  }
+
+  function closeEvent() {
+    if (!host) return;
+    host.hidden = true;
+    if (frame) frame.src = "about:blank";
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    try {
+      if (typeof window.__busSeatSwitchMode === "function") window.__busSeatSwitchMode("member");
+    } catch (_) {}
+  }
+
+  window.__busSeatCloseExternalEvent = closeEvent;
+
+  window.addEventListener("message", function (event) {
+    if (!frame || event.source !== frame.contentWindow) return;
+    var data = event.data || {};
+    if (data.type === "BUS_SEAT_EVENT_READY" && data.event === "lucky") {
+      var session = getMemberSession();
+      if (!session) { closeEvent(); return; }
+      try {
+        frame.contentWindow.postMessage({ type: "BUS_SEAT_EVENT_SESSION", event: "lucky", session: session }, event.origin || "*");
+      } catch (_) {}
+      return;
+    }
+    if (data.type === "BUS_SEAT_EVENT_EXIT" && data.event === "lucky") {
+      closeEvent();
+    }
+  });
+
+  document.addEventListener("click", function (event) {
+    var btn = event.target && event.target.closest ? event.target.closest("#memberLuckyEventBtn") : null;
+    if (!btn) return;
+    event.preventDefault();
+    openLuckyEvent();
+  }, true);
+})();
+</script>
+<!-- ================= END EXTERNAL_EVENT_BRIDGE ================= -->
+
 </body>
 </html>
