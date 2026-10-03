@@ -7,684 +7,126 @@
 <title>산 이름 맞히기</title>
 <style>
 *{box-sizing:border-box}
-html,body{
-  margin:0;
-  width:100%;
-  min-height:100%;
-  font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;
-  color:#243229;
-  background:#edf4ef;
-}
+html,body{margin:0;width:100%;min-height:100%;font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#243229;background:#edf4ef}
 body{min-height:100vh;min-height:100dvh}
 button{font-family:inherit}
-button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
-
-:root{
-  --green:#315b45;
-  --green2:#47775d;
-  --soft:#f6faf7;
-  --line:#d6e3da;
-  --gold:#e7b94e;
-  --text:#243229;
-  --muted:#718078;
-  --shadow:0 8px 24px rgba(33,74,50,.10);
-}
-
-.app{
-  min-height:100vh;
-  min-height:100dvh;
-  padding:max(10px,env(safe-area-inset-top)) 10px max(12px,env(safe-area-inset-bottom));
-  background:
-    radial-gradient(circle at 10% 0%,rgba(255,255,255,.94),transparent 30%),
-    linear-gradient(180deg,#dcecdf 0%,#f7faf8 46%,#edf4ef 100%);
-}
+:root{--green:#315b45;--line:#d6e3da;--shadow:0 8px 24px rgba(33,74,50,.10)}
+.app{min-height:100vh;min-height:100dvh;padding:max(8px,env(safe-area-inset-top)) 8px max(10px,env(safe-area-inset-bottom));background:linear-gradient(180deg,#deede1,#f8fbf9 45%,#edf4ef)}
 .shell{width:min(760px,100%);margin:0 auto}
-
-.topbar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  margin-bottom:8px;
-}
-.title-wrap h1{
-  margin:0;
-  font-size:25px;
-  font-weight:900;
-  letter-spacing:-.04em;
-  color:#244c36;
-}
-.subtitle{
-  margin-top:3px;
-  font-size:13px;
-  font-weight:700;
-  color:#6f8176;
-}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.title-wrap h1{margin:0;font-size:23px;font-weight:900;color:#244c36;letter-spacing:-.04em}
+.subtitle{margin-top:2px;font-size:12px;font-weight:800;color:#718078}
 .actions{display:flex;gap:6px}
-.top-btn{
-  height:38px;
-  min-width:62px;
-  padding:0 11px;
-  border-radius:12px;
-  border:1px solid #c9dacd;
-  font-size:12px;
-  font-weight:900;
-  cursor:pointer;
-}
-.back-btn{background:#fff;color:#315b45}
-.reset-btn{background:#315b45;border-color:#315b45;color:#fff}
-
-.scorebar{
-  display:grid;
-  grid-template-columns:1fr 1fr 1fr;
-  gap:6px;
-  margin-bottom:8px;
-}
-.scorebox{
-  padding:8px 6px;
-  text-align:center;
-  background:rgba(255,255,255,.96);
-  border:1px solid var(--line);
-  border-radius:13px;
-  box-shadow:0 4px 14px rgba(35,80,50,.05);
-}
-.score-label{font-size:10px;font-weight:800;color:#849188}
-.score-value{margin-top:2px;font-size:15px;font-weight:900;color:#315b45}
-
-.db-status{
-  margin:0 1px 8px;
-  padding:8px 10px;
-  border:1px solid #d4e2d7;
-  border-radius:12px;
-  background:rgba(255,255,255,.94);
-  color:#4f6657;
-  text-align:center;
-  font-size:12px;
-  font-weight:900;
-  line-height:1.4;
-}
-.db-status.ready{background:#f1f9f3;color:#2f6742;border-color:#c7ddcc}
-.db-status.error{background:#fff3f2;color:#97483f;border-color:#e7c7c3}
-
-.quiz-card{
-  background:#fff;
-  border:1px solid var(--line);
-  border-radius:20px;
-  overflow:hidden;
-  box-shadow:var(--shadow);
-}
-.visual{
-  position:relative;
-  height:210px;
-  overflow:hidden;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:
-    linear-gradient(180deg,rgba(197,221,229,.72) 0%,rgba(225,237,225,.85) 52%,rgba(186,211,188,.92) 100%);
-}
-.visual::before{
-  content:"";
-  position:absolute;
-  left:-8%;
-  right:-8%;
-  bottom:-24px;
-  height:145px;
-  background:#709a77;
-  clip-path:polygon(0 100%,0 79%,16% 65%,28% 78%,42% 35%,55% 72%,67% 54%,80% 77%,100% 59%,100% 100%);
-  opacity:.92;
-}
-.visual::after{
-  content:"";
-  position:absolute;
-  left:-6%;
-  right:-6%;
-  bottom:-34px;
-  height:116px;
-  background:#4c7658;
-  clip-path:polygon(0 100%,0 73%,17% 52%,28% 70%,45% 39%,61% 68%,78% 43%,100% 67%,100% 100%);
-}
-.mountain-symbol{
-  position:relative;
-  z-index:3;
-  margin-top:-28px;
-  font-size:70px;
-  filter:drop-shadow(0 5px 8px rgba(0,0,0,.12));
-}
-.visual-badge{
-  position:absolute;
-  z-index:4;
-  left:12px;
-  top:12px;
-  padding:6px 9px;
-  border-radius:999px;
-  background:rgba(255,255,255,.90);
-  border:1px solid rgba(255,255,255,.95);
-  font-size:12px;
-  font-weight:900;
-  color:#315b45;
-  backdrop-filter:blur(3px);
-}
-.height-badge{
-  position:absolute;
-  z-index:4;
-  right:12px;
-  top:12px;
-  padding:6px 9px;
-  border-radius:999px;
-  background:rgba(39,73,52,.88);
-  color:#fff;
-  font-size:11px;
-  font-weight:900;
-}
-
-.question-area{padding:14px}
-.question{
-  margin:0 0 6px;
-  text-align:center;
-  font-size:22px;
-  font-weight:900;
-  color:#263b2e;
-}
-.hint{
-  min-height:46px;
-  margin:0 auto 13px;
-  text-align:center;
-  font-size:15px;
-  line-height:1.45;
-  font-weight:700;
-  color:#67766d;
-  word-break:keep-all;
-}
-
-.answers{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-}
-.answer-btn{
-  min-height:54px;
-  padding:9px 8px;
-  border:1px solid #cfded3;
-  border-radius:14px;
-  background:#f9fcfa;
-  color:#2e3b33;
-  font-size:16px;
-  font-weight:900;
-  cursor:pointer;
-}
-.answer-btn:hover{background:#eef6f0}
-.answer-btn.correct{
-  background:#dff3e4;
-  border-color:#6aaa7a;
-  color:#1e6335;
-}
-.answer-btn.wrong{
-  background:#fde7e5;
-  border-color:#d99892;
-  color:#9c3e38;
-}
-.answer-btn:disabled{cursor:default}
-
-.result{
-  display:none;
-  margin-top:11px;
-  padding:12px;
-  border:1px solid #d7e3da;
-  border-radius:14px;
-  background:#f8fbf9;
-}
-.result.show{display:block}
-.result-title{
-  font-size:18px;
-  font-weight:900;
-  color:#315b45;
-}
-.result-region{
-  margin-top:6px;
-  padding:7px 9px;
-  border-radius:10px;
-  background:#eef6f0;
-  color:#315b45;
-  font-size:13px;
-  font-weight:900;
-}
-.result-desc{
-  margin-top:7px;
-  font-size:15px;
-  font-weight:700;
-  line-height:1.5;
-  color:#58675e;
-  word-break:keep-all;
-}
-.next-btn{
-  display:none;
-  width:100%;
-  height:48px;
-  margin-top:9px;
-  border:0;
-  border-radius:14px;
-  background:linear-gradient(135deg,#315b45,#47775d);
-  color:#fff;
-  font-size:15px;
-  font-weight:900;
-  cursor:pointer;
-}
-.next-btn.show{display:block}
-
-.progress-wrap{margin-top:9px}
-.progress-text{
-  display:flex;
-  justify-content:space-between;
-  margin-bottom:4px;
-  color:#76847b;
-  font-size:11px;
-  font-weight:800;
-}
-.progress{
-  height:8px;
-  overflow:hidden;
-  border-radius:999px;
-  background:#dfe9e1;
-}
-.progress-bar{
-  height:100%;
-  width:0%;
-  background:linear-gradient(90deg,#6ba47b,#315b45);
-  transition:width .25s ease;
-}
-
-.notice{
-  margin-top:8px;
-  text-align:center;
-  color:#829087;
-  font-size:10px;
-  line-height:1.4;
-}
-
+.top-btn{height:38px;min-width:62px;padding:0 10px;border-radius:12px;border:1px solid #c9dacd;font-size:12px;font-weight:900;cursor:pointer}
+.back-btn{background:#fff;color:#315b45}.reset-btn{background:#315b45;color:#fff;border-color:#315b45}
+.db-status{margin-bottom:7px;padding:8px;border:1px solid #d4e2d7;border-radius:11px;background:#fff;color:#4f6657;text-align:center;font-size:12px;font-weight:900}
+.db-status.ready{background:#f1f9f3;color:#2f6742}.db-status.error{background:#fff3f2;color:#97483f}
+.scorebar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:7px}
+.scorebox{padding:7px 4px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:12px}
+.score-label{font-size:10px;font-weight:800;color:#849188}.score-value{font-size:15px;font-weight:900;color:#315b45}
+.quiz-card{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
+.visual{position:relative;height:180px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(180deg,#c9dfe6,#e0ecdf)}
+.visual:before{content:"";position:absolute;left:-5%;right:-5%;bottom:-25px;height:125px;background:#6f9977;clip-path:polygon(0 100%,0 75%,18% 55%,30% 73%,45% 25%,59% 70%,73% 46%,100% 68%,100% 100%)}
+.mountain-symbol{position:relative;z-index:2;font-size:65px;margin-top:-20px}
+.visual-badge,.height-badge{position:absolute;z-index:3;top:10px;padding:6px 9px;border-radius:999px;font-size:12px;font-weight:900}
+.visual-badge{left:10px;background:rgba(255,255,255,.92);color:#315b45}.height-badge{right:10px;background:rgba(39,73,52,.88);color:#fff}
+.question-area{padding:13px}
+.question{margin:0 0 6px;text-align:center;font-size:21px;font-weight:900}
+.hint{min-height:44px;margin-bottom:11px;text-align:center;font-size:14px;line-height:1.5;font-weight:800;color:#67766d;word-break:keep-all}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.answer-btn{min-height:51px;padding:9px;border:1px solid #cfded3;border-radius:13px;background:#f9fcfa;font-size:16px;font-weight:900;cursor:pointer}
+.answer-btn.correct{background:#dff3e4;border-color:#6aaa7a;color:#1e6335}.answer-btn.wrong{background:#fde7e5;border-color:#d99892;color:#9c3e38}
+.result{display:none;margin-top:10px;padding:11px;border:1px solid #d7e3da;border-radius:13px;background:#f8fbf9}.result.show{display:block}
+.result-title{font-size:17px;font-weight:900;color:#315b45}.result-region{margin-top:6px;padding:7px 9px;border-radius:9px;background:#eef6f0;color:#315b45;font-size:13px;font-weight:900}
+.result-desc{margin-top:7px;font-size:15px;font-weight:700;line-height:1.55;color:#58675e;word-break:keep-all}
+.next-btn{display:none;width:100%;height:46px;margin-top:9px;border:0;border-radius:13px;background:#315b45;color:#fff;font-size:16px;font-weight:900}.next-btn.show{display:block}
+.progress-wrap{margin-top:9px}.progress-text{display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px;font-weight:800;color:#76847b}
+.progress{height:8px;border-radius:999px;background:#dfe9e1;overflow:hidden}.progress-bar{height:100%;width:0;background:#47775d;transition:width .2s}
+.notice{margin-top:7px;text-align:center;color:#829087;font-size:10px;line-height:1.4}
 @media(max-width:520px){
-  .app{padding:max(7px,env(safe-area-inset-top)) 7px max(8px,env(safe-area-inset-bottom))}
-  .title-wrap h1{font-size:21px}
-  .subtitle{font-size:11px}
-  .top-btn{height:34px;min-width:55px;padding:0 8px;font-size:11px}
-  .scorebox{padding:6px 3px}
-  .score-label{font-size:9px}
-  .score-value{font-size:13px}
-  .visual{height:175px}
-  .mountain-symbol{font-size:58px}
-  .question-area{padding:11px}
-  .question{font-size:20px}
-  .hint{font-size:14px;margin-bottom:10px;line-height:1.5}
-  .answers{grid-template-columns:1fr;gap:6px}
-  .answer-btn{min-height:49px;font-size:16px;border-radius:12px}
-  .result{padding:11px}
-  .result-title{font-size:17px}
-  .result-desc{font-size:14px;line-height:1.55}
-  .next-btn{height:45px;font-size:15px}
+.title-wrap h1{font-size:20px}.subtitle{font-size:10px}.top-btn{height:34px;min-width:55px;font-size:11px}
+.visual{height:160px}.mountain-symbol{font-size:56px}.question-area{padding:10px}.question{font-size:19px}.hint{font-size:13px}
+.answers{grid-template-columns:1fr;gap:6px}.answer-btn{min-height:47px;font-size:16px}.result-desc{font-size:14px}.next-btn{height:44px;font-size:15px}
 }
 </style>
 </head>
 <body>
-<main class="app">
-  <div class="shell">
-    <header class="topbar">
-      <div class="title-wrap">
-        <h1>🏔️ 산 이름 맞히기</h1>
-        <div class="subtitle">대한민국의 명산을 맞혀보세요</div>
-      </div>
-      <div class="actions">
-        <button class="top-btn back-btn" id="backBtn" type="button">이벤트</button>
-        <button class="top-btn reset-btn" id="resetBtn" type="button">처음부터</button>
-      </div>
-    </header>
-
-    <section class="scorebar">
-      <div class="scorebox"><div class="score-label">현재 문제</div><div class="score-value" id="questionNo">1</div></div>
-      <div class="scorebox"><div class="score-label">정답</div><div class="score-value" id="correctCount">0</div></div>
-      <div class="scorebox"><div class="score-label">정답률</div><div class="score-value" id="accuracy">0%</div></div>
-    </section>
-
-    <div class="db-status" id="dbStatus">산 문제은행을 불러오는 중입니다...</div>
-
-    <section class="quiz-card">
-      <div class="visual" id="mountainVisual">
-        <div class="visual-badge" id="regionBadge">지역</div>
-        <div class="height-badge" id="heightBadge">해발</div>
-        <div class="mountain-symbol">⛰️</div>
-      </div>
-
-      <div class="question-area">
-        <h2 class="question">이 산의 이름은 무엇일까요?</h2>
-        <div class="hint" id="hintText"></div>
-
-        <div class="answers" id="answerList"></div>
-
-        <div class="result" id="resultBox">
-          <div class="result-title" id="resultTitle"></div>
-          <div class="result-desc" id="resultDesc"></div>
-        </div>
-
-        <button class="next-btn" id="nextBtn" type="button">다음 문제</button>
-
-        <div class="progress-wrap">
-          <div class="progress-text">
-            <span id="cycleText">1회차</span>
-            <span id="bankText">문제은행 20산</span>
-          </div>
-          <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
-        </div>
-      </div>
-    </section>
-
-    <div class="notice">산 정보는 별도 문제은행 파일에서 불러옵니다. 문제은행 파일만 교체하면 산을 추가·수정할 수 있습니다.</div>
-  </div>
-</main>
+<main class="app"><div class="shell">
+<header class="topbar">
+<div class="title-wrap"><h1>🏔️ 산 이름 맞히기</h1><div class="subtitle">국내산 데이터 문제은행</div></div>
+<div class="actions"><button class="top-btn back-btn" id="backBtn">이벤트</button><button class="top-btn reset-btn" id="resetBtn">처음부터</button></div>
+</header>
+<div class="db-status" id="dbStatus">국내산 데이터를 불러오는 중입니다...</div>
+<section class="scorebar">
+<div class="scorebox"><div class="score-label">현재 문제</div><div class="score-value" id="questionNo">-</div></div>
+<div class="scorebox"><div class="score-label">정답</div><div class="score-value" id="correctCount">0</div></div>
+<div class="scorebox"><div class="score-label">정답률</div><div class="score-value" id="accuracy">0%</div></div>
+</section>
+<section class="quiz-card">
+<div class="visual"><div class="visual-badge" id="regionBadge">대한민국</div><div class="height-badge" id="heightBadge">산 정보</div><div class="mountain-symbol">⛰️</div></div>
+<div class="question-area">
+<h2 class="question">이 산의 이름은 무엇일까요?</h2>
+<div class="hint" id="hintText">문제은행 연결 중...</div>
+<div class="answers" id="answerList"></div>
+<div class="result" id="resultBox"><div class="result-title" id="resultTitle"></div><div class="result-desc" id="resultDesc"></div></div>
+<button class="next-btn" id="nextBtn">다음 문제</button>
+<div class="progress-wrap"><div class="progress-text"><span id="cycleText">1회차</span><span id="bankText">문제은행</span></div><div class="progress"><div class="progress-bar" id="progressBar"></div></div></div>
+</div>
+</section>
+<div class="notice">산 정보는 별도 mountin-data.html에서 불러옵니다.</div>
+</div></main>
 
 <script>
 (function(){
 "use strict";
-
-var STATE_KEY="geomam-mountain-quiz-v1";
+var DATA_URL="mountin-data.html";
 var SESSION_KEY="geomam-event-session";
-var session=null;
-
-var MOUNTAIN_DB_URL="m/mountain-data.html";
-var MOUNTAIN_DB_CACHE_KEY="geomam-mountain-db-cache-v2";
-var mountains=[];
-
+var STATE_KEY="geomam-mountin-quiz-v1";
+var CACHE_KEY="geomam-mountin-data-cache-v1";
+var session=null,mountains=[],state=null;
 function $(id){return document.getElementById(id)}
-function setDbStatus(message,type){
-  var el=$("dbStatus");
-  if(!el)return;
-  el.textContent=message||"";
-  el.classList.remove("ready","error");
-  if(type)el.classList.add(type);
+function setStatus(t,c){var e=$("dbStatus");e.textContent=t;e.classList.remove("ready","error");if(c)e.classList.add(c)}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),x=a[i];a[i]=a[j];a[j]=x}return a}
+function normalize(items){return (Array.isArray(items)?items:[]).filter(function(m){return m&&m.name}).map(function(m){return{name:String(m.name),region:String(m.region||""),height:String(m.height||""),hint:String(m.hint||""),desc:String(m.desc||"")}})}
+function loadData(){
+ return new Promise(function(resolve,reject){
+  var done=false,frame=document.createElement("iframe");frame.hidden=true;frame.src=DATA_URL+"?v=1";document.body.appendChild(frame);
+  function clean(){window.removeEventListener("message",msg);if(frame.parentNode)frame.remove()}
+  function finish(items){if(done)return;var n=normalize(items);if(n.length<4)return;done=true;mountains=n;try{localStorage.setItem(CACHE_KEY,JSON.stringify(n))}catch(e){}setStatus("국내산 문제은행 "+n.length+"개 불러오기 완료","ready");clean();resolve()}
+  function msg(ev){var d=ev.data||{};if(d.type==="MOUNTIN_DATABASE_READY")finish(d.items)}
+  window.addEventListener("message",msg);
+  frame.onerror=function(){var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){mountains=c;done=true;setStatus("데이터 파일 연결 실패 · 저장자료 "+c.length+"개 사용","error");clean();resolve()}else{clean();reject(new Error("mountin-data.html 연결 실패"))}};
+  setTimeout(function(){if(done)return;var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){mountains=c;done=true;setStatus("응답 지연 · 저장자료 "+c.length+"개 사용","error");clean();resolve()}else{clean();reject(new Error("문제은행 응답시간 초과"))}},5000);
+ });
 }
-
-function normalizeMountain(item){
-  if(!item||typeof item!=="object")return null;
-  var name=String(item.name||"").trim();
-  if(!name)return null;
-  return {
-    name:name,
-    region:String(item.region||"").trim(),
-    height:String(item.height||"").trim(),
-    hint:String(item.hint||"").trim(),
-    desc:String(item.desc||"").trim(),
-    image:String(item.image||"").trim()
-  };
-}
-
-function normalizeMountainDatabase(items){
-  if(!Array.isArray(items))return [];
-  return items.map(normalizeMountain).filter(Boolean);
-}
-
-function loadCachedMountainDatabase(){
-  try{
-    var cached=JSON.parse(localStorage.getItem(MOUNTAIN_DB_CACHE_KEY)||"null");
-    if(cached&&Array.isArray(cached.items)&&cached.items.length>=4){
-      return normalizeMountainDatabase(cached.items);
-    }
-  }catch(e){}
-  return [];
-}
-
-function saveCachedMountainDatabase(items){
-  try{
-    localStorage.setItem(MOUNTAIN_DB_CACHE_KEY,JSON.stringify({
-      savedAt:Date.now(),
-      items:items
-    }));
-  }catch(e){}
-}
-
-function loadMountainDatabase(){
-  return new Promise(function(resolve,reject){
-    var completed=false;
-    var frame=document.createElement("iframe");
-    frame.id="mountainDatabaseFrame";
-    frame.hidden=true;
-    frame.setAttribute("aria-hidden","true");
-    frame.src=MOUNTAIN_DB_URL+"?v=2";
-    document.body.appendChild(frame);
-
-    function cleanup(){
-      window.removeEventListener("message",onMessage);
-      if(frame&&frame.parentNode)frame.parentNode.removeChild(frame);
-    }
-
-    function finish(items){
-      if(completed)return;
-      completed=true;
-      var normalized=normalizeMountainDatabase(items);
-      if(normalized.length<4){
-        cleanup();
-        reject(new Error("출제 가능한 산 데이터가 4개 미만입니다."));
-        return;
-      }
-      mountains=normalized;
-      saveCachedMountainDatabase(mountains);
-      setDbStatus("산 문제은행 "+mountains.length+"개 불러오기 완료","ready");
-      cleanup();
-      resolve(true);
-    }
-
-    function onMessage(event){
-      var data=event.data||{};
-      if(data.type!=="MOUNTAIN_DATABASE_READY")return;
-      finish(data.items);
-    }
-
-    window.addEventListener("message",onMessage);
-
-    frame.onerror=function(){
-      var cached=loadCachedMountainDatabase();
-      if(cached.length>=4){
-        completed=true;
-        mountains=cached;
-        setDbStatus("데이터 파일 연결 실패 · 저장된 문제은행 "+mountains.length+"개 사용","error");
-        cleanup();
-        resolve(true);
-        return;
-      }
-      cleanup();
-      reject(new Error("m/mountain-data.html 파일을 불러오지 못했습니다."));
-    };
-
-    window.setTimeout(function(){
-      if(completed)return;
-      var cached=loadCachedMountainDatabase();
-      if(cached.length>=4){
-        completed=true;
-        mountains=cached;
-        setDbStatus("데이터 응답 지연 · 저장된 문제은행 "+mountains.length+"개 사용","error");
-        cleanup();
-        resolve(true);
-        return;
-      }
-      cleanup();
-      reject(new Error("산 문제은행 응답 시간이 초과되었습니다."));
-    },5000);
-  });
-}
-
-function shuffle(arr){
-  var a=arr.slice();
-  for(var i=a.length-1;i>0;i--){
-    var j=Math.floor(Math.random()*(i+1));
-    var t=a[i];a[i]=a[j];a[j]=t;
-  }
-  return a;
-}
-function loadSession(){
-  try{
-    var raw=sessionStorage.getItem(SESSION_KEY);
-    if(raw)return JSON.parse(raw);
-  }catch(e){}
-  return null;
-}
-function stateKey(){
-  var code=String(session&&session.code||"guest");
-  return STATE_KEY+":"+code;
-}
-function newState(){
-  return {order:shuffle(mountains.map(function(_,i){return i})),index:0,correct:0,answered:0,cycle:1,locked:false};
-}
-function loadState(){
-  try{
-    var raw=localStorage.getItem(stateKey());
-    if(!raw)return newState();
-    var s=JSON.parse(raw);
-    if(!s||!Array.isArray(s.order)||s.order.length!==mountains.length)return newState();
-    s.locked=false;
-    return s;
-  }catch(e){return newState()}
-}
-function saveState(){
-  try{localStorage.setItem(stateKey(),JSON.stringify(state))}catch(e){}
-}
-function currentMountain(){return mountains[state.order[state.index]]}
-
-function buildChoices(answer){
-  var others=shuffle(mountains.filter(function(m){return m.name!==answer.name})).slice(0,3);
-  return shuffle([answer].concat(others));
-}
-
-function updateScore(){
-  $("questionNo").textContent=String(state.answered+1);
-  $("correctCount").textContent=String(state.correct);
-  $("accuracy").textContent=state.answered?Math.round(state.correct/state.answered*100)+"%":"0%";
-  $("cycleText").textContent=state.cycle+"회차";
-  $("bankText").textContent="문제은행 "+mountains.length+"산";
-  $("progressBar").style.width=((state.index/mountains.length)*100)+"%";
-}
-
+function loadSession(){try{return JSON.parse(sessionStorage.getItem(SESSION_KEY)||"null")}catch(e){return null}}
+function stateKey(){return STATE_KEY+":"+String(session&&session.code||"guest")}
+function fresh(){return{order:shuffle(mountains.map(function(_,i){return i})),index:0,correct:0,answered:0,cycle:1,locked:false}}
+function loadState(){try{var s=JSON.parse(localStorage.getItem(stateKey())||"null");if(!s||!Array.isArray(s.order)||s.order.length!==mountains.length)return fresh();s.locked=false;return s}catch(e){return fresh()}}
+function save(){try{localStorage.setItem(stateKey(),JSON.stringify(state))}catch(e){}}
+function current(){return mountains[state.order[state.index]]}
+function choices(q){return shuffle([q].concat(shuffle(mountains.filter(function(x){return x.name!==q.name})).slice(0,3)))}
+function updateScore(){$("questionNo").textContent=state.answered+1;$("correctCount").textContent=state.correct;$("accuracy").textContent=state.answered?Math.round(state.correct/state.answered*100)+"%":"0%";$("cycleText").textContent=state.cycle+"회차";$("bankText").textContent="문제은행 "+mountains.length+"산";$("progressBar").style.width=(state.index/mountains.length*100)+"%"}
 function render(){
-  state.locked=false;
-  var q=currentMountain();
-  updateScore();
-
-  $("regionBadge").textContent=q.region;
-  $("heightBadge").textContent="해발 "+q.height;
-  $("hintText").textContent=q.hint;
-  $("resultBox").classList.remove("show");
-  $("nextBtn").classList.remove("show");
-  $("resultTitle").textContent="";
-  $("resultDesc").textContent="";
-  var oldRegion=$("resultBox").querySelector(".result-region");
-  if(oldRegion)oldRegion.remove();
-
-  var answerList=$("answerList");
-  answerList.innerHTML="";
-  buildChoices(q).forEach(function(choice,index){
-    var btn=document.createElement("button");
-    btn.type="button";
-    btn.className="answer-btn";
-    btn.textContent=(index+1)+". "+choice.name;
-    btn.addEventListener("click",function(){answer(choice.name,btn)});
-    answerList.appendChild(btn);
-  });
+ state.locked=false;var q=current();updateScore();$("regionBadge").textContent=q.region||"대한민국";$("heightBadge").textContent=q.height?"해발 "+q.height:"산 정보";$("hintText").textContent=q.hint||"대한민국의 산입니다.";
+ $("resultBox").classList.remove("show");$("nextBtn").classList.remove("show");$("resultTitle").textContent="";$("resultDesc").textContent="";var old=$("resultBox").querySelector(".result-region");if(old)old.remove();
+ var box=$("answerList");box.innerHTML="";choices(q).forEach(function(c,i){var b=document.createElement("button");b.className="answer-btn";b.textContent=(i+1)+". "+c.name;b.onclick=function(){answer(c.name,b)};box.appendChild(b)});
 }
-
 function answer(name,clicked){
-  if(state.locked)return;
-  state.locked=true;
-
-  var q=currentMountain();
-  var correct=name===q.name;
-  state.answered++;
-  if(correct)state.correct++;
-
-  Array.from(document.querySelectorAll(".answer-btn")).forEach(function(btn){
-    btn.disabled=true;
-    var buttonName=btn.textContent.replace(/^\d+\.\s*/,"");
-    if(buttonName===q.name)btn.classList.add("correct");
-  });
-  if(!correct)clicked.classList.add("wrong");
-
-  $("resultTitle").textContent=correct?"✅ 정답입니다!":"❌ 아쉽습니다. 정답은 "+q.name+"입니다.";
-
-  var regionLine=document.createElement("div");
-  regionLine.className="result-region";
-  regionLine.textContent="📍 지역 : "+q.region+"   ·   ⛰️ 해발 : "+q.height;
-
-  var resultDesc=$("resultDesc");
-  resultDesc.textContent=q.desc;
-  resultDesc.parentNode.insertBefore(regionLine,resultDesc);
-
-  $("resultBox").classList.add("show");
-  $("nextBtn").classList.add("show");
-
-  updateScore();
-  saveState();
+ if(state.locked)return;state.locked=true;var q=current(),ok=name===q.name;state.answered++;if(ok)state.correct++;
+ document.querySelectorAll(".answer-btn").forEach(function(b){b.disabled=true;var n=b.textContent.replace(/^\d+\.\s*/,"");if(n===q.name)b.classList.add("correct")});if(!ok)clicked.classList.add("wrong");
+ $("resultTitle").textContent=ok?"✅ 정답입니다!":"❌ 아쉽습니다. 정답은 "+q.name+"입니다.";
+ var r=document.createElement("div");r.className="result-region";r.textContent="📍 지역 : "+(q.region||"대한민국")+(q.height?" · ⛰️ 해발 : "+q.height:"");$("resultBox").insertBefore(r,$("resultDesc"));
+ $("resultDesc").textContent=q.desc||q.hint;$("resultBox").classList.add("show");$("nextBtn").classList.add("show");updateScore();save();
 }
-
-function next(){
-  state.index++;
-  if(state.index>=mountains.length){
-    state.index=0;
-    state.cycle++;
-    state.order=shuffle(mountains.map(function(_,i){return i}));
-  }
-  saveState();
-  render();
-}
-
-function reset(){
-  if(!mountains.length){
-    alert("산 문제은행을 먼저 불러와야 합니다.");
-    return;
-  }
-  if(!confirm("산 이름 맞히기 기록을 처음부터 시작할까요?"))return;
-  state=newState();
-  saveState();
-  render();
-}
-
-function goEventMain(){
-  window.location.href=new URL("index.html",window.location.href).href;
-}
-
-$("nextBtn").addEventListener("click",next);
-$("resetBtn").addEventListener("click",reset);
-$("backBtn").addEventListener("click",goEventMain);
-
+function next(){state.index++;if(state.index>=mountains.length){state.index=0;state.cycle++;state.order=shuffle(mountains.map(function(_,i){return i}))}save();render()}
+function reset(){if(!mountains.length)return;if(!confirm("기록을 처음부터 시작할까요?"))return;state=fresh();save();render()}
+function home(){location.href=new URL("index.html",location.href).href}
+$("nextBtn").onclick=next;$("resetBtn").onclick=reset;$("backBtn").onclick=home;
 session=loadSession();
-var state=null;
-
-(async function initMountainQuiz(){
-  try{
-    await loadMountainDatabase();
-    state=loadState();
-    render();
-  }catch(error){
-    $("hintText").textContent=String(error&&error.message||"산 문제은행 연결 실패");
-    $("answerList").innerHTML="";
-    $("questionNo").textContent="-";
-    $("correctCount").textContent="-";
-    $("accuracy").textContent="-";
-    $("bankText").textContent="DB 연결 실패";
-  }
-})();
-
-try{
-  if(window.parent&&window.parent!==window){
-    window.parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"mountain"},"*");
-  }
-}catch(e){}
-
-window.addEventListener("message",function(event){
-  var data=event.data||{};
-  if(data.type==="BUS_SEAT_EVENT_SESSION"&&data.session){
-    var oldKey=stateKey();
-    session=data.session;
-    if(mountains.length && oldKey!==stateKey()){
-      state=loadState();
-      render();
-    }
-  }
-});
+loadData().then(function(){state=loadState();render()}).catch(function(e){setStatus(e.message||"문제은행 연결 실패","error");$("hintText").textContent="mountin-data.html 파일 위치를 확인하세요."});
+try{if(parent&&parent!==window)parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"mountin"},"*")}catch(e){}
+window.addEventListener("message",function(ev){var d=ev.data||{};if(d.type==="BUS_SEAT_EVENT_SESSION"&&d.session){var old=stateKey();session=d.session;if(mountains.length&&old!==stateKey()){state=loadState();render()}}});
 })();
 </script>
 </body>
