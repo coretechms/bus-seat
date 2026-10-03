@@ -46,6 +46,9 @@ button,select{font-family:inherit}
 .lucky-label{font-size:10px;color:#867791;margin-bottom:0;white-space:nowrap}
 .lucky-value{font-size:12px;font-weight:900;color:#533276;white-space:nowrap}
 .message{margin-top:8px;padding:11px;border-radius:15px;background:#fff8df;border:1px solid #eedb8e;color:#6d5700;text-align:center;font-size:12px;font-weight:900;line-height:1.45}
+.profile-sync-status{margin:4px 2px 6px;text-align:right;font-size:9px;color:#8a7e92;min-height:12px}
+.profile-sync-status.saved{color:#2f7d46}
+.profile-sync-status.error{color:#b04b4b}
 .notice{margin-top:7px;text-align:center;color:#8a7e92;font-size:9px;line-height:1.35}
 
 @media(max-width:520px){
@@ -119,6 +122,8 @@ button,select{font-family:inherit}
     <select id="birthDaySelect"></select>
   </div>
 </section>
+
+<div class="profile-sync-status" id="profileSyncStatus"></div>
 
 <section class="identity-row">
   <div class="identity-zodiac">
@@ -267,6 +272,122 @@ function loadSession(){
   return {code:"guest",name:"회원",birthDate:""};
 }
 
+function setProfileSyncStatus(message,type){
+  var el=$("profileSyncStatus");
+  if(!el)return;
+  el.textContent=message||"";
+  el.classList.remove("saved","error");
+  if(type)el.classList.add(type);
+}
+
+function requestRemoteProfile(){
+  if(!session || !session.code || session.code==="guest" || session.code==="ADMIN"){
+    setProfileSyncStatus("회원 로그인 시 자동 저장됩니다.");
+    return;
+  }
+  setProfileSyncStatus("회원정보 확인중...");
+  try{
+    if(window.parent && window.parent!==window){
+      window.parent.postMessage({
+        type:"BUS_SEAT_FORTUNE_PROFILE_GET",
+        event:"fortune"
+      },"*");
+    }
+  }catch(e){
+    setProfileSyncStatus("회원정보 확인 실패","error");
+  }
+}
+
+function saveRemoteProfile(profile){
+  if(!session || !session.code || session.code==="guest" || session.code==="ADMIN"){
+    setProfileSyncStatus("이 기기에 저장됨","saved");
+    return;
+  }
+  setProfileSyncStatus("저장중...");
+  try{
+    if(window.parent && window.parent!==window){
+      window.parent.postMessage({
+        type:"BUS_SEAT_FORTUNE_PROFILE_SAVE",
+        event:"fortune",
+        profile:{
+          zodiac:String(profile.zodiac||""),
+          birthYear:Number(profile.year),
+          birthMonth:Number(profile.month),
+          birthDay:Number(profile.day)
+        }
+      },"*");
+    }
+  }catch(e){
+    setProfileSyncStatus("서버 저장 실패 · 이 기기에는 저장됨","error");
+  }
+}
+
+function applyRemoteProfile(profile){
+  if(!profile || typeof profile!=="object")return false;
+
+  var zodiac=String(profile.zodiac||"");
+  var year=Number(profile.birthYear);
+  var month=Number(profile.birthMonth);
+  var day=Number(profile.birthDay);
+  var now=getKoreaNowParts();
+
+  if(zodiacOrder.indexOf(zodiac)<0)return false;
+  if(!year || year<now.year-100 || year>now.year)return false;
+  if(month<1 || month>12)return false;
+  if(day<1 || day>validDaysInMonth(year,month))return false;
+
+  $("zodiacSelect").value=zodiac;
+  $("birthYearSelect").value=String(year);
+  $("birthMonthSelect").value=String(month);
+  refreshBirthDays();
+  $("birthDaySelect").value=String(day);
+
+  try{
+    localStorage.setItem(profileStorageKey(),JSON.stringify({
+      zodiac:zodiac,
+      year:year,
+      month:month,
+      day:day
+    }));
+  }catch(e){}
+
+  renderFortune(false);
+  return true;
+}
+
+window.addEventListener("message",function(event){
+  var data=event.data||{};
+
+  if(data.type==="BUS_SEAT_EVENT_SESSION" && data.session){
+    session=normalizeSession(data.session)||session;
+    requestRemoteProfile();
+    return;
+  }
+
+  if(data.type==="BUS_SEAT_FORTUNE_PROFILE_DATA"){
+    if(data.ok && data.profile){
+      if(applyRemoteProfile(data.profile)){
+        setProfileSyncStatus("회원정보 자동 불러오기 완료","saved");
+      }else{
+        setProfileSyncStatus("저장된 회원정보 형식 오류","error");
+      }
+    }else if(data.ok && !data.profile){
+      setProfileSyncStatus("최초 1회 입력하면 회원정보로 저장됩니다.");
+    }else{
+      setProfileSyncStatus("서버정보 없음 · 이 기기 저장값 사용","error");
+    }
+    return;
+  }
+
+  if(data.type==="BUS_SEAT_FORTUNE_PROFILE_SAVED"){
+    if(data.ok){
+      setProfileSyncStatus("회원정보 저장됨","saved");
+    }else{
+      setProfileSyncStatus("서버 저장 실패 · 이 기기에는 저장됨","error");
+    }
+  }
+});
+
 function populateBirthSelectors(){
   var now=getKoreaNowParts();
   var yearSelect=$("birthYearSelect");
@@ -396,7 +517,7 @@ function pick(arr,seed,salt){
   return arr[hashText(seed+"|"+salt)%arr.length];
 }
 
-function renderFortune(){
+function renderFortune(syncRemote){
   refreshBirthDays();
 
   var profile=saveManualProfile();
@@ -423,6 +544,10 @@ function renderFortune(){
   $("numberText").textContent=String(1+(hashText(seed+"|number")%9));
   $("timeText").textContent=pick(times,seed,"time");
   $("messageText").textContent="✨ "+pick(messages,seed,"message");
+
+  if(syncRemote!==false){
+    saveRemoteProfile(profile);
+  }
 }
 
 function goEventMain(){
@@ -455,7 +580,8 @@ $("birthMonthSelect").value=String(savedProfile.month);
 refreshBirthDays();
 $("birthDaySelect").value=String(savedProfile.day);
 
-renderFortune();
+renderFortune(false);
+requestRemoteProfile();
 
 })();
 </script>
