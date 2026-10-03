@@ -56,13 +56,55 @@ button{font-family:inherit}
   .footer-note{display:none}
 }
 
-/* ===== 숫자 퀴즈 자동 계산기 ===== */
+
+/* ===== 숫자 퀴즈 버튼형 계산기 + 모바일 한화면 최적화 ===== */
+.quiz-tools{
+  display:flex;
+  gap:6px;
+  margin:0 0 7px;
+}
+.quiz-tool-btn{
+  flex:1;
+  height:34px;
+  border:1px solid #c8d6e5;
+  border-radius:10px;
+  background:#f7fbff;
+  color:#24476d;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.quiz-tool-btn.calc-toggle{
+  display:none;
+  background:#eaf3ff;
+  color:#174d8a;
+}
+.quiz-tool-btn.calc-toggle.available{display:block}
+.quiz-tool-btn.active{
+  background:#0b2d58;
+  border-color:#0b2d58;
+  color:#fff;
+}
+.quiz-hint{
+  display:none;
+  margin:0 0 7px;
+  padding:7px 9px;
+  border:1px solid #d7e3ee;
+  border-radius:10px;
+  background:#fbfdff;
+  color:#506477;
+  font-size:12px;
+  font-weight:700;
+  line-height:1.35;
+}
+.quiz-hint.show{display:block}
+
 .quiz-calculator{
   display:none;
-  margin:10px 0 2px;
-  padding:10px;
+  margin:8px 0 0;
+  padding:8px;
   border:1px solid #c9d9ea;
-  border-radius:15px;
+  border-radius:13px;
   background:#f8fbff;
 }
 .quiz-calculator.show{display:block}
@@ -70,44 +112,44 @@ button{font-family:inherit}
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:8px;
-  margin-bottom:7px;
-  font-size:12px;
+  gap:6px;
+  margin-bottom:5px;
+  font-size:11px;
   font-weight:900;
   color:#35526f;
 }
 .calc-title small{
-  font-size:10px;
+  font-size:9px;
   font-weight:700;
   color:#7b8794;
 }
 .calc-display{
   width:100%;
-  height:47px;
-  margin-bottom:7px;
-  padding:0 12px;
+  height:38px;
+  margin-bottom:5px;
+  padding:0 10px;
   border:1px solid #bdccdc;
-  border-radius:11px;
+  border-radius:9px;
   background:#fff;
   color:#172b42;
   text-align:right;
-  font-size:22px;
+  font-size:19px;
   font-weight:900;
   outline:none;
 }
 .calc-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:6px;
+  gap:4px;
 }
 .calc-key{
   min-width:0;
-  height:44px;
+  height:35px;
   border:1px solid #ccd9e7;
-  border-radius:11px;
+  border-radius:8px;
   background:#fff;
   color:#23384f;
-  font-size:17px;
+  font-size:15px;
   font-weight:900;
   cursor:pointer;
 }
@@ -125,10 +167,163 @@ button{font-family:inherit}
   border-color:#0b2d58;
 }
 .calc-key:active{transform:scale(.98)}
+
 @media(max-width:520px){
-  .quiz-calculator{margin-top:7px;padding:8px;border-radius:12px}
-  .calc-display{height:43px;font-size:20px}
-  .calc-key{height:41px;font-size:16px;border-radius:10px}
+  html,body{height:100%;min-height:100%}
+  body{overflow-y:auto}
+  .app{
+    min-height:100dvh;
+    padding:max(3px,env(safe-area-inset-top)) 5px max(3px,env(safe-area-inset-bottom));
+  }
+  .shell{width:100%}
+  .topbar{margin-bottom:2px;min-height:28px}
+  .title{font-size:15px}
+  .date{display:none}
+  .top-actions{gap:4px}
+  .top-btn{
+    min-width:48px;
+    height:28px;
+    padding:0 6px;
+    border-radius:9px;
+    font-size:10px;
+  }
+
+  .progress-wrap{
+    margin-bottom:3px;
+    padding:3px 6px;
+    border-radius:8px;
+    box-shadow:none;
+  }
+  .progress-row{
+    margin-bottom:0;
+    font-size:10px;
+  }
+  .progress-track{
+    height:3px;
+    margin-top:2px;
+  }
+
+  .panel{
+    padding:5px 6px 6px;
+    border-radius:11px;
+    box-shadow:none;
+  }
+  .meta{
+    margin-bottom:2px;
+    min-height:18px;
+  }
+  .category{
+    height:19px;
+    padding:0 6px;
+    font-size:9px;
+  }
+  .status{font-size:9px}
+
+  .question{
+    margin:1px 0 4px;
+    font-size:15px;
+    line-height:1.22;
+  }
+
+  .quiz-tools{
+    gap:4px;
+    margin-bottom:4px;
+  }
+  .quiz-tool-btn{
+    height:27px;
+    border-radius:8px;
+    font-size:10px;
+  }
+  .quiz-hint{
+    margin-bottom:4px;
+    padding:5px 7px;
+    border-radius:8px;
+    font-size:10px;
+    line-height:1.25;
+  }
+
+  .answers{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:4px;
+  }
+  .answer-btn{
+    min-height:34px;
+    padding:5px 7px;
+    border-radius:8px;
+    font-size:12px;
+    line-height:1.15;
+  }
+
+  .result{
+    margin-top:4px;
+    padding:5px 7px;
+    border-radius:8px;
+    font-size:10px;
+    line-height:1.25;
+  }
+  .result-title{
+    display:inline;
+    margin-right:4px;
+    font-size:11px;
+  }
+  #correctAnswer{
+    display:inline;
+    font-size:10px;
+    font-weight:800;
+  }
+  .explain{
+    margin-top:3px;
+    padding-top:3px;
+    font-size:9px;
+    line-height:1.2;
+  }
+
+  .next-btn{
+    height:30px;
+    margin-top:4px;
+    border-radius:8px;
+    font-size:11px;
+  }
+
+  .quiz-calculator{
+    margin-top:4px;
+    padding:5px;
+    border-radius:9px;
+  }
+  .calc-title{
+    margin-bottom:3px;
+    font-size:9px;
+  }
+  .calc-title small{font-size:8px}
+  .calc-display{
+    height:30px;
+    margin-bottom:3px;
+    padding:0 7px;
+    border-radius:7px;
+    font-size:16px;
+  }
+  .calc-grid{gap:3px}
+  .calc-key{
+    height:28px;
+    border-radius:6px;
+    font-size:13px;
+  }
+
+  .footer-note{display:none}
+}
+
+/* 낮은 모바일 화면에서는 한 단계 더 압축 */
+@media(max-width:520px) and (max-height:700px){
+  .title{font-size:14px}
+  .top-btn{height:26px}
+  .progress-track{display:none}
+  .question{font-size:14px;line-height:1.18}
+  .answer-btn{min-height:31px;padding:4px 6px;font-size:11px}
+  .quiz-tool-btn{height:25px}
+  .next-btn{height:28px}
+  .calc-display{height:27px}
+  .calc-key{height:25px;font-size:12px}
+  .calc-title small{display:none}
 }
 
 </style>
@@ -149,11 +344,28 @@ button{font-family:inherit}
 <div id="quizArea">
   <div class="meta"><span class="category" id="categoryText"></span><span class="status" id="statusText"></span></div>
   <div class="question" id="questionText"></div>
-  
-<div class="quiz-calculator" id="quizCalculator" aria-label="계산기">
+
+  <div class="quiz-tools" id="quizTools">
+    <button type="button" class="quiz-tool-btn" id="hintBtn">💡 힌트</button>
+    <button type="button" class="quiz-tool-btn calc-toggle" id="calcToggleBtn">🧮 계산기</button>
+  </div>
+
+  <div class="quiz-hint" id="hintBox"></div>
+
+  <div id="answerArea"></div>
+
+  <div class="result" id="resultBox">
+    <div class="result-title" id="resultTitle"></div>
+    <div id="correctAnswer"></div>
+    <div class="explain" id="explainText"></div>
+  </div>
+
+  <button type="button" class="next-btn" id="nextBtn">다음 문제</button>
+
+  <div class="quiz-calculator" id="quizCalculator" aria-label="계산기">
   <div class="calc-title">
     <span>🧮 계산기</span>
-    <small>숫자 문제에서 자동 표시됩니다</small>
+    <small>계산기 버튼을 누르면 열립니다</small>
   </div>
   <input type="text" class="calc-display" id="calcDisplay" value="0" readonly aria-label="계산 결과">
   <div class="calc-grid" id="calcGrid">
@@ -184,15 +396,6 @@ button{font-family:inherit}
   </div>
 </div>
 
-<div id="answerArea"></div>
-
-  <div class="result" id="resultBox">
-    <div class="result-title" id="resultTitle"></div>
-    <div id="correctAnswer"></div>
-    <div class="explain" id="explainText"></div>
-  </div>
-
-  <button type="button" class="next-btn" id="nextBtn">다음 문제</button>
 </div>
 
 <div class="footer-note">2,000문제 문제은행을 계속 도전할 수 있습니다.</div>
@@ -210,8 +413,8 @@ var quizSequence=[];
 var state=null;
 
 var questions=[];
-var QUIZ_DATA_URLS=["quiz-data.html?v=5","quiz-data_ver_03.html?v=5"];
-var QUIZ_DATA_CACHE_KEY="geomam-quiz-data-cache-v5";
+var QUIZ_DATA_URLS=["quiz-data.html?v=6","quiz-data_ver_03.html?v=6"];
+var QUIZ_DATA_CACHE_KEY="geomam-quiz-data-cache-v6";
 
 function $(id){return document.getElementById(id)}
 
@@ -266,13 +469,69 @@ function isArithmeticQuestion(q){
 
 function updateCalculatorVisibility(q){
   var calc=$("quizCalculator");
-  if(!calc) return;
+  var toggle=$("calcToggleBtn");
+  if(!calc || !toggle) return;
+
+  /* 새 문제에서는 계산기를 항상 닫은 상태로 시작 */
+  calc.classList.remove("show");
+  toggle.classList.remove("active");
+  toggle.textContent="🧮 계산기";
+  resetCalculator();
 
   if(isArithmeticQuestion(q)){
-    calc.classList.add("show");
-    resetCalculator();
+    toggle.classList.add("available");
   }else{
-    calc.classList.remove("show");
+    toggle.classList.remove("available");
+  }
+}
+
+function buildQuestionHint(q){
+  if(q && q.hint) return String(q.hint);
+
+  if(isArithmeticQuestion(q)){
+    return "문제에 나온 숫자와 단위를 확인하고, 필요한 계산 순서를 차례로 생각해 보세요.";
+  }
+
+  if(q && q.type==="ox"){
+    return "문장의 핵심 조건이 실제로 성립하는지 하나씩 확인해 보세요.";
+  }
+
+  return "보기들을 하나씩 비교해서 문제의 조건에 가장 잘 맞는 답을 찾아보세요.";
+}
+
+function resetHint(q){
+  var box=$("hintBox");
+  var btn=$("hintBtn");
+  if(!box || !btn) return;
+
+  box.classList.remove("show");
+  box.textContent=buildQuestionHint(q);
+  btn.classList.remove("active");
+  btn.textContent="💡 힌트";
+}
+
+function toggleHint(){
+  var box=$("hintBox");
+  var btn=$("hintBtn");
+  if(!box || !btn) return;
+
+  var open=!box.classList.contains("show");
+  box.classList.toggle("show",open);
+  btn.classList.toggle("active",open);
+  btn.textContent=open?"💡 힌트 닫기":"💡 힌트";
+}
+
+function toggleCalculator(){
+  var calc=$("quizCalculator");
+  var btn=$("calcToggleBtn");
+  if(!calc || !btn || !btn.classList.contains("available")) return;
+
+  var open=!calc.classList.contains("show");
+  calc.classList.toggle("show",open);
+  btn.classList.toggle("active",open);
+  btn.textContent=open?"🧮 계산기 닫기":"🧮 계산기";
+
+  if(open){
     resetCalculator();
   }
 }
@@ -603,6 +862,11 @@ function resetQuestionUI(){
   $("nextBtn").className="next-btn";
   $("answerArea").innerHTML="";
   $("statusText").textContent="";
+  if($("hintBox"))$("hintBox").classList.remove("show");
+  if($("hintBtn")){
+    $("hintBtn").classList.remove("active");
+    $("hintBtn").textContent="💡 힌트";
+  }
 }
 
 function renderQuestion(){
@@ -622,6 +886,7 @@ function renderQuestion(){
   $("categoryText").textContent=q.cat;
   $("questionText").textContent=(state.totalAnswered+1)+". "+q.q;
   updateCalculatorVisibility(q);
+  resetHint(q);
   updateProgress();
 
   var wrap=document.createElement("div");
@@ -740,6 +1005,9 @@ $("backBtn").addEventListener("click",goEventMain);
 $("exitBtn").addEventListener("click",goEventMain);
 $("nextBtn").addEventListener("click",nextQuestion);
 bindCalculator();
+
+$("hintBtn").addEventListener("click",toggleHint);
+$("calcToggleBtn").addEventListener("click",toggleCalculator);
 
 $("todayText").textContent=displayDate();
 session=loadSession();
