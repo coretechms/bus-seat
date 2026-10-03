@@ -119,6 +119,50 @@ button,select{font-family:inherit}
 .profile-sync-status.saved{color:#3d8755}
 .profile-sync-status.error{color:#b75353}
 
+.zodiac-visual-row{
+  margin:0 0 8px;
+}
+.zodiac-visual-card{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  padding:12px 14px;
+  background:linear-gradient(135deg,#fff7e9,#fffdf6);
+  border:1px solid #eadfbe;
+  border-radius:16px;
+  box-shadow:0 8px 18px rgba(105,85,40,.08);
+}
+.zodiac-emoji{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#fffefb,#fbe8ae);
+  border:1px solid #ecd992;
+  font-size:31px;
+  line-height:1;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 3px 8px rgba(125,96,29,.08);
+}
+.zodiac-info{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:2px;
+}
+.zodiac-label{
+  font-size:12px;
+  font-weight:800;
+  color:#9a8557;
+}
+.zodiac-info strong{
+  font-size:18px;
+  font-weight:900;
+  color:#6b4b1d;
+}
+
 .age-row{
   display:flex;
   align-items:center;
@@ -291,6 +335,22 @@ button,select{font-family:inherit}
     font-size:10px;
   }
 
+  .zodiac-visual-row{
+    margin-bottom:6px;
+  }
+  .zodiac-visual-card{
+    gap:9px;
+    padding:10px 11px;
+    border-radius:13px;
+  }
+  .zodiac-emoji{
+    width:46px;
+    height:46px;
+    font-size:25px;
+  }
+  .zodiac-label{font-size:10px}
+  .zodiac-info strong{font-size:15px}
+
   .age-row{
     gap:8px;
     margin-bottom:6px;
@@ -385,6 +445,16 @@ button,select{font-family:inherit}
   <strong id="fullAgeText">만 --세</strong>
   <span class="age-divider">/</span>
   <strong id="yearAgeText">연나이 --세</strong>
+</section>
+
+<section class="zodiac-visual-row">
+  <div class="zodiac-visual-card">
+    <span class="zodiac-emoji" id="zodiacEmoji">🐭</span>
+    <div class="zodiac-info">
+      <span class="zodiac-label">오늘의 띠</span>
+      <strong id="zodiacNameText">쥐띠</strong>
+    </div>
+  </div>
 </section>
 <section class="total-fortune-row">
   <div class="total-fortune-head">
@@ -779,6 +849,9 @@ function renderFortune(syncRemote){
 
   var profile=saveManualProfile();
   var zodiac=profile.zodiac;
+
+  $("zodiacEmoji").textContent=zodiacEmoji[zodiac]||"🔮";
+  $("zodiacNameText").textContent=zodiac+"띠";
   var fullAge=ageAtToday(profile.year,profile.month,profile.day);
   var simpleYearAge=yearAge(profile.year);
 
