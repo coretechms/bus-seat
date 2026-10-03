@@ -840,7 +840,17 @@ function refreshMonthAndDaySelectors(preferred){
   monthSelect.innerHTML="";
 
   if(type==="lunar"){
-    var info=getLunarYearInfo(year);
+    var info;
+    try{ info=getLunarYearInfo(year); }catch(e){ info={months:[],dateMap:{}}; }
+
+    /* 일부 구형 WebView에서 중국력 Intl 지원이 없더라도 입력 UI와 운세가 멈추지 않도록 기본 12개월 제공 */
+    if(!info.months || !info.months.length){
+      info={months:[],dateMap:{}};
+      for(var fm=1;fm<=12;fm++){
+        info.months.push({key:String(fm),month:fm,leap:false,maxDay:30});
+      }
+    }
+
     info.months.forEach(function(item){
       var option=document.createElement("option");
       option.value=item.key;
@@ -892,8 +902,9 @@ function resolveBirthContext(){
   var day=Number($("birthDaySelect").value||1);
 
   if(type==="lunar"){
-    var solar=lunarToSolar(year,monthKey,day);
     var monthNumber=Number(monthKey.replace(/\D/g,"")||1);
+    var solar=null;
+    try{ solar=lunarToSolar(year,monthKey,day); }catch(e){ solar=null; }
     return {
       calendarType:"lunar",
       year:year,
@@ -906,13 +917,18 @@ function resolveBirthContext(){
   }
 
   var month=Number(monthKey||1);
-  var lunar=solarToLunar(year,month,day);
+  var lunar=null;
+  try{ lunar=solarToLunar(year,month,day); }catch(e){ lunar=null; }
+
   return {
     calendarType:"solar",
     year:year,
     month:month,
     lunarMonthKey:"",
     day:day,
+    /* 양력 생일은 해당 날짜가 속한 음력 연도의 십이지를 사용한다.
+       예: 1973-01-01은 음력 1972년 -> 쥐띠,
+           1973-02-03부터 음력 1973년 -> 소띠. */
     zodiacYear:lunar&&lunar.year?lunar.year:year,
     solar:{year:year,month:month,day:day},
     lunar:lunar
@@ -1028,13 +1044,41 @@ function pick(arr,seed,salt){
 }
 
 function renderFortune(syncRemote){
-  refreshBirthDays();
+  var context;
+  try{
+    context=resolveBirthContext();
+  }catch(e){
+    var fallbackYear=Number($("birthYearSelect").value||1972);
+    var fallbackMonth=Number(String($("birthMonthSelect").value||"1").replace(/\D/g,"")||1);
+    var fallbackDay=Number($("birthDaySelect").value||1);
+    context={
+      calendarType:$("calendarTypeSelect").value==="lunar"?"lunar":"solar",
+      year:fallbackYear,
+      month:fallbackMonth,
+      lunarMonthKey:"",
+      day:fallbackDay,
+      zodiacYear:fallbackYear,
+      solar:{year:fallbackYear,month:fallbackMonth,day:fallbackDay},
+      lunar:null
+    };
+  }
 
-  var profile=saveManualProfile();
-  var context=resolveBirthContext();
-  var zodiac=profile.zodiac;
+  var zodiac=zodiacForYear(context.zodiacYear);
+  var profile={
+    calendarType:context.calendarType,
+    zodiac:zodiac,
+    year:context.year,
+    month:context.month,
+    lunarMonthKey:context.lunarMonthKey||"",
+    day:context.day,
+    solar:context.solar||null
+  };
 
-  updateCalendarConvertInfo(context);
+  try{
+    localStorage.setItem(profileStorageKey(),JSON.stringify(profile));
+  }catch(e){}
+
+  try{ updateCalendarConvertInfo(context); }catch(e){}
 
   $("zodiacEmoji").textContent=zodiacEmoji[zodiac]||"🔮";
   $("zodiacNameText").textContent=zodiac+"띠";
@@ -1045,6 +1089,7 @@ function renderFortune(syncRemote){
 
   $("fullAgeText").textContent="만 "+fullAge+"세";
   $("yearAgeText").textContent="연나이 "+simpleYearAge+"세";
+
   var seed=koreaDateKey()+"|"+String(session&&session.code||"guest")+"|"+
     profile.calendarType+"|"+profile.year+"|"+profile.month+"|"+profile.lunarMonthKey+"|"+profile.day+"|"+zodiac;
 
@@ -1052,7 +1097,6 @@ function renderFortune(syncRemote){
 
   $("fortuneScore").textContent=score+"점";
   $("fortuneSummary").textContent=pick(summaries,seed,"summary");
-
   $("healthText").textContent=pick(health,seed,"health");
   $("moneyText").textContent=pick(money,seed,"money");
   $("relationText").textContent=pick(relation,seed,"relation");
