@@ -31,7 +31,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden}button{font-family:inh
 <div class="welcome" id="welcomeBox">회원 정보를 불러오는 중입니다.</div>
 <section class="hero"><strong>오늘은 무엇을 해볼까요?</strong><span>원하는 이벤트를 선택해 가볍게 즐겨보세요.</span></section>
 <section class="event-grid">
-<button type="button" class="event-card disabled" data-event="quiz"><span class="badge soon">준비중</span><span class="icon">🧠</span><span class="event-name">오늘의 한문제</span><span class="event-desc">하루 한 문제, 재미있는 상식 퀴즈</span></button>
+<button type="button" class="event-card active" data-event="quiz"><span class="badge open">실행가능</span><span class="icon">🧠</span><span class="event-name">오늘의 한문제</span><span class="event-desc">하루 한 문제, 재미있는 상식 퀴즈</span></button>
 <button type="button" class="event-card disabled" data-event="stamp"><span class="badge soon">준비중</span><span class="icon">🥾</span><span class="event-name">산행 출석도장</span><span class="event-desc">산행 참여 기록과 도장 모으기</span></button>
 <button type="button" class="event-card disabled" data-event="fortune"><span class="badge soon">준비중</span><span class="icon">🔮</span><span class="event-name">오늘의 운세</span><span class="event-desc">띠별 오늘의 한마디와 가벼운 운세</span></button>
 <button type="button" class="event-card disabled" data-event="mountain"><span class="badge soon">준비중</span><span class="icon">🏔️</span><span class="event-name">산 이름 맞히기</span><span class="event-desc">사진과 힌트로 산 이름 맞히기</span></button>
@@ -51,7 +51,26 @@ function sendReady(){try{if(window.parent&&window.parent!==window)window.parent.
 function sendExit(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:"BUS_SEAT_EVENT_EXIT",event:"index"},"*");return}}catch(e){}try{history.back()}catch(e){}}
 function openLucky(){try{if(session)sessionStorage.setItem("geomam-event-session",JSON.stringify(session))}catch(e){}window.location.href=new URL("lucky.html",window.location.href).href}
 window.addEventListener("message",function(event){var data=event.data||{};if(data.type==="BUS_SEAT_EVENT_SESSION"){session=normalizeSession(data.session);if(session&&session.name)$("welcomeBox").textContent=session.name+" 회원님, 오늘의 이벤트를 선택해 주세요."}})
-document.querySelectorAll(".event-card").forEach(function(btn){btn.addEventListener("click",function(){if(btn.getAttribute("data-event")==="lucky")openLucky();else showNotice("이 이벤트는 준비 중입니다.")})})
+document.querySelectorAll(".event-card").forEach(function(btn){
+  btn.addEventListener("click",function(){
+    var eventName=btn.getAttribute("data-event");
+
+    if(eventName==="quiz"){
+      try{
+        if(session) sessionStorage.setItem("geomam-event-session",JSON.stringify(session));
+      }catch(e){}
+      window.location.href=new URL("quiz.html",window.location.href).href;
+      return;
+    }
+
+    if(eventName==="lucky"){
+      openLucky();
+      return;
+    }
+
+    showNotice("이 이벤트는 준비 중입니다.");
+  });
+})
 $("exitBtn").addEventListener("click",sendExit);$("todayText").textContent=displayDate();
 try{var saved=sessionStorage.getItem("geomam-event-session");if(saved){session=normalizeSession(JSON.parse(saved));if(session&&session.name)$("welcomeBox").textContent=session.name+" 회원님, 오늘의 이벤트를 선택해 주세요."}}catch(e){}
 sendReady();setInterval(function(){if(!session)sendReady()},700);
