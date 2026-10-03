@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b2d58">
+<title>오늘의 이벤트</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;min-height:100%;font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:#eef4fb;color:#111}
+body{min-height:100vh;min-height:100dvh;overflow-x:hidden}button{font-family:inherit}
+.app{min-height:100vh;min-height:100dvh;padding:max(12px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom));background:radial-gradient(circle at 18% 0%,rgba(255,255,255,.95),transparent 30%),linear-gradient(180deg,#dcecff 0%,#f7f9fc 48%,#edf2f7 100%)}
+.shell{width:min(760px,100%);margin:0 auto}.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.title-wrap{min-width:0}
+.title{margin:0;color:#0b2d58;font-size:22px;font-weight:900;letter-spacing:-.04em}.date{margin-top:4px;color:#667085;font-size:12px}
+.exit-btn{flex:0 0 auto;height:38px;min-width:76px;padding:0 16px;border:0;border-radius:14px;background:#111827;color:#fff;font-size:14px;font-weight:800;cursor:pointer}
+.welcome{margin-bottom:12px;padding:11px 14px;border-radius:16px;background:rgba(255,255,255,.82);border:1px solid rgba(255,255,255,.95);box-shadow:0 8px 24px rgba(30,60,90,.06);font-size:14px;line-height:1.55}
+.hero{margin-bottom:14px;padding:18px;border-radius:22px;background:linear-gradient(135deg,#0b2d58,#1f65bd);color:#fff;box-shadow:0 14px 34px rgba(11,45,88,.18)}
+.hero strong{display:block;font-size:20px;margin-bottom:6px}.hero span{display:block;font-size:13px;line-height:1.6;opacity:.94}
+.event-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.event-card{position:relative;min-height:148px;padding:16px;border:1px solid #dfe7ef;border-radius:20px;background:rgba(255,255,255,.96);box-shadow:0 8px 22px rgba(40,60,80,.08);text-align:left;cursor:pointer;overflow:hidden;transition:transform .14s ease}
+.event-card:active{transform:scale(.98)}.event-card.active{border-color:#a8c8ee;background:linear-gradient(180deg,#fff,#f1f7ff)}.event-card.disabled{cursor:default;opacity:.7}
+.icon{display:block;font-size:38px;line-height:1;margin-bottom:10px}.event-name{display:block;color:#123b72;font-size:17px;font-weight:900;line-height:1.25}
+.event-desc{display:block;margin-top:6px;color:#667085;font-size:12px;line-height:1.45}.badge{position:absolute;top:10px;right:10px;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800}
+.badge.open{background:#dff7e6;color:#137333}.badge.soon{background:#f2f4f7;color:#667085}
+.notice{display:none;position:fixed;left:50%;bottom:max(22px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(420px,calc(100vw - 28px));padding:12px 16px;border-radius:14px;background:rgba(17,24,39,.94);color:#fff;text-align:center;font-size:13px;line-height:1.5;z-index:30;box-shadow:0 8px 26px rgba(0,0,0,.2)}
+@media(max-width:520px){.title{font-size:19px}.event-grid{gap:8px}.event-card{min-height:136px;padding:14px;border-radius:18px}.icon{font-size:34px}.event-name{font-size:15px}.event-desc{font-size:11px}}
+</style>
+</head>
+<body>
+<main class="app"><div class="shell">
+<header class="topbar"><div class="title-wrap"><h1 class="title">🎉 오늘의 이벤트</h1><div class="date" id="todayText"></div></div><button type="button" class="exit-btn" id="exitBtn">나가기</button></header>
+<div class="welcome" id="welcomeBox">회원 정보를 불러오는 중입니다.</div>
+<section class="hero"><strong>오늘은 무엇을 해볼까요?</strong><span>원하는 이벤트를 선택해 가볍게 즐겨보세요.</span></section>
+<section class="event-grid">
+<button type="button" class="event-card disabled" data-event="quiz"><span class="badge soon">준비중</span><span class="icon">🧠</span><span class="event-name">오늘의 한문제</span><span class="event-desc">하루 한 문제, 재미있는 상식 퀴즈</span></button>
+<button type="button" class="event-card disabled" data-event="stamp"><span class="badge soon">준비중</span><span class="icon">🥾</span><span class="event-name">산행 출석도장</span><span class="event-desc">산행 참여 기록과 도장 모으기</span></button>
+<button type="button" class="event-card disabled" data-event="fortune"><span class="badge soon">준비중</span><span class="icon">🔮</span><span class="event-name">오늘의 운세</span><span class="event-desc">띠별 오늘의 한마디와 가벼운 운세</span></button>
+<button type="button" class="event-card disabled" data-event="mountain"><span class="badge soon">준비중</span><span class="icon">🏔️</span><span class="event-name">산 이름 맞히기</span><span class="event-desc">사진과 힌트로 산 이름 맞히기</span></button>
+<button type="button" class="event-card active" data-event="lucky"><span class="badge open">실행가능</span><span class="icon">🍀</span><span class="event-name">행운 뽑기</span><span class="event-desc">오늘의 행운카드와 작은 미션</span></button>
+<button type="button" class="event-card disabled" data-event="ox"><span class="badge soon">준비중</span><span class="icon">⭕</span><span class="event-name">산행 상식 O/X</span><span class="event-desc">등산과 안전 상식을 O/X로 풀기</span></button>
+</section></div></main>
+<div class="notice" id="notice"></div>
+<script>
+(function(){
+"use strict";
+var session=null,noticeTimer=null;
+function $(id){return document.getElementById(id)}
+function displayDate(){try{return new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"numeric",month:"long",day:"numeric",weekday:"long"}).format(new Date())}catch(e){return new Date().toLocaleDateString("ko-KR")}}
+function normalizeSession(data){if(!data||typeof data!=="object")return null;var code=data.code||data.memberCode||data.loginCode||data.id||"";var name=data.name||data.memberName||data.userName||"회원";return{code:String(code||"").trim(),name:String(name||"회원").trim()||"회원"}}
+function showNotice(msg){var b=$("notice");b.textContent=msg;b.style.display="block";if(noticeTimer)clearTimeout(noticeTimer);noticeTimer=setTimeout(function(){b.style.display="none"},1800)}
+function sendReady(){try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"index"},"*")}catch(e){}}
+function sendExit(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:"BUS_SEAT_EVENT_EXIT",event:"index"},"*");return}}catch(e){}try{history.back()}catch(e){}}
+function openLucky(){try{if(session)sessionStorage.setItem("geomam-event-session",JSON.stringify(session))}catch(e){}window.location.href=new URL("lucky.html",window.location.href).href}
+window.addEventListener("message",function(event){var data=event.data||{};if(data.type==="BUS_SEAT_EVENT_SESSION"){session=normalizeSession(data.session);if(session&&session.name)$("welcomeBox").textContent=session.name+" 회원님, 오늘의 이벤트를 선택해 주세요."}})
+document.querySelectorAll(".event-card").forEach(function(btn){btn.addEventListener("click",function(){if(btn.getAttribute("data-event")==="lucky")openLucky();else showNotice("이 이벤트는 준비 중입니다.")})})
+$("exitBtn").addEventListener("click",sendExit);$("todayText").textContent=displayDate();
+try{var saved=sessionStorage.getItem("geomam-event-session");if(saved){session=normalizeSession(JSON.parse(saved));if(session&&session.name)$("welcomeBox").textContent=session.name+" 회원님, 오늘의 이벤트를 선택해 주세요."}}catch(e){}
+sendReady();setInterval(function(){if(!session)sendReady()},700);
+})();
+</script>
+</body></html>
