@@ -55,6 +55,82 @@ button{font-family:inherit}
   .next-btn{height:42px;margin-top:7px;border-radius:11px;font-size:15px}
   .footer-note{display:none}
 }
+
+/* ===== 가감승제 문제 전용 계산기 ===== */
+.quiz-calculator{
+  display:none;
+  margin:10px 0 2px;
+  padding:10px;
+  border:1px solid #c9d9ea;
+  border-radius:15px;
+  background:#f8fbff;
+}
+.quiz-calculator.show{display:block}
+.calc-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:7px;
+  font-size:12px;
+  font-weight:900;
+  color:#35526f;
+}
+.calc-title small{
+  font-size:10px;
+  font-weight:700;
+  color:#7b8794;
+}
+.calc-display{
+  width:100%;
+  height:47px;
+  margin-bottom:7px;
+  padding:0 12px;
+  border:1px solid #bdccdc;
+  border-radius:11px;
+  background:#fff;
+  color:#172b42;
+  text-align:right;
+  font-size:22px;
+  font-weight:900;
+  outline:none;
+}
+.calc-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px;
+}
+.calc-key{
+  min-width:0;
+  height:44px;
+  border:1px solid #ccd9e7;
+  border-radius:11px;
+  background:#fff;
+  color:#23384f;
+  font-size:17px;
+  font-weight:900;
+  cursor:pointer;
+}
+.calc-key.operator{
+  background:#eaf3ff;
+  color:#174d8a;
+}
+.calc-key.action{
+  background:#f3f4f6;
+  color:#475467;
+}
+.calc-key.equal{
+  background:#0b2d58;
+  color:#fff;
+  border-color:#0b2d58;
+}
+.calc-key:active{transform:scale(.98)}
+@media(max-width:520px){
+  .quiz-calculator{margin-top:7px;padding:8px;border-radius:12px}
+  .calc-display{height:43px;font-size:20px}
+  .calc-key{height:41px;font-size:16px;border-radius:10px}
+}
+
 </style>
 </head>
 <body>
@@ -73,7 +149,42 @@ button{font-family:inherit}
 <div id="quizArea">
   <div class="meta"><span class="category" id="categoryText"></span><span class="status" id="statusText"></span></div>
   <div class="question" id="questionText"></div>
-  <div id="answerArea"></div>
+  
+<div class="quiz-calculator" id="quizCalculator" aria-label="계산기">
+  <div class="calc-title">
+    <span>🧮 계산기</span>
+    <small>계산 문제에서만 표시됩니다</small>
+  </div>
+  <input type="text" class="calc-display" id="calcDisplay" value="0" readonly aria-label="계산 결과">
+  <div class="calc-grid" id="calcGrid">
+    <button type="button" class="calc-key action" data-calc="clear">C</button>
+    <button type="button" class="calc-key action" data-calc="back">⌫</button>
+    <button type="button" class="calc-key operator" data-calc="op" data-value="÷">÷</button>
+    <button type="button" class="calc-key operator" data-calc="op" data-value="×">×</button>
+
+    <button type="button" class="calc-key" data-calc="num" data-value="7">7</button>
+    <button type="button" class="calc-key" data-calc="num" data-value="8">8</button>
+    <button type="button" class="calc-key" data-calc="num" data-value="9">9</button>
+    <button type="button" class="calc-key operator" data-calc="op" data-value="-">−</button>
+
+    <button type="button" class="calc-key" data-calc="num" data-value="4">4</button>
+    <button type="button" class="calc-key" data-calc="num" data-value="5">5</button>
+    <button type="button" class="calc-key" data-calc="num" data-value="6">6</button>
+    <button type="button" class="calc-key operator" data-calc="op" data-value="+">＋</button>
+
+    <button type="button" class="calc-key" data-calc="num" data-value="1">1</button>
+    <button type="button" class="calc-key" data-calc="num" data-value="2">2</button>
+    <button type="button" class="calc-key" data-calc="num" data-value="3">3</button>
+    <button type="button" class="calc-key equal" data-calc="equal">=</button>
+
+    <button type="button" class="calc-key" data-calc="num" data-value="0">0</button>
+    <button type="button" class="calc-key" data-calc="num" data-value="00">00</button>
+    <button type="button" class="calc-key" data-calc="dot">.</button>
+    <button type="button" class="calc-key action" data-calc="sign">±</button>
+  </div>
+</div>
+
+<div id="answerArea"></div>
 
   <div class="result" id="resultBox">
     <div class="result-title" id="resultTitle"></div>
@@ -99,10 +210,169 @@ var quizSequence=[];
 var state=null;
 
 var questions=[];
-var QUIZ_DATA_URLS=["quiz-data.html?v=3","quiz-data_ver_03.html?v=3"];
-var QUIZ_DATA_CACHE_KEY="geomam-quiz-data-cache-v3";
+var QUIZ_DATA_URLS=["quiz-data.html?v=4","quiz-data_ver_03.html?v=4"];
+var QUIZ_DATA_CACHE_KEY="geomam-quiz-data-cache-v4";
 
 function $(id){return document.getElementById(id)}
+
+/* ===== 가감승제 문제 전용 계산기 ===== */
+var calcValue="0";
+var calcStored=null;
+var calcOperator=null;
+var calcNewInput=false;
+
+function isArithmeticQuestion(q){
+  if(!q || q.type!=="choice") return false;
+
+  var text=String(q.q||"")
+    .replace(/\s+/g," ")
+    .replace(/−/g,"-");
+
+  /*
+    숫자와 + - × ÷ 연산자가 실제 계산식 형태로 함께 있는 문제만 표시.
+    예: 24 + 6 = ?, 35 × 4 = ?, 120 ÷ 5 = ?
+  */
+  return /(?:\d+(?:\.\d+)?)\s*[+\-×÷]\s*(?:\d+(?:\.\d+)?)/.test(text);
+}
+
+function updateCalculatorVisibility(q){
+  var calc=$("quizCalculator");
+  if(!calc) return;
+
+  if(isArithmeticQuestion(q)){
+    calc.classList.add("show");
+    resetCalculator();
+  }else{
+    calc.classList.remove("show");
+    resetCalculator();
+  }
+}
+
+function renderCalc(){
+  var display=$("calcDisplay");
+  if(display) display.value=calcValue;
+}
+
+function resetCalculator(){
+  calcValue="0";
+  calcStored=null;
+  calcOperator=null;
+  calcNewInput=false;
+  renderCalc();
+}
+
+function calcNumber(value){
+  if(calcNewInput){
+    calcValue=value==="00"?"0":value;
+    calcNewInput=false;
+  }else if(calcValue==="0"){
+    calcValue=value==="00"?"0":value;
+  }else if(calcValue.length<16){
+    calcValue+=value;
+  }
+  renderCalc();
+}
+
+function calcDot(){
+  if(calcNewInput){
+    calcValue="0.";
+    calcNewInput=false;
+  }else if(calcValue.indexOf(".")<0){
+    calcValue+=".";
+  }
+  renderCalc();
+}
+
+function calcOperation(op){
+  var current=Number(calcValue);
+  if(!Number.isFinite(current)) return;
+
+  if(calcStored!==null && calcOperator && !calcNewInput){
+    calculateResult();
+    current=Number(calcValue);
+  }
+
+  calcStored=current;
+  calcOperator=op;
+  calcNewInput=true;
+}
+
+function calculateResult(){
+  if(calcStored===null || !calcOperator) return;
+
+  var b=Number(calcValue);
+  var a=Number(calcStored);
+  var result;
+
+  if(calcOperator==="+") result=a+b;
+  else if(calcOperator==="-") result=a-b;
+  else if(calcOperator==="×") result=a*b;
+  else if(calcOperator==="÷"){
+    if(b===0){
+      calcValue="0으로 나눌 수 없음";
+      calcStored=null;
+      calcOperator=null;
+      calcNewInput=true;
+      renderCalc();
+      return;
+    }
+    result=a/b;
+  }
+
+  if(!Number.isFinite(result)){
+    calcValue="오류";
+  }else{
+    result=Math.round((result+Number.EPSILON)*100000000)/100000000;
+    calcValue=String(result);
+  }
+
+  calcStored=null;
+  calcOperator=null;
+  calcNewInput=true;
+  renderCalc();
+}
+
+function calcBack(){
+  if(calcNewInput) return;
+  if(calcValue==="오류" || calcValue==="0으로 나눌 수 없음"){
+    resetCalculator();
+    return;
+  }
+  calcValue=calcValue.length>1?calcValue.slice(0,-1):"0";
+  if(calcValue==="-" || calcValue==="") calcValue="0";
+  renderCalc();
+}
+
+function calcSign(){
+  if(calcValue==="오류" || calcValue==="0으로 나눌 수 없음") return;
+  var n=Number(calcValue);
+  if(!Number.isFinite(n)) return;
+  calcValue=String(n===0?0:-n);
+  renderCalc();
+}
+
+function bindCalculator(){
+  var grid=$("calcGrid");
+  if(!grid || grid.dataset.bound==="1") return;
+  grid.dataset.bound="1";
+
+  grid.addEventListener("click",function(event){
+    var btn=event.target.closest("button[data-calc]");
+    if(!btn) return;
+
+    var action=btn.getAttribute("data-calc");
+    var value=btn.getAttribute("data-value");
+
+    if(action==="num") calcNumber(value);
+    else if(action==="dot") calcDot();
+    else if(action==="op") calcOperation(value);
+    else if(action==="equal") calculateResult();
+    else if(action==="clear") resetCalculator();
+    else if(action==="back") calcBack();
+    else if(action==="sign") calcSign();
+  });
+}
+
 function normalizeQuizItems(items){
   return (Array.isArray(items)?items:[]).filter(function(q){
     return q&&q.q&&q.cat&&(q.type==="choice"||q.type==="ox");
@@ -322,6 +592,7 @@ function renderQuestion(){
   var q=currentQuestion();
   $("categoryText").textContent=q.cat;
   $("questionText").textContent=(state.totalAnswered+1)+". "+q.q;
+  updateCalculatorVisibility(q);
   updateProgress();
 
   var wrap=document.createElement("div");
@@ -439,6 +710,7 @@ function goEventMain(){
 $("backBtn").addEventListener("click",goEventMain);
 $("exitBtn").addEventListener("click",goEventMain);
 $("nextBtn").addEventListener("click",nextQuestion);
+bindCalculator();
 
 $("todayText").textContent=displayDate();
 session=loadSession();
