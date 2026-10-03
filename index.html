@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#0b2d58" />
-  <meta name="bus-seat-version" content="50.9.5" />
+  <meta name="bus-seat-version" content="50.9.6" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" sizes="180x180" href="geomam-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="geomam-icon-192.png" />
@@ -38,7 +38,7 @@
        ============================================================== -->
   <script id="bus-seat-map-maintenance-config">
     window.BUS_SEAT_MAP_CONFIG = Object.freeze({
-      version: "50.9.5-auto-update",
+      version: "50.9.6-fortune-profile-sync",
       mobileQuery: "(max-width: 760px), (pointer: coarse)",
 
       back: Object.freeze({
@@ -10720,6 +10720,7 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
   const MEMBER_SAVED_LOGIN_NAME_KEY = "bus-seat-member-saved-login-name-v1";
   const LOGIN_DEVICE_KEY = "bus-seat-member-device-id-v1";
   const ACTIVE_SESSIONS_PATH = `${MEMBERS_ROOT}/activeSessions`;
+  const FORTUNE_PROFILES_PATH = `${MEMBERS_ROOT}/fortuneProfiles`;
   const LOGIN_LOGS_PATH = `${MEMBERS_ROOT}/loginLogs`;
   const LOGIN_LOG_SETTINGS_PATH = `${MEMBERS_ROOT}/loginLogSettings`;
   const DEFAULT_LOGIN_LOG_RETENTION_DAYS = 30;
@@ -10746,6 +10747,76 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
 
   const membershipApp = getApps().length ? getApp() : initializeApp(MEMBERSHIP_FIREBASE_CONFIG);
   const membershipDb = getDatabase(membershipApp);
+  /* 오늘의 운세 회원별 프로필 저장/조회
+     - 로그인 회원코드를 키로 사용
+     - 띠/출생년/월/일만 저장
+     - fortune.html은 직접 Firebase에 접근하지 않고 이 함수를 통해 처리 */
+  window.__busSeatLoadFortuneProfile = async function(memberCode) {
+    const code = String(memberCode || "").trim();
+    if (!code || code === "ADMIN") return null;
+
+    const snap = await get(ref(membershipDb, `${FORTUNE_PROFILES_PATH}/${code}`));
+    if (!snap.exists()) return null;
+
+    const raw = snap.val() || {};
+    const zodiac = String(raw.zodiac || "").trim();
+    const birthYear = Number(raw.birthYear);
+    const birthMonth = Number(raw.birthMonth);
+    const birthDay = Number(raw.birthDay);
+
+    if (
+      !["쥐","소","호랑이","토끼","용","뱀","말","양","원숭이","닭","개","돼지"].includes(zodiac) ||
+      !Number.isInteger(birthYear) || birthYear < 1900 || birthYear > 2100 ||
+      !Number.isInteger(birthMonth) || birthMonth < 1 || birthMonth > 12 ||
+      !Number.isInteger(birthDay) || birthDay < 1 || birthDay > 31
+    ) {
+      return null;
+    }
+
+    return {
+      zodiac,
+      birthYear,
+      birthMonth,
+      birthDay,
+      updatedAt: Number(raw.updatedAt || 0)
+    };
+  };
+
+  window.__busSeatSaveFortuneProfile = async function(memberCode, profile) {
+    const code = String(memberCode || "").trim();
+    if (!code || code === "ADMIN") throw new Error("회원 로그인 정보가 없습니다.");
+
+    const raw = profile && typeof profile === "object" ? profile : {};
+    const zodiac = String(raw.zodiac || "").trim();
+    const birthYear = Number(raw.birthYear);
+    const birthMonth = Number(raw.birthMonth);
+    const birthDay = Number(raw.birthDay);
+    const allowedZodiac = ["쥐","소","호랑이","토끼","용","뱀","말","양","원숭이","닭","개","돼지"];
+
+    if (!allowedZodiac.includes(zodiac)) throw new Error("띠 정보가 올바르지 않습니다.");
+    if (!Number.isInteger(birthYear) || birthYear < 1900 || birthYear > 2100) throw new Error("출생년도가 올바르지 않습니다.");
+    if (!Number.isInteger(birthMonth) || birthMonth < 1 || birthMonth > 12) throw new Error("출생월이 올바르지 않습니다.");
+    if (!Number.isInteger(birthDay) || birthDay < 1 || birthDay > 31) throw new Error("출생일이 올바르지 않습니다.");
+
+    const maxDay = new Date(birthYear, birthMonth, 0).getDate();
+    if (birthDay > maxDay) throw new Error("해당 월에 존재하지 않는 날짜입니다.");
+
+    const record = {
+      zodiac,
+      birthYear,
+      birthMonth,
+      birthDay,
+      memberCode: code,
+      updatedAt: Date.now()
+    };
+
+    await update(ref(membershipDb), {
+      [`${FORTUNE_PROFILES_PATH}/${code}`]: record
+    });
+
+    return record;
+  };
+
 
   /* 회원 승인 → 멤버리스트 반영 DB 분리 보강
      - bus-seat 보안 DB(bus-seat-eb86c)와 실제 멤버리스트 DB(member-b458f)가 다를 수 있으므로
@@ -20018,6 +20089,88 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
         }, event.origin || "*");
       } catch (_) {}
 
+      return;
+    }
+
+    /* 오늘의 운세 회원별 프로필 조회 */
+    if (data.type === "BUS_SEAT_FORTUNE_PROFILE_GET") {
+      var fortuneSession = getMemberSession();
+      if (!fortuneSession || !fortuneSession.code || fortuneSession.code === "ADMIN") {
+        try {
+          frame.contentWindow.postMessage({
+            type: "BUS_SEAT_FORTUNE_PROFILE_DATA",
+            ok: false,
+            profile: null,
+            message: "회원 로그인 정보가 없습니다."
+          }, event.origin || "*");
+        } catch (_) {}
+        return;
+      }
+
+      Promise.resolve(
+        typeof window.__busSeatLoadFortuneProfile === "function"
+          ? window.__busSeatLoadFortuneProfile(fortuneSession.code)
+          : null
+      ).then(function(profile) {
+        try {
+          frame.contentWindow.postMessage({
+            type: "BUS_SEAT_FORTUNE_PROFILE_DATA",
+            ok: true,
+            profile: profile || null,
+            memberCode: fortuneSession.code
+          }, event.origin || "*");
+        } catch (_) {}
+      }).catch(function(error) {
+        console.error("운세 프로필 조회 오류:", error);
+        try {
+          frame.contentWindow.postMessage({
+            type: "BUS_SEAT_FORTUNE_PROFILE_DATA",
+            ok: false,
+            profile: null,
+            message: String(error && error.message || "운세정보 조회 실패")
+          }, event.origin || "*");
+        } catch (_) {}
+      });
+      return;
+    }
+
+    /* 오늘의 운세 회원별 프로필 저장 */
+    if (data.type === "BUS_SEAT_FORTUNE_PROFILE_SAVE") {
+      var saveSession = getMemberSession();
+      if (!saveSession || !saveSession.code || saveSession.code === "ADMIN") {
+        try {
+          frame.contentWindow.postMessage({
+            type: "BUS_SEAT_FORTUNE_PROFILE_SAVED",
+            ok: false,
+            message: "회원 로그인 정보가 없습니다."
+          }, event.origin || "*");
+        } catch (_) {}
+        return;
+      }
+
+      Promise.resolve(
+        typeof window.__busSeatSaveFortuneProfile === "function"
+          ? window.__busSeatSaveFortuneProfile(saveSession.code, data.profile || {})
+          : Promise.reject(new Error("운세 저장 기능을 사용할 수 없습니다."))
+      ).then(function(profile) {
+        try {
+          frame.contentWindow.postMessage({
+            type: "BUS_SEAT_FORTUNE_PROFILE_SAVED",
+            ok: true,
+            profile: profile || null,
+            memberCode: saveSession.code
+          }, event.origin || "*");
+        } catch (_) {}
+      }).catch(function(error) {
+        console.error("운세 프로필 저장 오류:", error);
+        try {
+          frame.contentWindow.postMessage({
+            type: "BUS_SEAT_FORTUNE_PROFILE_SAVED",
+            ok: false,
+            message: String(error && error.message || "운세정보 저장 실패")
+          }, event.origin || "*");
+        } catch (_) {}
+      });
       return;
     }
 
