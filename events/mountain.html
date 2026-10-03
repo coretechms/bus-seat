@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#315b45">
+<title>산 이름 맞히기</title>
+<style>
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  width:100%;
+  min-height:100%;
+  font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+  color:#243229;
+  background:#edf4ef;
+}
+body{min-height:100vh;min-height:100dvh}
+button{font-family:inherit}
+button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
+
+:root{
+  --green:#315b45;
+  --green2:#47775d;
+  --soft:#f6faf7;
+  --line:#d6e3da;
+  --gold:#e7b94e;
+  --text:#243229;
+  --muted:#718078;
+  --shadow:0 8px 24px rgba(33,74,50,.10);
+}
+
+.app{
+  min-height:100vh;
+  min-height:100dvh;
+  padding:max(10px,env(safe-area-inset-top)) 10px max(12px,env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 10% 0%,rgba(255,255,255,.94),transparent 30%),
+    linear-gradient(180deg,#dcecdf 0%,#f7faf8 46%,#edf4ef 100%);
+}
+.shell{width:min(760px,100%);margin:0 auto}
+
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:8px;
+}
+.title-wrap h1{
+  margin:0;
+  font-size:23px;
+  font-weight:900;
+  letter-spacing:-.04em;
+  color:#244c36;
+}
+.subtitle{
+  margin-top:3px;
+  font-size:12px;
+  font-weight:700;
+  color:#6f8176;
+}
+.actions{display:flex;gap:6px}
+.top-btn{
+  height:38px;
+  min-width:62px;
+  padding:0 11px;
+  border-radius:12px;
+  border:1px solid #c9dacd;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.back-btn{background:#fff;color:#315b45}
+.reset-btn{background:#315b45;border-color:#315b45;color:#fff}
+
+.scorebar{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:6px;
+  margin-bottom:8px;
+}
+.scorebox{
+  padding:8px 6px;
+  text-align:center;
+  background:rgba(255,255,255,.96);
+  border:1px solid var(--line);
+  border-radius:13px;
+  box-shadow:0 4px 14px rgba(35,80,50,.05);
+}
+.score-label{font-size:10px;font-weight:800;color:#849188}
+.score-value{margin-top:2px;font-size:15px;font-weight:900;color:#315b45}
+
+.quiz-card{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:20px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.visual{
+  position:relative;
+  height:210px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:
+    linear-gradient(180deg,rgba(197,221,229,.72) 0%,rgba(225,237,225,.85) 52%,rgba(186,211,188,.92) 100%);
+}
+.visual::before{
+  content:"";
+  position:absolute;
+  left:-8%;
+  right:-8%;
+  bottom:-24px;
+  height:145px;
+  background:#709a77;
+  clip-path:polygon(0 100%,0 79%,16% 65%,28% 78%,42% 35%,55% 72%,67% 54%,80% 77%,100% 59%,100% 100%);
+  opacity:.92;
+}
+.visual::after{
+  content:"";
+  position:absolute;
+  left:-6%;
+  right:-6%;
+  bottom:-34px;
+  height:116px;
+  background:#4c7658;
+  clip-path:polygon(0 100%,0 73%,17% 52%,28% 70%,45% 39%,61% 68%,78% 43%,100% 67%,100% 100%);
+}
+.mountain-symbol{
+  position:relative;
+  z-index:3;
+  margin-top:-28px;
+  font-size:70px;
+  filter:drop-shadow(0 5px 8px rgba(0,0,0,.12));
+}
+.visual-badge{
+  position:absolute;
+  z-index:4;
+  left:12px;
+  top:12px;
+  padding:6px 9px;
+  border-radius:999px;
+  background:rgba(255,255,255,.90);
+  border:1px solid rgba(255,255,255,.95);
+  font-size:11px;
+  font-weight:900;
+  color:#315b45;
+  backdrop-filter:blur(3px);
+}
+.height-badge{
+  position:absolute;
+  z-index:4;
+  right:12px;
+  top:12px;
+  padding:6px 9px;
+  border-radius:999px;
+  background:rgba(39,73,52,.88);
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+}
+
+.question-area{padding:14px}
+.question{
+  margin:0 0 5px;
+  text-align:center;
+  font-size:20px;
+  font-weight:900;
+  color:#263b2e;
+}
+.hint{
+  min-height:39px;
+  margin:0 auto 12px;
+  text-align:center;
+  font-size:13px;
+  line-height:1.45;
+  font-weight:700;
+  color:#67766d;
+  word-break:keep-all;
+}
+
+.answers{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.answer-btn{
+  min-height:50px;
+  padding:9px 8px;
+  border:1px solid #cfded3;
+  border-radius:14px;
+  background:#f9fcfa;
+  color:#2e3b33;
+  font-size:15px;
+  font-weight:900;
+  cursor:pointer;
+}
+.answer-btn:hover{background:#eef6f0}
+.answer-btn.correct{
+  background:#dff3e4;
+  border-color:#6aaa7a;
+  color:#1e6335;
+}
+.answer-btn.wrong{
+  background:#fde7e5;
+  border-color:#d99892;
+  color:#9c3e38;
+}
+.answer-btn:disabled{cursor:default}
+
+.result{
+  display:none;
+  margin-top:11px;
+  padding:12px;
+  border:1px solid #d7e3da;
+  border-radius:14px;
+  background:#f8fbf9;
+}
+.result.show{display:block}
+.result-title{
+  font-size:16px;
+  font-weight:900;
+  color:#315b45;
+}
+.result-desc{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.5;
+  color:#58675e;
+  word-break:keep-all;
+}
+.next-btn{
+  display:none;
+  width:100%;
+  height:46px;
+  margin-top:9px;
+  border:0;
+  border-radius:14px;
+  background:linear-gradient(135deg,#315b45,#47775d);
+  color:#fff;
+  font-size:15px;
+  font-weight:900;
+  cursor:pointer;
+}
+.next-btn.show{display:block}
+
+.progress-wrap{margin-top:9px}
+.progress-text{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:4px;
+  color:#76847b;
+  font-size:11px;
+  font-weight:800;
+}
+.progress{
+  height:8px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#dfe9e1;
+}
+.progress-bar{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#6ba47b,#315b45);
+  transition:width .25s ease;
+}
+
+.notice{
+  margin-top:8px;
+  text-align:center;
+  color:#829087;
+  font-size:10px;
+  line-height:1.4;
+}
+
+@media(max-width:520px){
+  .app{padding:max(7px,env(safe-area-inset-top)) 7px max(8px,env(safe-area-inset-bottom))}
+  .title-wrap h1{font-size:19px}
+  .subtitle{font-size:10px}
+  .top-btn{height:34px;min-width:55px;padding:0 8px;font-size:11px}
+  .scorebox{padding:6px 3px}
+  .score-label{font-size:9px}
+  .score-value{font-size:13px}
+  .visual{height:175px}
+  .mountain-symbol{font-size:58px}
+  .question-area{padding:11px}
+  .question{font-size:18px}
+  .hint{font-size:12px;margin-bottom:9px}
+  .answers{grid-template-columns:1fr;gap:6px}
+  .answer-btn{min-height:46px;font-size:15px;border-radius:12px}
+  .result{padding:10px}
+  .result-title{font-size:15px}
+  .result-desc{font-size:12px}
+  .next-btn{height:43px;font-size:14px}
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <div class="shell">
+    <header class="topbar">
+      <div class="title-wrap">
+        <h1>🏔️ 산 이름 맞히기</h1>
+        <div class="subtitle">대한민국의 명산을 맞혀보세요</div>
+      </div>
+      <div class="actions">
+        <button class="top-btn back-btn" id="backBtn" type="button">이벤트</button>
+        <button class="top-btn reset-btn" id="resetBtn" type="button">처음부터</button>
+      </div>
+    </header>
+
+    <section class="scorebar">
+      <div class="scorebox"><div class="score-label">현재 문제</div><div class="score-value" id="questionNo">1</div></div>
+      <div class="scorebox"><div class="score-label">정답</div><div class="score-value" id="correctCount">0</div></div>
+      <div class="scorebox"><div class="score-label">정답률</div><div class="score-value" id="accuracy">0%</div></div>
+    </section>
+
+    <section class="quiz-card">
+      <div class="visual" id="mountainVisual">
+        <div class="visual-badge" id="regionBadge">지역</div>
+        <div class="height-badge" id="heightBadge">해발</div>
+        <div class="mountain-symbol">⛰️</div>
+      </div>
+
+      <div class="question-area">
+        <h2 class="question">이 산의 이름은 무엇일까요?</h2>
+        <div class="hint" id="hintText"></div>
+
+        <div class="answers" id="answerList"></div>
+
+        <div class="result" id="resultBox">
+          <div class="result-title" id="resultTitle"></div>
+          <div class="result-desc" id="resultDesc"></div>
+        </div>
+
+        <button class="next-btn" id="nextBtn" type="button">다음 문제</button>
+
+        <div class="progress-wrap">
+          <div class="progress-text">
+            <span id="cycleText">1회차</span>
+            <span id="bankText">문제은행 20산</span>
+          </div>
+          <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="notice">같은 산도 계절·코스에 따라 모습이 달라질 수 있습니다. 재미로 즐겨주세요.</div>
+  </div>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+var STATE_KEY="geomam-mountain-quiz-v1";
+var SESSION_KEY="geomam-event-session";
+var session=null;
+
+var mountains=[
+  {name:"설악산",region:"강원",height:"1,708m",hint:"기암괴석과 공룡능선, 울산바위로 유명한 강원도의 대표 명산입니다.",desc:"설악산은 속초·양양·인제 일대에 걸쳐 있으며 대청봉이 최고봉입니다."},
+  {name:"지리산",region:"전북·전남·경남",height:"1,915m",hint:"천왕봉과 노고단, 긴 종주 코스로 잘 알려진 남부의 대표 명산입니다.",desc:"지리산은 대한민국 최초의 국립공원이며 최고봉은 천왕봉입니다."},
+  {name:"한라산",region:"제주",height:"1,947m",hint:"백록담이 정상에 있으며 대한민국에서 가장 높은 산입니다.",desc:"한라산은 제주도의 중심에 자리한 화산으로 정상에 백록담이 있습니다."},
+  {name:"북한산",region:"서울·경기",height:"836m",hint:"서울 도심 가까이에서 백운대·인수봉·만경대를 볼 수 있는 산입니다.",desc:"북한산은 서울과 경기 북부에 걸쳐 있으며 최고봉은 백운대입니다."},
+  {name:"태백산",region:"강원·경북",height:"1,567m",hint:"겨울 눈꽃과 정상부 천제단으로 유명합니다.",desc:"태백산은 강원 태백과 경북 봉화 일대에 걸쳐 있는 산입니다."},
+  {name:"소백산",region:"충북·경북",height:"1,439m",hint:"비로봉과 연화봉, 봄 철쭉 군락으로 유명합니다.",desc:"소백산은 충북 단양과 경북 영주 일대에 걸쳐 있습니다."},
+  {name:"오대산",region:"강원",height:"1,563m",hint:"월정사와 전나무숲길, 비로봉으로 잘 알려져 있습니다.",desc:"오대산은 강원 평창·홍천 일대의 산으로 월정사가 유명합니다."},
+  {name:"치악산",region:"강원",height:"1,288m",hint:"원주를 대표하며 비로봉과 구룡사 계곡이 유명합니다.",desc:"치악산은 강원 원주 일대에 자리한 산으로 최고봉은 비로봉입니다."},
+  {name:"월악산",region:"충북",height:"1,097m",hint:"충주호와 어우러지는 암봉 풍경, 영봉으로 유명합니다.",desc:"월악산은 충북 제천·충주 일대에 있으며 영봉이 대표 봉우리입니다."},
+  {name:"속리산",region:"충북·경북",height:"1,058m",hint:"법주사와 문장대, 천왕봉으로 유명한 산입니다.",desc:"속리산은 충북 보은과 경북 상주 일대에 걸쳐 있습니다."},
+  {name:"덕유산",region:"전북·경남",height:"1,614m",hint:"향적봉과 겨울 상고대, 무주리조트 곤돌라로 유명합니다.",desc:"덕유산은 전북 무주와 경남 거창 일대에 걸쳐 있습니다."},
+  {name:"계룡산",region:"충남·대전",height:"845m",hint:"천황봉·관음봉과 동학사, 갑사로 잘 알려져 있습니다.",desc:"계룡산은 충남 공주·계룡과 대전 인근에 자리한 산입니다."},
+  {name:"내장산",region:"전북",height:"763m",hint:"가을 단풍과 내장사로 특히 유명합니다.",desc:"내장산은 전북 정읍 일대의 대표적인 단풍 명산입니다."},
+  {name:"가야산",region:"경남·경북",height:"1,433m",hint:"해인사가 자리하며 상왕봉과 칠불봉이 유명합니다.",desc:"가야산은 경남 합천과 경북 성주 일대에 걸쳐 있습니다."},
+  {name:"무등산",region:"광주·전남",height:"1,187m",hint:"광주를 대표하며 서석대·입석대 주상절리로 유명합니다.",desc:"무등산은 광주와 전남 화순·담양 일대에 걸쳐 있습니다."},
+  {name:"주왕산",region:"경북",height:"721m",hint:"기암절벽과 계곡, 주산지 풍경으로 유명합니다.",desc:"주왕산은 경북 청송에 위치하며 독특한 암봉과 계곡 경관이 특징입니다."},
+  {name:"팔공산",region:"대구·경북",height:"1,193m",hint:"동화사와 갓바위로 유명한 대구·경북의 대표 산입니다.",desc:"팔공산은 대구와 경북 여러 지역에 걸쳐 있는 산입니다."},
+  {name:"관악산",region:"서울·경기",height:"632m",hint:"서울 남부와 과천 사이에 있으며 연주대가 유명합니다.",desc:"관악산은 서울 관악구와 경기 과천·안양 일대에 걸쳐 있습니다."},
+  {name:"도봉산",region:"서울·경기",height:"740m",hint:"선인봉·자운봉 등 바위 봉우리와 암릉으로 유명합니다.",desc:"도봉산은 북한산국립공원 북부에 위치한 대표적인 암릉 산입니다."},
+  {name:"마니산",region:"인천 강화",height:"472m",hint:"강화도에 있으며 정상부 참성단으로 유명합니다.",desc:"마니산은 인천 강화도에 위치하며 참성단이 있는 산입니다."}
+];
+
+function $(id){return document.getElementById(id)}
+function shuffle(arr){
+  var a=arr.slice();
+  for(var i=a.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1));
+    var t=a[i];a[i]=a[j];a[j]=t;
+  }
+  return a;
+}
+function loadSession(){
+  try{
+    var raw=sessionStorage.getItem(SESSION_KEY);
+    if(raw)return JSON.parse(raw);
+  }catch(e){}
+  return null;
+}
+function stateKey(){
+  var code=String(session&&session.code||"guest");
+  return STATE_KEY+":"+code;
+}
+function newState(){
+  return {order:shuffle(mountains.map(function(_,i){return i})),index:0,correct:0,answered:0,cycle:1,locked:false};
+}
+function loadState(){
+  try{
+    var raw=localStorage.getItem(stateKey());
+    if(!raw)return newState();
+    var s=JSON.parse(raw);
+    if(!s||!Array.isArray(s.order)||s.order.length!==mountains.length)return newState();
+    s.locked=false;
+    return s;
+  }catch(e){return newState()}
+}
+function saveState(){
+  try{localStorage.setItem(stateKey(),JSON.stringify(state))}catch(e){}
+}
+function currentMountain(){return mountains[state.order[state.index]]}
+
+function buildChoices(answer){
+  var others=shuffle(mountains.filter(function(m){return m.name!==answer.name})).slice(0,3);
+  return shuffle([answer].concat(others));
+}
+
+function updateScore(){
+  $("questionNo").textContent=String(state.answered+1);
+  $("correctCount").textContent=String(state.correct);
+  $("accuracy").textContent=state.answered?Math.round(state.correct/state.answered*100)+"%":"0%";
+  $("cycleText").textContent=state.cycle+"회차";
+  $("bankText").textContent="문제은행 "+mountains.length+"산";
+  $("progressBar").style.width=((state.index/mountains.length)*100)+"%";
+}
+
+function render(){
+  state.locked=false;
+  var q=currentMountain();
+  updateScore();
+
+  $("regionBadge").textContent=q.region;
+  $("heightBadge").textContent="해발 "+q.height;
+  $("hintText").textContent=q.hint;
+  $("resultBox").classList.remove("show");
+  $("nextBtn").classList.remove("show");
+  $("resultTitle").textContent="";
+  $("resultDesc").textContent="";
+
+  var answerList=$("answerList");
+  answerList.innerHTML="";
+  buildChoices(q).forEach(function(choice,index){
+    var btn=document.createElement("button");
+    btn.type="button";
+    btn.className="answer-btn";
+    btn.textContent=(index+1)+". "+choice.name;
+    btn.addEventListener("click",function(){answer(choice.name,btn)});
+    answerList.appendChild(btn);
+  });
+}
+
+function answer(name,clicked){
+  if(state.locked)return;
+  state.locked=true;
+
+  var q=currentMountain();
+  var correct=name===q.name;
+  state.answered++;
+  if(correct)state.correct++;
+
+  Array.from(document.querySelectorAll(".answer-btn")).forEach(function(btn){
+    btn.disabled=true;
+    var buttonName=btn.textContent.replace(/^\d+\.\s*/,"");
+    if(buttonName===q.name)btn.classList.add("correct");
+  });
+  if(!correct)clicked.classList.add("wrong");
+
+  $("resultTitle").textContent=correct?"✅ 정답입니다!":"❌ 아쉽습니다. 정답은 "+q.name+"입니다.";
+  $("resultDesc").textContent=q.desc;
+  $("resultBox").classList.add("show");
+  $("nextBtn").classList.add("show");
+
+  updateScore();
+  saveState();
+}
+
+function next(){
+  state.index++;
+  if(state.index>=mountains.length){
+    state.index=0;
+    state.cycle++;
+    state.order=shuffle(mountains.map(function(_,i){return i}));
+  }
+  saveState();
+  render();
+}
+
+function reset(){
+  if(!confirm("산 이름 맞히기 기록을 처음부터 시작할까요?"))return;
+  state=newState();
+  saveState();
+  render();
+}
+
+function goEventMain(){
+  window.location.href=new URL("index.html",window.location.href).href;
+}
+
+$("nextBtn").addEventListener("click",next);
+$("resetBtn").addEventListener("click",reset);
+$("backBtn").addEventListener("click",goEventMain);
+
+session=loadSession();
+var state=loadState();
+render();
+
+try{
+  if(window.parent&&window.parent!==window){
+    window.parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"mountain"},"*");
+  }
+}catch(e){}
+
+window.addEventListener("message",function(event){
+  var data=event.data||{};
+  if(data.type==="BUS_SEAT_EVENT_SESSION"&&data.session){
+    var oldKey=stateKey();
+    session=data.session;
+    if(oldKey!==stateKey()){
+      state=loadState();
+      render();
+    }
+  }
+});
+})();
+</script>
+</body>
+</html>
