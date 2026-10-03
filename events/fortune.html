@@ -43,12 +43,12 @@ button,select{font-family:inherit}
 .grid{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}
 .card{background:#fff;border:1px solid #e6ddec;border-radius:15px;padding:10px;box-shadow:0 5px 16px rgba(60,40,80,.05)}
 .card h3{margin:0 0 5px;font-size:12px;color:#5a347e}
-.card p{margin:0;font-size:11px;line-height:1.45;color:#4d4654;word-break:keep-all}
+.card p{margin:0;font-size:12px;line-height:1.45;color:#4d4654;word-break:keep-all}
 
-.lucky{margin-top:8px;display:grid;grid-template-columns:1fr;gap:6px}
-.lucky-box{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e2d7eb;border-radius:14px;padding:9px 11px;text-align:left}
-.lucky-label{font-size:10px;color:#867791;margin-bottom:0}
-.lucky-value{font-size:12px;font-weight:900;color:#533276}
+.lucky{margin-top:8px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.lucky-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:#fff;border:1px solid #e2d7eb;border-radius:14px;padding:8px 5px;text-align:center;min-width:0}
+.lucky-label{font-size:10px;color:#867791;margin-bottom:0;white-space:nowrap}
+.lucky-value{font-size:12px;font-weight:900;color:#533276;white-space:nowrap}
 .message{margin-top:8px;padding:11px;border-radius:15px;background:#fff8df;border:1px solid #eedb8e;color:#6d5700;text-align:center;font-size:12px;font-weight:900;line-height:1.45}
 .notice{margin-top:7px;text-align:center;color:#8a7e92;font-size:9px;line-height:1.35}
 
@@ -75,10 +75,10 @@ button,select{font-family:inherit}
   .grid{gap:5px;margin-top:6px}
   .card{padding:8px;border-radius:12px}
   .card h3{font-size:11px;margin-bottom:3px}
-  .card p{font-size:10px;line-height:1.35}
-  .lucky{margin-top:6px;gap:5px}
-  .lucky-box{padding:6px 3px;border-radius:11px}
-  .lucky-label{font-size:8px}
+  .card p{font-size:11px;line-height:1.35}
+  .lucky{margin-top:6px;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+  .lucky-box{padding:6px 2px;border-radius:11px;gap:2px}
+  .lucky-label{font-size:9px}
   .lucky-value{font-size:11px}
   .message{margin-top:6px;padding:8px;font-size:11px}
   .notice{font-size:8px;margin-top:5px}
