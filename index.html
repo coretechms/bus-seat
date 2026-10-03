@@ -12,6 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#0b2d58" />
+  <meta name="bus-seat-version" content="50.9.5" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" sizes="180x180" href="geomam-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="geomam-icon-192.png" />
@@ -37,7 +38,7 @@
        ============================================================== -->
   <script id="bus-seat-map-maintenance-config">
     window.BUS_SEAT_MAP_CONFIG = Object.freeze({
-      version: "50.1-member-manage-single-run",
+      version: "50.9.5-auto-update",
       mobileQuery: "(max-width: 760px), (pointer: coarse)",
 
       back: Object.freeze({
@@ -2163,8 +2164,41 @@ body:not(.membership-locked) .member-current-badge {
 body.admin-mode #memberTopLogoutBtn {
   display: none !important;
 }
-#boardImageModeBtn {
+#boardImageModeBtn,
+#appUpdateBtn {
   flex: 0 0 auto !important;
+}
+
+/* 관리자 모드 전용 신규버전 업데이트 버튼 */
+#appUpdateBtn {
+  display: none !important;
+  min-width: 62px !important;
+  background: #dff4ff !important;
+  border-color: #6aa9d8 !important;
+  color: #0b4c7f !important;
+  font-weight: 800 !important;
+}
+body.admin-mode #appUpdateBtn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+#appUpdateBtn.is-checking {
+  background: #fff4c7 !important;
+  border-color: #e3bd43 !important;
+  color: #765600 !important;
+}
+#appUpdateBtn.is-ready {
+  background: #dff7e6 !important;
+  border-color: #64b879 !important;
+  color: #17632a !important;
+}
+@media (max-width:760px) {
+  #appUpdateBtn {
+    min-width: 54px !important;
+    padding: 0 7px !important;
+    font-size: 10px !important;
+  }
 }
 
 /* 회원 입력 화면: 상단 기능 버튼을 낮추고 화면반전/로그아웃 행에 더 가깝게 배치 */
@@ -4198,6 +4232,7 @@ body.member-mode .alt-arrow-cell {
           <div class="card-title-row">
             <div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; min-width:0; margin-left:0;">
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
+              <button class="btn btn-outline" id="appUpdateBtn" type="button" title="신규 버전을 확인하고 자동 업데이트합니다." style="height:28px; padding:0 10px; white-space:nowrap;">업데이트</button>
               <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">로그아웃</button>
               <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap; background:#f7a8c4 !important; border-color:#e98aae !important; color:#5b1731 !important;">이 벤 트</button>
 </div>
@@ -17014,12 +17049,261 @@ body.admin-mode:not(.member-manage-mode) .controls {
 
 
 <script id="pwa-service-worker-registration">
-  // 검암산악회 PWA 서비스워커 등록: Android 설치성/오프라인 캐시 보조
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function () {
-      navigator.serviceWorker.register("./sw.js").catch(function () {});
-    });
-  }
+  /* =========================================================
+     검암산악회 PWA / 신규버전 자동 업데이트
+     - 관리자 모드 "업데이트" 버튼에서 최신 파일을 강제로 다시 받음
+     - 현재 bus-seat 경로가 들어있는 CacheStorage만 정리
+     - 기존 Service Worker 등록 해제 후 cache-busting 재실행
+     - 일반 회원 화면에는 업데이트 버튼을 표시하지 않음
+     ========================================================= */
+  (function () {
+    "use strict";
+
+    var APP_VERSION = (
+      document.querySelector('meta[name="bus-seat-version"]')?.getAttribute("content") || ""
+    ).trim();
+
+    /* GitHub 저장소의 실제 배포 원본.
+       앞으로 root index.html을 갱신하면 여기에서 버전을 확인한다. */
+    var UPDATE_SOURCE_URL =
+      "https://raw.githubusercontent.com/coretechms/bus-seat/main/index.html";
+
+    var updateBusy = false;
+
+    function byUpdateId(id) {
+      return document.getElementById(id);
+    }
+
+    function setUpdateButton(text, className, disabled) {
+      var btn = byUpdateId("appUpdateBtn");
+      if (!btn) return;
+      btn.textContent = text;
+      btn.disabled = !!disabled;
+      btn.classList.remove("is-checking", "is-ready");
+      if (className) btn.classList.add(className);
+    }
+
+    function readVersionFromHtml(html) {
+      try {
+        var doc = new DOMParser().parseFromString(String(html || ""), "text/html");
+        return String(
+          doc.querySelector('meta[name="bus-seat-version"]')?.getAttribute("content") || ""
+        ).trim();
+      } catch (_) {
+        return "";
+      }
+    }
+
+    async function fetchRemoteVersion() {
+      var url = UPDATE_SOURCE_URL +
+        (UPDATE_SOURCE_URL.includes("?") ? "&" : "?") +
+        "__busseat_version_check=" + Date.now();
+
+      var response = await fetch(url, {
+        method: "GET",
+        cache: "no-store",
+        mode: "cors",
+        credentials: "omit"
+      });
+
+      if (!response.ok) {
+        throw new Error("버전 확인 실패 (" + response.status + ")");
+      }
+
+      return readVersionFromHtml(await response.text());
+    }
+
+    async function clearBusSeatCaches() {
+      if (!("caches" in window)) return;
+
+      var scopePath;
+      try {
+        scopePath = new URL("./", window.location.href).pathname;
+      } catch (_) {
+        scopePath = "/";
+      }
+
+      var names = await caches.keys();
+
+      for (var i = 0; i < names.length; i += 1) {
+        var cacheName = names[i];
+        try {
+          var cache = await caches.open(cacheName);
+          var requests = await cache.keys();
+
+          var belongsToBusSeat = requests.some(function (request) {
+            try {
+              var url = new URL(request.url);
+              return url.origin === location.origin &&
+                url.pathname.indexOf(scopePath) === 0;
+            } catch (_) {
+              return false;
+            }
+          });
+
+          if (belongsToBusSeat) {
+            await caches.delete(cacheName);
+          }
+        } catch (_) {}
+      }
+    }
+
+    async function unregisterBusSeatWorkers() {
+      if (!("serviceWorker" in navigator)) return;
+
+      try {
+        var registrations = await navigator.serviceWorker.getRegistrations();
+        var scopeUrl = new URL("./", window.location.href).href;
+
+        for (var i = 0; i < registrations.length; i += 1) {
+          var registration = registrations[i];
+          if (
+            registration.scope === scopeUrl ||
+            window.location.href.indexOf(registration.scope) === 0
+          ) {
+            try { await registration.unregister(); } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    }
+
+    function reloadLatestVersion() {
+      var url = new URL(window.location.href);
+      url.searchParams.set("__busseat_update", String(Date.now()));
+      url.hash = "";
+      window.location.replace(url.href);
+    }
+
+    async function forceLatestUpdate(remoteVersion) {
+      setUpdateButton("적용중", "is-ready", true);
+
+      /* 현재 로그인/관리자 세션은 sessionStorage에 있으므로 그대로 유지된다. */
+      try {
+        sessionStorage.setItem("bus-seat-last-update-request-v1", JSON.stringify({
+          fromVersion: APP_VERSION,
+          toVersion: remoteVersion || "",
+          requestedAt: Date.now()
+        }));
+      } catch (_) {}
+
+      await unregisterBusSeatWorkers();
+      await clearBusSeatCaches();
+
+      /* unregister가 현재 문서의 controller에는 즉시 반영되지 않으므로
+         다음 navigation을 cache-busting URL로 실행한다. */
+      window.setTimeout(reloadLatestVersion, 250);
+    }
+
+    async function checkForUpdate(silent) {
+      if (updateBusy) return;
+      updateBusy = true;
+
+      try {
+        if (!silent) setUpdateButton("확인중", "is-checking", true);
+
+        var remoteVersion = "";
+        try {
+          remoteVersion = await fetchRemoteVersion();
+        } catch (versionError) {
+          /*
+            GitHub RAW 확인이 실패해도 수동 업데이트 버튼은 동작해야 한다.
+            이 경우 SW/캐시를 정리한 뒤 서버에서 최신 index.html을 다시 받는다.
+          */
+          if (!silent) {
+            await forceLatestUpdate("");
+            return;
+          }
+          return;
+        }
+
+        if (remoteVersion && APP_VERSION && remoteVersion === APP_VERSION) {
+          setUpdateButton("최신버전", "is-ready", false);
+          window.setTimeout(function () {
+            setUpdateButton("업데이트", "", false);
+          }, 1800);
+          return;
+        }
+
+        if (remoteVersion && remoteVersion !== APP_VERSION) {
+          if (silent) {
+            setUpdateButton("새버전", "is-ready", false);
+            return;
+          }
+          await forceLatestUpdate(remoteVersion);
+          return;
+        }
+
+        /* 버전 메타가 없는 과거 파일도 최신 서버 파일로 강제 새로고침 */
+        if (!silent) {
+          await forceLatestUpdate(remoteVersion);
+        }
+      } catch (error) {
+        console.error("앱 업데이트 오류:", error);
+        setUpdateButton("업데이트", "", false);
+        if (!silent) {
+          alert("업데이트 확인 중 오류가 발생했습니다.\n인터넷 연결 후 다시 실행해 주세요.");
+        }
+      } finally {
+        updateBusy = false;
+      }
+    }
+
+    function bindUpdateButton() {
+      var btn = byUpdateId("appUpdateBtn");
+      if (!btn || btn.dataset.updateBound === "1") return;
+      btn.dataset.updateBound = "1";
+
+      btn.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        checkForUpdate(false);
+      });
+    }
+
+    function registerServiceWorker() {
+      if (!("serviceWorker" in navigator)) return;
+
+      navigator.serviceWorker.register("./sw.js", {
+        updateViaCache: "none"
+      }).then(function (registration) {
+        try { registration.update(); } catch (_) {}
+      }).catch(function () {});
+    }
+
+    function initAppUpdater() {
+      bindUpdateButton();
+      registerServiceWorker();
+
+      /* 관리자 화면 진입 시 백그라운드로 새 버전 존재 여부만 확인 */
+      window.setTimeout(function () {
+        if (document.body?.classList.contains("admin-mode")) {
+          checkForUpdate(true);
+        }
+      }, 900);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", bindUpdateButton);
+    } else {
+      bindUpdateButton();
+    }
+
+    window.addEventListener("load", initAppUpdater);
+
+    /* 모드가 나중에 관리자 화면으로 바뀌는 경우 버튼 상태와 버전도 확인 */
+    document.addEventListener("click", function (event) {
+      var adminTab = event.target?.closest?.("#adminTab");
+      if (!adminTab) return;
+      window.setTimeout(function () {
+        bindUpdateButton();
+        if (document.body?.classList.contains("admin-mode")) {
+          checkForUpdate(true);
+        }
+      }, 400);
+    }, true);
+
+    window.__busSeatCheckForUpdate = checkForUpdate;
+  })();
 </script>
 <script id="memberLoginEnterNextFocusFix">
 /* 회원 로그인 아이디 입력 후 Enter/이동: 비밀번호 입력칸으로만 커서 이동 */
