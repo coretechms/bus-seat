@@ -73,16 +73,16 @@ button{font-family:inherit}
 <div class="progress-wrap"><div class="progress-text"><span id="cycleText">1회차</span><span id="bankText">문제은행</span></div><div class="progress"><div class="progress-bar" id="progressBar"></div></div></div>
 </div>
 </section>
-<div class="notice">산 정보는 별도 mountin-data.html에서 불러옵니다.</div>
+<div class="notice">산 문제는 mountin-data.html 내부에 직접 저장된 정적 데이터로 출제합니다.</div>
 </div></main>
 
 <script>
 (function(){
 "use strict";
-var DATA_URL="mountin-data.html";
+var DATA_URL="mountin-data.html"; // 정적 산 문제 데이터 파일
 var SESSION_KEY="geomam-event-session";
 var STATE_KEY="geomam-mountin-quiz-v1";
-var CACHE_KEY="geomam-mountin-data-cache-v1";
+var CACHE_KEY="geomam-mountin-data-cache-v2";
 var session=null,mountains=[],state=null;
 function $(id){return document.getElementById(id)}
 function setStatus(t,c){var e=$("dbStatus");e.textContent=t;e.classList.remove("ready","error");if(c)e.classList.add(c)}
@@ -90,7 +90,7 @@ function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(M
 function normalize(items){return (Array.isArray(items)?items:[]).filter(function(m){return m&&m.name}).map(function(m){return{name:String(m.name),region:String(m.region||""),height:String(m.height||""),hint:String(m.hint||""),desc:String(m.desc||"")}})}
 function loadData(){
  return new Promise(function(resolve,reject){
-  var done=false,frame=document.createElement("iframe");frame.hidden=true;frame.src=DATA_URL+"?v=1";document.body.appendChild(frame);
+  var done=false,frame=document.createElement("iframe");frame.hidden=true;frame.src=DATA_URL+"?v=2";document.body.appendChild(frame);
   function clean(){window.removeEventListener("message",msg);if(frame.parentNode)frame.remove()}
   function finish(items){if(done)return;var n=normalize(items);if(n.length<4)return;done=true;mountains=n;try{localStorage.setItem(CACHE_KEY,JSON.stringify(n))}catch(e){}setStatus("국내산 문제은행 "+n.length+"개 불러오기 완료","ready");clean();resolve()}
   function msg(ev){var d=ev.data||{};if(d.type==="MOUNTIN_DATABASE_READY")finish(d.items)}
