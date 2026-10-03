@@ -4070,7 +4070,7 @@ body.member-mode .alt-arrow-cell {
             <div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; min-width:0; margin-left:0;">
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
               <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">로그아웃</button>
-              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">이 벤 트</button>
+              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">이벤트</button>
 </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
@@ -19217,6 +19217,11 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     background: #fff;
   }
   #busSeatExternalEventHost[hidden] { display: none !important; }
+  #busSeatExternalEventStatus {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    padding: 24px; text-align: center; background: #fff; color: #222; font-size: 15px; line-height: 1.6; z-index: 2;
+  }
+  #busSeatExternalEventStatus.show { display: flex; }
   #busSeatExternalEventFrame {
     width: 100%;
     height: 100%;
@@ -19233,9 +19238,11 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   if (window.__busSeatExternalEventBridgeApplied) return;
   window.__busSeatExternalEventBridgeApplied = true;
 
-  var EVENT_PATH = "events/lucky.html";
+  var EVENT_URL = "https://coretechms.github.io/bus-seat/events/index.html";
   var host = null;
   var frame = null;
+  var status = null;
+  var readyTimer = 0;
 
   function getMemberSession() {
     try {
@@ -19251,7 +19258,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   }
 
   function eventUrl() {
-    return new URL(EVENT_PATH, window.location.href).href;
+    return EVENT_URL;
   }
 
   function ensureHost() {
@@ -19260,16 +19267,20 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     host.id = "busSeatExternalEventHost";
     host.hidden = true;
 
+    status = document.createElement("div");
+    status.id = "busSeatExternalEventStatus";
+    host.appendChild(status);
+
     frame = document.createElement("iframe");
     frame.id = "busSeatExternalEventFrame";
-    frame.title = "오늘의 행운뽑기";
+    frame.title = "오늘의 이벤트";
     frame.setAttribute("allow", "fullscreen");
     frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     host.appendChild(frame);
     document.body.appendChild(host);
   }
 
-  function openLuckyEvent() {
+  function openEventMain() {
     var session = getMemberSession();
     if (!session) {
       alert("회원 로그인 후 이용할 수 있습니다.");
@@ -19279,11 +19290,21 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     host.hidden = false;
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    if (status) { status.classList.remove("show"); status.textContent = ""; }
     frame.src = eventUrl();
+    clearTimeout(readyTimer);
+    readyTimer = window.setTimeout(function () {
+      if (!host || host.hidden) return;
+      if (status) {
+        status.textContent = "이벤트 메인 파일에 연결하지 못했습니다.\nGitHub에 events/index.html 파일이 업로드되어 있는지 확인해 주세요.";
+        status.classList.add("show");
+      }
+    }, 5000);
   }
 
   function closeEvent() {
     if (!host) return;
+    clearTimeout(readyTimer);
     host.hidden = true;
     if (frame) frame.src = "about:blank";
     document.documentElement.style.overflow = "";
@@ -19298,15 +19319,17 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   window.addEventListener("message", function (event) {
     if (!frame || event.source !== frame.contentWindow) return;
     var data = event.data || {};
-    if (data.type === "BUS_SEAT_EVENT_READY" && data.event === "lucky") {
+    if (data.type === "BUS_SEAT_EVENT_READY" && (data.event === "index" || data.event === "lucky")) {
+      clearTimeout(readyTimer);
+      if (status) { status.classList.remove("show"); status.textContent = ""; }
       var session = getMemberSession();
       if (!session) { closeEvent(); return; }
       try {
-        frame.contentWindow.postMessage({ type: "BUS_SEAT_EVENT_SESSION", event: "lucky", session: session }, event.origin || "*");
+        frame.contentWindow.postMessage({ type: "BUS_SEAT_EVENT_SESSION", event: data.event || "index", session: session }, event.origin || "*");
       } catch (_) {}
       return;
     }
-    if (data.type === "BUS_SEAT_EVENT_EXIT" && data.event === "lucky") {
+    if (data.type === "BUS_SEAT_EVENT_EXIT" && (data.event === "index" || data.event === "lucky")) {
       closeEvent();
     }
   });
@@ -19315,7 +19338,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     var btn = event.target && event.target.closest ? event.target.closest("#memberLuckyEventBtn") : null;
     if (!btn) return;
     event.preventDefault();
-    openLuckyEvent();
+    openEventMain();
   }, true);
 })();
 </script>
