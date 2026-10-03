@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#315b45">
+<title>산행 출석도장</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:#edf4ef;color:#243229}
+body{min-height:100vh;min-height:100dvh}
+button,input{font-family:inherit}
+.app{min-height:100vh;min-height:100dvh;padding:max(9px,env(safe-area-inset-top)) 9px max(10px,env(safe-area-inset-bottom));background:linear-gradient(180deg,#dcecdf,#f8fbf9 46%,#edf4ef)}
+.shell{width:min(720px,100%);margin:auto}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+h1{margin:0;font-size:22px;color:#244c36}.sub{font-size:11px;font-weight:800;color:#718078;margin-top:2px}
+.topbtn{height:36px;padding:0 12px;border:1px solid #c8d9cc;border-radius:11px;background:white;color:#315b45;font-weight:900}
+.hero{background:white;border:1px solid #d5e2d8;border-radius:18px;padding:15px;box-shadow:0 7px 22px rgba(40,80,50,.09);text-align:center}
+.member{font-size:13px;font-weight:900;color:#586b5f}
+.bigstamp{width:112px;height:112px;margin:12px auto 8px;border:5px double #3d7854;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;transform:rotate(-6deg);color:#2f6c47;background:#f4fbf6;box-shadow:inset 0 0 0 4px #fff}
+.bigstamp .ico{font-size:38px;line-height:1}.bigstamp b{font-size:17px}.count{font-size:27px;font-weight:900;color:#315b45}.count small{font-size:13px;color:#718078}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}.box{background:#fff;border:1px solid #d6e3da;border-radius:13px;padding:10px;text-align:center}.lab{font-size:10px;font-weight:800;color:#849188}.val{margin-top:3px;font-size:15px;font-weight:900;color:#315b45}
+.panel{margin-top:9px;background:#fff;border:1px solid #d6e3da;border-radius:16px;padding:12px}.panel h2{margin:0 0 8px;font-size:16px;color:#315b45}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:7px}.field{width:100%;height:44px;border:1px solid #cadacf;border-radius:11px;padding:0 10px;font-size:14px;font-weight:700;background:#fbfdfb}
+.stampbtn{width:100%;height:48px;margin-top:8px;border:0;border-radius:12px;background:#315b45;color:#fff;font-size:16px;font-weight:900}
+.msg{min-height:22px;margin-top:7px;font-size:12px;font-weight:800;text-align:center;color:#607268}
+.history{margin-top:9px;background:#fff;border:1px solid #d6e3da;border-radius:16px;padding:12px}.history h2{margin:0 0 8px;font-size:16px;color:#315b45}
+.list{display:flex;flex-direction:column;gap:6px}.item{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:8px;padding:8px;border-radius:11px;background:#f7faf8;border:1px solid #e1ebe4}.stampmini{width:38px;height:38px;border:2px solid #4d825f;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px}.name{font-size:13px;font-weight:900}.date{font-size:11px;color:#7d8a81;margin-top:2px}.seq{font-size:11px;font-weight:900;color:#4c7259}
+.empty{text-align:center;padding:15px;color:#89958d;font-size:12px}
+.notice{text-align:center;margin-top:7px;font-size:10px;color:#87928b}
+@media(max-width:520px){h1{font-size:19px}.hero{padding:11px}.bigstamp{width:98px;height:98px}.bigstamp .ico{font-size:32px}.count{font-size:24px}.row{grid-template-columns:1fr}.field{height:42px}.stampbtn{height:46px}}
+</style>
+</head>
+<body>
+<main class="app"><div class="shell">
+<header class="top"><div><h1>🥾 산행 출석도장</h1><div class="sub">산행 참여 기록과 도장 모으기</div></div><button class="topbtn" id="backBtn">이벤트</button></header>
+
+<section class="hero">
+<div class="member" id="memberText">회원 출석기록</div>
+<div class="bigstamp"><div class="ico">⛰️</div><b>출석완료</b></div>
+<div class="count"><span id="stampCount">0</span><small> 개 도장</small></div>
+<div class="grid">
+<div class="box"><div class="lab">올해 출석</div><div class="val" id="yearCount">0회</div></div>
+<div class="box"><div class="lab">최근 산행</div><div class="val" id="lastMountain">-</div></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>오늘의 산행 기록</h2>
+<div class="row">
+<input class="field" id="mountainInput" maxlength="30" placeholder="산 이름 (예: 설악산)">
+<input class="field" id="dateInput" type="date">
+</div>
+<button class="stampbtn" id="stampBtn">🥾 출석도장 찍기</button>
+<div class="msg" id="message"></div>
+</section>
+
+<section class="history">
+<h2>내 출석도장 기록</h2>
+<div class="list" id="historyList"></div>
+</section>
+<div class="notice">같은 날짜에는 한 번만 도장을 찍을 수 있습니다. 기록은 회원별로 이 기기에 저장됩니다.</div>
+</div></main>
+
+<script>
+(function(){
+"use strict";
+var SESSION_KEY="geomam-event-session";
+var STORE_PREFIX="geomam-hiking-stamp-v1:";
+var session=null;
+function $(id){return document.getElementById(id)}
+function loadSession(){try{return JSON.parse(sessionStorage.getItem(SESSION_KEY)||"null")}catch(e){return null}}
+function key(){return STORE_PREFIX+String(session&&session.code||session&&session.id||"guest")}
+function load(){try{var a=JSON.parse(localStorage.getItem(key())||"[]");return Array.isArray(a)?a:[]}catch(e){return[]}}
+function save(a){try{localStorage.setItem(key(),JSON.stringify(a))}catch(e){}}
+function today(){var d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");return y+"-"+m+"-"+day}
+function memberName(){return String(session&& (session.name||session.memberName||session.userName) || "회원")}
+function render(){
+ var list=load().sort(function(a,b){return b.date.localeCompare(a.date)});
+ $("memberText").textContent=memberName()+"님의 산행기록";
+ $("stampCount").textContent=list.length;
+ var y=String(new Date().getFullYear());
+ $("yearCount").textContent=list.filter(function(x){return String(x.date).slice(0,4)===y}).length+"회";
+ $("lastMountain").textContent=list.length?(list[0].mountain||"산행"):"-";
+ var box=$("historyList");box.innerHTML="";
+ if(!list.length){box.innerHTML='<div class="empty">아직 출석도장이 없습니다.<br>첫 산행 기록을 남겨보세요.</div>';return}
+ list.slice(0,30).forEach(function(x,i){
+  var row=document.createElement("div");row.className="item";
+  row.innerHTML='<div class="stampmini">🥾</div><div><div class="name"></div><div class="date"></div></div><div class="seq"></div>';
+  row.querySelector(".name").textContent=x.mountain||"산행";
+  row.querySelector(".date").textContent=x.date;
+  row.querySelector(".seq").textContent="#"+(list.length-i);
+  box.appendChild(row);
+ });
+}
+function stamp(){
+ var mountain=$("mountainInput").value.trim(),date=$("dateInput").value;
+ if(!mountain){$("message").textContent="산 이름을 입력하세요.";return}
+ if(!date){$("message").textContent="산행 날짜를 선택하세요.";return}
+ var list=load();
+ if(list.some(function(x){return x.date===date})){ $("message").textContent="이 날짜에는 이미 출석도장이 있습니다.";return }
+ list.push({mountain:mountain,date:date,createdAt:Date.now()});
+ save(list);$("message").textContent="✅ "+mountain+" 산행 출석도장이 추가되었습니다.";render();
+}
+function back(){location.href=new URL("index.html",location.href).href}
+$("stampBtn").onclick=stamp;$("backBtn").onclick=back;$("dateInput").value=today();
+session=loadSession();render();
+try{if(parent&&parent!==window)parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"stamp"},"*")}catch(e){}
+window.addEventListener("message",function(ev){var d=ev.data||{};if(d.type==="BUS_SEAT_EVENT_SESSION"&&d.session){session=d.session;render()}});
+})();
+</script>
+</body>
+</html>
