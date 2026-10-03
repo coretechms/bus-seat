@@ -43,7 +43,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden}button{font-family:inh
 var session=null,noticeTimer=null;
 function $(id){return document.getElementById(id)}
 function displayDate(){try{return new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"numeric",month:"long",day:"numeric",weekday:"long"}).format(new Date())}catch(e){return new Date().toLocaleDateString("ko-KR")}}
-function normalizeSession(data){if(!data||typeof data!=="object")return null;var code=data.code||data.memberCode||data.loginCode||data.id||"";var name=data.name||data.memberName||data.userName||"회원";return{code:String(code||"").trim(),name:String(name||"회원").trim()||"회원"}}
+function normalizeSession(data){if(!data||typeof data!=="object")return null;var code=data.code||data.memberCode||data.loginCode||data.id||"";var name=data.name||data.memberName||data.userName||"회원";var birthDate=String(data.birthDate||data.rrn||data.birth||data.birthYear||"").replace(/\D/g,"").slice(0,6);return{code:String(code||"").trim(),name:String(name||"회원").trim()||"회원",birthDate:birthDate}}
 function showNotice(msg){var b=$("notice");b.textContent=msg;b.style.display="block";if(noticeTimer)clearTimeout(noticeTimer);noticeTimer=setTimeout(function(){b.style.display="none"},1800)}
 function sendReady(){try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"index"},"*")}catch(e){}}
 function sendExit(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:"BUS_SEAT_EVENT_EXIT",event:"index"},"*");return}}catch(e){}try{history.back()}catch(e){}}
