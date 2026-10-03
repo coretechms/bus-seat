@@ -389,7 +389,7 @@ var SESSION_KEY="geomam-event-session";
 var session=null;
 
 var MOUNTAIN_DB_URL="m/mountain-data.html";
-var MOUNTAIN_DB_CACHE_KEY="geomam-mountain-db-cache-v1";
+var MOUNTAIN_DB_CACHE_KEY="geomam-mountain-db-cache-v2";
 var mountains=[];
 
 function $(id){return document.getElementById(id)}
@@ -415,45 +415,98 @@ function normalizeMountain(item){
   };
 }
 
-function parseMountainDatabaseHtml(htmlText){
-  var doc=new DOMParser().parseFromString(String(htmlText||""),"text/html");
-  var node=doc.getElementById("mountainDatabase");
-  if(!node)throw new Error("mountainDatabase 데이터 영역을 찾을 수 없습니다.");
-  var payload=JSON.parse(node.textContent||"{}");
-  var items=Array.isArray(payload)?payload:payload.items;
-  if(!Array.isArray(items))throw new Error("산 데이터 형식이 올바르지 않습니다.");
-  var normalized=items.map(normalizeMountain).filter(Boolean);
-  if(normalized.length<4)throw new Error("출제 가능한 산 데이터가 4개 미만입니다.");
-  return normalized;
+function normalizeMountainDatabase(items){
+  if(!Array.isArray(items))return [];
+  return items.map(normalizeMountain).filter(Boolean);
 }
 
-async function loadMountainDatabase(){
+function loadCachedMountainDatabase(){
   try{
-    var response=await fetch(MOUNTAIN_DB_URL+"?v=1",{cache:"default"});
-    if(!response.ok)throw new Error("데이터 파일 응답 오류 "+response.status);
-    var htmlText=await response.text();
-    var items=parseMountainDatabaseHtml(htmlText);
-    mountains=items;
-    try{
-      localStorage.setItem(MOUNTAIN_DB_CACHE_KEY,JSON.stringify({
-        savedAt:Date.now(),
-        items:items
-      }));
-    }catch(e){}
-    setDbStatus("산 문제은행 "+mountains.length+"개 불러오기 완료","ready");
-    return true;
-  }catch(error){
-    try{
-      var cached=JSON.parse(localStorage.getItem(MOUNTAIN_DB_CACHE_KEY)||"null");
-      if(cached&&Array.isArray(cached.items)&&cached.items.length>=4){
-        mountains=cached.items.map(normalizeMountain).filter(Boolean);
-        setDbStatus("데이터 파일 연결 실패 · 저장된 문제은행 "+mountains.length+"개 사용","error");
-        return true;
+    var cached=JSON.parse(localStorage.getItem(MOUNTAIN_DB_CACHE_KEY)||"null");
+    if(cached&&Array.isArray(cached.items)&&cached.items.length>=4){
+      return normalizeMountainDatabase(cached.items);
+    }
+  }catch(e){}
+  return [];
+}
+
+function saveCachedMountainDatabase(items){
+  try{
+    localStorage.setItem(MOUNTAIN_DB_CACHE_KEY,JSON.stringify({
+      savedAt:Date.now(),
+      items:items
+    }));
+  }catch(e){}
+}
+
+function loadMountainDatabase(){
+  return new Promise(function(resolve,reject){
+    var completed=false;
+    var frame=document.createElement("iframe");
+    frame.id="mountainDatabaseFrame";
+    frame.hidden=true;
+    frame.setAttribute("aria-hidden","true");
+    frame.src=MOUNTAIN_DB_URL+"?v=2";
+    document.body.appendChild(frame);
+
+    function cleanup(){
+      window.removeEventListener("message",onMessage);
+      if(frame&&frame.parentNode)frame.parentNode.removeChild(frame);
+    }
+
+    function finish(items){
+      if(completed)return;
+      completed=true;
+      var normalized=normalizeMountainDatabase(items);
+      if(normalized.length<4){
+        cleanup();
+        reject(new Error("출제 가능한 산 데이터가 4개 미만입니다."));
+        return;
       }
-    }catch(e){}
-    setDbStatus("산 문제은행을 불러오지 못했습니다. m/mountain-data.html 위치를 확인하세요.","error");
-    throw error;
-  }
+      mountains=normalized;
+      saveCachedMountainDatabase(mountains);
+      setDbStatus("산 문제은행 "+mountains.length+"개 불러오기 완료","ready");
+      cleanup();
+      resolve(true);
+    }
+
+    function onMessage(event){
+      var data=event.data||{};
+      if(data.type!=="MOUNTAIN_DATABASE_READY")return;
+      finish(data.items);
+    }
+
+    window.addEventListener("message",onMessage);
+
+    frame.onerror=function(){
+      var cached=loadCachedMountainDatabase();
+      if(cached.length>=4){
+        completed=true;
+        mountains=cached;
+        setDbStatus("데이터 파일 연결 실패 · 저장된 문제은행 "+mountains.length+"개 사용","error");
+        cleanup();
+        resolve(true);
+        return;
+      }
+      cleanup();
+      reject(new Error("m/mountain-data.html 파일을 불러오지 못했습니다."));
+    };
+
+    window.setTimeout(function(){
+      if(completed)return;
+      var cached=loadCachedMountainDatabase();
+      if(cached.length>=4){
+        completed=true;
+        mountains=cached;
+        setDbStatus("데이터 응답 지연 · 저장된 문제은행 "+mountains.length+"개 사용","error");
+        cleanup();
+        resolve(true);
+        return;
+      }
+      cleanup();
+      reject(new Error("산 문제은행 응답 시간이 초과되었습니다."));
+    },5000);
+  });
 }
 
 function shuffle(arr){
