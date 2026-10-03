@@ -1,43 +1,120 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#315b45">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#315b45">
 <title>산행 상식 O/X</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:#edf4ef;color:#25332a}body{min-height:100vh;min-height:100dvh}button{font-family:inherit}
-.app{min-height:100vh;min-height:100dvh;padding:max(9px,env(safe-area-inset-top)) 9px max(10px,env(safe-area-inset-bottom));background:linear-gradient(180deg,#deede1,#f8fbf9 48%,#edf4ef)}.shell{width:min(720px,100%);margin:auto}
-.top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}h1{margin:0;font-size:22px;color:#244c36}.sub{font-size:11px;font-weight:800;color:#718078;margin-top:2px}.back{height:36px;padding:0 12px;border:1px solid #c8d9cc;border-radius:11px;background:#fff;color:#315b45;font-weight:900}
-.score{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}.sbox{background:#fff;border:1px solid #d6e3da;border-radius:12px;text-align:center;padding:7px 4px}.sl{font-size:10px;color:#839087;font-weight:800}.sv{font-size:15px;color:#315b45;font-weight:900;margin-top:2px}
-.card{background:#fff;border:1px solid #d6e3da;border-radius:19px;padding:15px;box-shadow:0 8px 24px rgba(35,80,50,.09)}.cat{display:inline-block;padding:5px 8px;border-radius:999px;background:#eef6f0;color:#3d6d4e;font-size:11px;font-weight:900}.qno{float:right;font-size:11px;font-weight:900;color:#7e8c83}
-.question{clear:both;min-height:110px;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px 4px;font-size:21px;line-height:1.55;font-weight:900;word-break:keep-all}
-.choices{display:grid;grid-template-columns:1fr 1fr;gap:9px}.choice{height:90px;border:2px solid #d4e2d8;border-radius:17px;background:#f9fcfa;font-size:35px;font-weight:900;cursor:pointer}.choice.o{color:#27714a}.choice.x{color:#ba4841}.choice.correct{background:#dff3e4;border-color:#6aaa7a}.choice.wrong{background:#fde7e5;border-color:#d99892}
-.result{display:none;margin-top:11px;padding:11px;border-radius:13px;background:#f7faf8;border:1px solid #dbe6de}.result.show{display:block}.rt{font-size:17px;font-weight:900;color:#315b45}.re{margin-top:6px;font-size:14px;line-height:1.55;font-weight:700;color:#596a60}
-.next{display:none;width:100%;height:47px;margin-top:9px;border:0;border-radius:13px;background:#315b45;color:#fff;font-size:16px;font-weight:900}.next.show{display:block}.foot{margin-top:8px;text-align:center;font-size:10px;color:#87928b}
-@media(max-width:520px){h1{font-size:19px}.card{padding:11px}.question{min-height:100px;font-size:19px}.choice{height:77px;font-size:31px}.re{font-size:13px}}
-</style></head>
-<body><main class="app"><div class="shell">
-<header class="top"><div><h1>⭕ 산행 상식 O/X</h1><div class="sub">등산 안전·장비·예절 상식 퀴즈</div></div><button class="back" id="backBtn">이벤트</button></header>
-<section class="score"><div class="sbox"><div class="sl">문제</div><div class="sv" id="qCount">1</div></div><div class="sbox"><div class="sl">정답</div><div class="sv" id="correct">0</div></div><div class="sbox"><div class="sl">정답률</div><div class="sv" id="rate">0%</div></div></section>
-<section class="card"><span class="cat">산행 안전 상식</span><span class="qno" id="bankInfo">문제은행 40문제</span><div class="question" id="question"></div>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:#edf4ef;color:#25332a}
+body{min-height:100vh;min-height:100dvh}button{font-family:inherit}
+.app{min-height:100vh;min-height:100dvh;padding:max(8px,env(safe-area-inset-top)) 8px max(9px,env(safe-area-inset-bottom));background:linear-gradient(180deg,#deede1,#f8fbf9 48%,#edf4ef)}
+.shell{width:min(720px,100%);margin:auto}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+h1{margin:0;font-size:22px;color:#244c36}.sub{font-size:11px;font-weight:800;color:#718078;margin-top:2px}
+.back{height:36px;padding:0 12px;border:1px solid #c8d9cc;border-radius:11px;background:#fff;color:#315b45;font-weight:900}
+.dbstatus{margin-bottom:7px;padding:7px 9px;border:1px solid #d4e2d7;border-radius:10px;background:#fff;text-align:center;font-size:11px;font-weight:900;color:#53685a}
+.dbstatus.ready{background:#f1f9f3;color:#2f6742}.dbstatus.error{background:#fff3f2;color:#97483f}
+.score{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:7px}
+.sbox{background:#fff;border:1px solid #d6e3da;border-radius:12px;text-align:center;padding:7px 4px}
+.sl{font-size:10px;color:#839087;font-weight:800}.sv{font-size:15px;color:#315b45;font-weight:900;margin-top:2px}
+.card{background:#fff;border:1px solid #d6e3da;border-radius:19px;padding:14px;box-shadow:0 8px 24px rgba(35,80,50,.09)}
+.cat{display:inline-block;padding:5px 8px;border-radius:999px;background:#eef6f0;color:#3d6d4e;font-size:11px;font-weight:900}
+.qno{float:right;font-size:11px;font-weight:900;color:#7e8c83}
+.question{clear:both;min-height:116px;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px 4px;font-size:20px;line-height:1.5;font-weight:900;word-break:keep-all}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.choice{height:88px;border:2px solid #d4e2d8;border-radius:17px;background:#f9fcfa;font-size:34px;font-weight:900;cursor:pointer}
+.choice.o{color:#27714a}.choice.x{color:#ba4841}.choice.correct{background:#dff3e4;border-color:#6aaa7a}.choice.wrong{background:#fde7e5;border-color:#d99892}
+.result{display:none;margin-top:10px;padding:11px;border-radius:13px;background:#f7faf8;border:1px solid #dbe6de}
+.result.show{display:block}.rt{font-size:17px;font-weight:900;color:#315b45}.re{margin-top:6px;font-size:14px;line-height:1.55;font-weight:700;color:#596a60}
+.next{display:none;width:100%;height:46px;margin-top:9px;border:0;border-radius:13px;background:#315b45;color:#fff;font-size:16px;font-weight:900}.next.show{display:block}
+.foot{margin-top:7px;text-align:center;font-size:10px;color:#87928b;line-height:1.4}
+@media(max-width:520px){h1{font-size:19px}.card{padding:10px}.question{min-height:105px;font-size:18px}.choice{height:74px;font-size:30px}.re{font-size:13px}.dbstatus{font-size:10px}}
+</style>
+</head>
+<body>
+<main class="app"><div class="shell">
+<header class="top"><div><h1>⭕ 산행 상식 O/X</h1><div class="sub">실용 산행 안전·장비·예절 문제</div></div><button class="back" id="backBtn">이벤트</button></header>
+<div class="dbstatus" id="dbStatus">O/X 문제 데이터를 불러오는 중입니다...</div>
+<section class="score">
+<div class="sbox"><div class="sl">문제</div><div class="sv" id="qCount">-</div></div>
+<div class="sbox"><div class="sl">정답</div><div class="sv" id="correct">0</div></div>
+<div class="sbox"><div class="sl">정답률</div><div class="sv" id="rate">0%</div></div>
+</section>
+<section class="card">
+<span class="cat" id="category">산행 상식</span><span class="qno" id="bankInfo">문제은행 연결중</span>
+<div class="question" id="question">문제 데이터를 준비하고 있습니다.</div>
 <div class="choices"><button class="choice o" id="oBtn">O</button><button class="choice x" id="xBtn">X</button></div>
-<div class="result" id="result"><div class="rt" id="rt"></div><div class="re" id="re"></div></div><button class="next" id="nextBtn">다음 문제</button></section>
-<div class="foot">문제는 산행 안전교육을 위한 일반 상식이며 현장에서는 관리기관 안내와 상황을 우선하세요.</div>
+<div class="result" id="result"><div class="rt" id="rt"></div><div class="re" id="re"></div></div>
+<button class="next" id="nextBtn">다음 문제</button>
+</section>
+<div class="foot">일반적인 산행 안전 상식입니다. 현장에서는 기상특보·관리기관 안내·119 지시를 우선하세요.</div>
 </div></main>
+
 <script>
 (function(){
 "use strict";
-var SESSION_KEY="geomam-event-session",STATE_KEY="geomam-hiking-ox-v1:",session=null;
-var bank=[{"q":"산행 전에는 당일 기상예보와 일몰 시간을 확인하는 것이 좋다.","a":true,"e":"기상 변화와 일몰은 산행 안전에 직접 영향을 줍니다."},{"q":"등산화 끈은 발이 편하도록 최대한 느슨하게 묶는 것이 안전하다.","a":false,"e":"너무 느슨하면 발이 신발 안에서 움직여 접질림과 물집 위험이 커질 수 있습니다."},{"q":"여름 산행에서도 얇은 보온옷이나 바람막이를 준비하는 것이 도움이 된다.","a":true,"e":"산 정상과 능선은 기온이 낮고 바람이 강할 수 있습니다."},{"q":"산에서 길을 잃었을 때 무조건 계곡을 따라 내려가면 가장 안전하다.","a":false,"e":"계곡은 절벽·폭포·급류가 있을 수 있어 위험합니다. 위치를 확인하고 구조 요청을 우선해야 합니다."},{"q":"산행 중 물은 목이 마르기 전에 조금씩 자주 마시는 것이 좋다.","a":true,"e":"갈증이 심해지기 전에 수분을 보충하면 탈수 예방에 도움이 됩니다."},{"q":"오르막에서는 빠른 속도를 계속 유지해야 체력 소모가 적다.","a":false,"e":"자신의 호흡과 체력에 맞는 일정한 속도가 장거리 산행에 더 유리합니다."},{"q":"낙뢰가 치는 능선에서는 높은 나무 바로 아래에 붙어 있는 것이 안전하다.","a":false,"e":"낙뢰 시 능선과 고립된 높은 물체 주변은 피하는 것이 좋습니다."},{"q":"하산 시에는 올라갈 때보다 무릎과 발목에 충격이 더 커질 수 있다.","a":true,"e":"내리막은 체중과 가속 때문에 관절에 큰 부담을 줄 수 있습니다."},{"q":"스틱은 내리막에서 무릎 부담을 줄이는 데 도움이 될 수 있다.","a":true,"e":"적절한 길이와 사용법을 지키면 하중 분산에 도움이 됩니다."},{"q":"산에서 음식물 쓰레기는 자연 분해되므로 버려도 괜찮다.","a":false,"e":"음식물도 야생동물과 생태계에 영향을 주므로 반드시 되가져와야 합니다."},{"q":"새 등산화는 장거리 산행 당일 처음 신는 것이 좋다.","a":false,"e":"미리 짧은 거리에서 길들여 물집과 통증 가능성을 줄이는 편이 좋습니다."},{"q":"겨울 산행에서는 아이젠과 방한 장비를 준비하는 것이 중요하다.","a":true,"e":"결빙 구간과 저체온 위험에 대비해야 합니다."},{"q":"일행과 산행할 때는 선두와 후미가 서로의 위치를 확인하는 것이 좋다.","a":true,"e":"일행 이탈과 사고 발생 시 대응을 위해 간격과 인원을 확인해야 합니다."},{"q":"산행 중 발목을 삐었을 때 통증이 있어도 계속 걸어야 빨리 풀린다.","a":false,"e":"무리한 보행은 손상을 악화시킬 수 있으므로 상태를 확인하고 필요한 조치를 해야 합니다."},{"q":"비가 온 뒤 바위와 나무뿌리는 평소보다 미끄러울 수 있다.","a":true,"e":"젖은 바위와 뿌리는 마찰력이 크게 떨어질 수 있습니다."},{"q":"국립공원에서 지정 탐방로를 벗어나는 것은 자연보호와 안전 측면에서 피해야 한다.","a":true,"e":"출입 제한 구역은 생태 보호와 안전을 위해 지정되는 경우가 많습니다."},{"q":"고도가 높아질수록 일반적으로 기온이 낮아지는 경향이 있다.","a":true,"e":"고도 상승에 따라 기온이 낮아지는 경향이 있어 여벌 보온의류가 도움이 됩니다."},{"q":"응급상황에서 자신의 위치를 설명할 때 이정표 번호나 좌표 정보는 도움이 된다.","a":true,"e":"구조대가 위치를 파악하는 데 이정표와 위치 정보가 매우 유용합니다."},{"q":"산행 중 휴식은 한 번에 아주 길게 쉬는 것보다 짧게 적절히 쉬는 편이 좋다.","a":true,"e":"장시간 쉬면 체온이 떨어지고 몸이 굳을 수 있어 상황에 맞는 짧은 휴식이 유리합니다."},{"q":"등산 배낭은 무거운 물건을 가능한 한 몸에서 멀리 넣는 것이 좋다.","a":false,"e":"무거운 물건은 보통 등 가까운 쪽에 배치하면 중심 유지에 도움이 됩니다."},{"q":"산행 중 두통, 어지럼증, 메스꺼움이 심해지면 무조건 정상까지 올라간 뒤 쉬는 것이 좋다.","a":false,"e":"상태가 악화되면 무리한 상승을 중단하고 안전하게 하산하거나 도움을 요청해야 합니다."},{"q":"해가 진 뒤 산행을 대비해 헤드랜턴이나 손전등을 준비하는 것이 좋다.","a":true,"e":"예상보다 산행이 늦어질 수 있으므로 비상 조명은 중요한 안전장비입니다."},{"q":"여름철 계곡물이 맑아 보여도 바로 마시는 것은 안전하다고 볼 수 없다.","a":true,"e":"미생물이나 오염 가능성이 있으므로 정수되지 않은 물은 주의해야 합니다."},{"q":"산불 위험 시기에는 취사와 화기 사용 규정을 반드시 확인해야 한다.","a":true,"e":"건조한 시기에는 작은 불씨도 큰 산불로 이어질 수 있습니다."},{"q":"산행 중 벌이나 야생동물을 발견하면 가까이 다가가 사진을 찍는 것이 가장 좋다.","a":false,"e":"야생동물과 벌집은 자극하지 말고 안전거리를 유지하는 것이 좋습니다."},{"q":"일교차가 큰 계절에는 땀에 젖은 옷을 그대로 오래 입으면 체온이 떨어질 수 있다.","a":true,"e":"젖은 옷은 열 손실을 크게 할 수 있어 갈아입거나 보온층을 추가하는 것이 좋습니다."},{"q":"등산 스틱을 사용할 때는 주변 사람과의 간격을 고려해야 한다.","a":true,"e":"스틱 끝이 뒤 사람에게 닿지 않도록 간격과 사용 방향을 주의해야 합니다."},{"q":"등산로에서 내려오는 사람보다 올라가는 사람을 배려해 길을 양보하는 관행이 흔하다.","a":true,"e":"오르막 보행자의 리듬을 고려한 일반적인 산행 예절 중 하나입니다. 현장 상황에 따라 서로 안전하게 양보해야 합니다."},{"q":"산에서는 큰 소리로 음악을 틀어도 다른 사람에게 피해가 되지 않는다.","a":false,"e":"소음은 다른 탐방객과 야생동물에 영향을 줄 수 있으므로 배려가 필요합니다."},{"q":"산행 전 준비운동은 관절과 근육을 움직일 준비를 하는 데 도움이 된다.","a":true,"e":"가벼운 스트레칭과 준비운동은 몸을 서서히 활동 상태로 전환하는 데 도움이 됩니다."},{"q":"응급약품은 일행 중 한 사람만 준비하면 충분하므로 다른 사람은 전혀 준비할 필요가 없다.","a":false,"e":"개인 복용약과 기본 응급용품은 각자 필요에 맞게 준비하는 것이 안전합니다."},{"q":"겨울철 배터리는 추위에서 빨리 소모될 수 있으므로 휴대전화 보조배터리가 도움이 된다.","a":true,"e":"저온에서는 배터리 성능이 저하될 수 있어 보온과 예비 전원이 유용합니다."},{"q":"산행 중 눈이나 비가 심해져 시야가 나빠지면 무리해서 속도를 높이는 것이 좋다.","a":false,"e":"시야가 나쁠수록 속도를 줄이고 경로와 안전을 확인해야 합니다."},{"q":"등산로 표지판과 이정표는 지나칠 때마다 현재 위치를 확인하는 습관이 도움이 된다.","a":true,"e":"현재 위치를 자주 확인하면 길을 잘못 들었을 때 빠르게 알아차릴 수 있습니다."},{"q":"산 정상에서는 바람이 강할 수 있으므로 모자와 소지품이 날아가지 않게 주의해야 한다.","a":true,"e":"노출된 정상과 능선은 돌풍이 발생하기 쉬워 소지품 관리가 필요합니다."},{"q":"산행 후에는 남은 물이나 쓰레기를 등산로 주변에 두고 가도 된다.","a":false,"e":"가져온 물품과 쓰레기는 모두 되가져오는 것이 기본적인 산행 예절입니다."},{"q":"일행 중 체력이 가장 약한 사람의 속도를 고려해 전체 속도를 조절하는 것이 좋다.","a":true,"e":"단체 산행에서는 이탈과 과로를 막기 위해 약한 사람의 상태를 고려해야 합니다."},{"q":"휴대전화 지도 앱이 있으면 종이지도나 이정표 확인은 전혀 필요 없다.","a":false,"e":"배터리·통신·GPS 문제에 대비해 현장 이정표와 다른 위치 정보도 함께 확인하는 것이 좋습니다."},{"q":"급경사 내리막에서는 보폭을 줄이고 천천히 내려오는 것이 안전에 도움이 된다.","a":true,"e":"작은 보폭과 안정적인 중심 이동은 미끄러짐과 관절 충격을 줄이는 데 도움이 됩니다."},{"q":"산행 중 가슴 통증이나 호흡곤란이 심해지면 즉시 무리한 산행을 중단해야 한다.","a":true,"e":"심한 흉통이나 호흡곤란은 응급상황일 수 있으므로 활동을 중단하고 도움을 요청해야 합니다."}];
-function $(id){return document.getElementById(id)}function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
-function loadSession(){try{return JSON.parse(sessionStorage.getItem(SESSION_KEY)||"null")}catch(e){return null}}function key(){return STATE_KEY+String(session&&session.code||"guest")}
-function fresh(){return{order:shuffle(bank.map(function(_,i){return i})),index:0,correct:0,answered:0,cycle:1,locked:false}}function load(){try{var s=JSON.parse(localStorage.getItem(key())||"null");if(!s||!Array.isArray(s.order)||s.order.length!==bank.length)return fresh();s.locked=false;return s}catch(e){return fresh()}}
-function save(){try{localStorage.setItem(key(),JSON.stringify(state))}catch(e){}}var state;
-function cur(){return bank[state.order[state.index]]}function score(){$("qCount").textContent=(state.index+1)+" / "+bank.length;$("correct").textContent=state.correct;$("rate").textContent=state.answered?Math.round(state.correct/state.answered*100)+"%":"0%";$("bankInfo").textContent="문제은행 "+bank.length+"문제 · "+state.cycle+"회차"}
-function render(){state.locked=false;var q=cur();$("question").textContent=q.q;$("result").classList.remove("show");$("nextBtn").classList.remove("show");$("oBtn").disabled=false;$("xBtn").disabled=false;$("oBtn").classList.remove("correct","wrong");$("xBtn").classList.remove("correct","wrong");score()}
-function answer(v,b){if(state.locked)return;state.locked=true;var q=cur(),ok=v===q.a;state.answered++;if(ok)state.correct++;var good=q.a?$("oBtn"):$("xBtn");good.classList.add("correct");if(!ok)b.classList.add("wrong");$("oBtn").disabled=true;$("xBtn").disabled=true;$("rt").textContent=ok?"✅ 정답입니다!":"❌ 아쉽습니다. 정답은 "+(q.a?"O":"X")+"입니다.";$("re").textContent=q.e;$("result").classList.add("show");$("nextBtn").classList.add("show");score();save()}
-function next(){state.index++;if(state.index>=bank.length){state.index=0;state.cycle++;state.order=shuffle(bank.map(function(_,i){return i}))}save();render()}function home(){location.href=new URL("index.html",location.href).href}
-$("oBtn").onclick=function(){answer(true,this)};$("xBtn").onclick=function(){answer(false,this)};$("nextBtn").onclick=next;$("backBtn").onclick=home;
-session=loadSession();state=load();render();try{if(parent&&parent!==window)parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"ox"},"*")}catch(e){}
-window.addEventListener("message",function(ev){var d=ev.data||{};if(d.type==="BUS_SEAT_EVENT_SESSION"&&d.session){var old=key();session=d.session;if(old!==key()){state=load();render()}}});
+var DATA_URL="ox-data.html";
+var SESSION_KEY="geomam-event-session";
+var STATE_PREFIX="geomam-hiking-ox-v2:";
+var CACHE_KEY="geomam-hiking-ox-data-cache-v1";
+var session=null,bank=[],state=null;
+
+function $(id){return document.getElementById(id)}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+function setStatus(t,c){var e=$("dbStatus");e.textContent=t;e.classList.remove("ready","error");if(c)e.classList.add(c)}
+function normalize(items){
+ return (Array.isArray(items)?items:[]).filter(function(x){return x&&x.q&&typeof x.answer==="boolean"}).map(function(x){
+  return{id:Number(x.id||0),cat:String(x.cat||"산행 상식"),q:String(x.q),answer:!!x.answer,ex:String(x.ex||"")};
+ });
+}
+function loadData(){
+ return new Promise(function(resolve,reject){
+  var done=false,frame=document.createElement("iframe");frame.hidden=true;frame.src=DATA_URL+"?v=1";document.body.appendChild(frame);
+  function clean(){window.removeEventListener("message",msg);if(frame.parentNode)frame.remove()}
+  function finish(items){if(done)return;var n=normalize(items);if(n.length<4)return;done=true;bank=n;try{localStorage.setItem(CACHE_KEY,JSON.stringify(n))}catch(e){}setStatus("O/X 문제은행 "+n.length+"문제 불러오기 완료","ready");clean();resolve()}
+  function msg(ev){var d=ev.data||{};if(d.type==="OX_DATABASE_READY")finish(d.items)}
+  window.addEventListener("message",msg);
+  frame.onerror=function(){var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){bank=c;done=true;setStatus("데이터 연결 실패 · 저장된 "+c.length+"문제 사용","error");clean();resolve()}else{clean();reject(new Error("ox-data.html 연결 실패"))}};
+  setTimeout(function(){if(done)return;var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){bank=c;done=true;setStatus("응답 지연 · 저장된 "+c.length+"문제 사용","error");clean();resolve()}else{clean();reject(new Error("O/X 문제 데이터 응답시간 초과"))}},5000);
+ });
+}
+function loadSession(){try{return JSON.parse(sessionStorage.getItem(SESSION_KEY)||"null")}catch(e){return null}}
+function key(){return STATE_PREFIX+String(session&&session.code||"guest")}
+function fresh(){return{order:shuffle(bank.map(function(_,i){return i})),index:0,correct:0,answered:0,cycle:1,locked:false}}
+function loadState(){try{var s=JSON.parse(localStorage.getItem(key())||"null");if(!s||!Array.isArray(s.order)||s.order.length!==bank.length)return fresh();s.locked=false;return s}catch(e){return fresh()}}
+function save(){try{localStorage.setItem(key(),JSON.stringify(state))}catch(e){}}
+function cur(){return bank[state.order[state.index]]}
+function score(){
+ $("qCount").textContent=(state.index+1)+" / "+bank.length;
+ $("correct").textContent=state.correct;
+ $("rate").textContent=state.answered?Math.round(state.correct/state.answered*100)+"%":"0%";
+ $("bankInfo").textContent="문제은행 "+bank.length+"문제 · "+state.cycle+"회차";
+}
+function render(){
+ state.locked=false;var q=cur();$("category").textContent=q.cat;$("question").textContent=q.q;
+ $("result").classList.remove("show");$("nextBtn").classList.remove("show");
+ $("oBtn").disabled=false;$("xBtn").disabled=false;$("oBtn").classList.remove("correct","wrong");$("xBtn").classList.remove("correct","wrong");score();
+}
+function answer(v,b){
+ if(state.locked)return;state.locked=true;var q=cur(),ok=v===q.answer;state.answered++;if(ok)state.correct++;
+ var good=q.answer?$("oBtn"):$("xBtn");good.classList.add("correct");if(!ok)b.classList.add("wrong");
+ $("oBtn").disabled=true;$("xBtn").disabled=true;
+ $("rt").textContent=ok?"✅ 정답입니다!":"❌ 아쉽습니다. 정답은 "+(q.answer?"O":"X")+"입니다.";
+ $("re").textContent=q.ex;$("result").classList.add("show");$("nextBtn").classList.add("show");score();save();
+}
+function next(){state.index++;if(state.index>=bank.length){state.index=0;state.cycle++;state.order=shuffle(bank.map(function(_,i){return i}))}save();render()}
+function home(){location.href=new URL("index.html",location.href).href}
+
+$("oBtn").onclick=function(){answer(true,this)};
+$("xBtn").onclick=function(){answer(false,this)};
+$("nextBtn").onclick=next;$("backBtn").onclick=home;
+session=loadSession();
+loadData().then(function(){state=loadState();render()}).catch(function(e){setStatus(e.message||"문제 데이터 연결 실패","error");$("question").textContent="ox-data.html 파일 위치를 확인하세요.";$("oBtn").disabled=true;$("xBtn").disabled=true});
+try{if(parent&&parent!==window)parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"ox"},"*")}catch(e){}
+window.addEventListener("message",function(ev){var d=ev.data||{};if(d.type==="BUS_SEAT_EVENT_SESSION"&&d.session){var old=key();session=d.session;if(bank.length&&old!==key()){state=loadState();render()}}});
 })();
-</script></body></html>
+</script>
+</body>
+</html>
