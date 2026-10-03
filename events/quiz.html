@@ -12,28 +12,54 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden}
 button{font-family:inherit}
 .app{min-height:100vh;min-height:100dvh;padding:max(12px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom));background:radial-gradient(circle at 18% 0%,rgba(255,255,255,.96),transparent 30%),linear-gradient(180deg,#dcecff 0%,#f8fafc 48%,#eef3f8 100%)}
 .shell{width:min(760px,100%);margin:0 auto}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
-.title-box{min-width:0}.title{margin:0;font-size:22px;font-weight:900;color:#0b2d58;letter-spacing:-.04em}.date{margin-top:4px;font-size:12px;color:#667085}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px}
+.title-box{min-width:0}.title{margin:0;font-size:20px;font-weight:900;color:#0b2d58;letter-spacing:-.04em}.date{margin-top:2px;font-size:11px;color:#667085}
 .top-actions{display:flex;gap:6px;flex:0 0 auto}.top-btn{height:38px;min-width:66px;padding:0 12px;border:0;border-radius:14px;font-size:13px;font-weight:800;cursor:pointer}
 .back-btn{background:#fff;color:#123b72;border:1px solid #b9c9dc}.exit-btn{background:#111827;color:#fff}
-.member-box{margin-bottom:10px;padding:10px 14px;border:1px solid rgba(255,255,255,.95);border-radius:16px;background:rgba(255,255,255,.82);box-shadow:0 8px 24px rgba(30,60,90,.06);font-size:14px}
-.progress-wrap{margin-bottom:12px;padding:11px 13px;border-radius:16px;background:#fff;border:1px solid #dce5ef;box-shadow:0 6px 18px rgba(30,60,90,.05)}
-.progress-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:13px;font-weight:800;color:#29435f}
-.progress-track{height:8px;border-radius:999px;background:#e9eef4;overflow:hidden}.progress-bar{height:100%;width:0;background:linear-gradient(90deg,#2f73c8,#0b2d58);transition:width .25s ease}
-.panel{padding:18px;border-radius:24px;background:rgba(255,255,255,.96);box-shadow:0 16px 42px rgba(33,56,85,.10)}
-.meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
-.category{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;background:#eaf3ff;color:#174d8a;font-size:12px;font-weight:900}
-.status{font-size:12px;color:#667085}
-.question{margin:4px 0 16px;font-size:22px;font-weight:900;line-height:1.45;color:#0f2f57;word-break:keep-all}
-.answers{display:grid;gap:10px}
-.answer-btn{width:100%;min-height:52px;padding:12px 14px;border:1px solid #d7e1ec;border-radius:16px;background:#fff;text-align:left;font-size:15px;font-weight:700;line-height:1.45;color:#24364b;cursor:pointer;transition:.15s}
+
+.progress-wrap{margin-bottom:7px;padding:7px 10px;border-radius:13px;background:#fff;border:1px solid #dce5ef;box-shadow:0 4px 12px rgba(30,60,90,.05)}
+.progress-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;font-size:12px;font-weight:800;color:#29435f}
+.progress-track{height:6px;border-radius:999px;background:#e9eef4;overflow:hidden}.progress-bar{height:100%;width:0;background:linear-gradient(90deg,#2f73c8,#0b2d58);transition:width .25s ease}
+.panel{padding:13px;border-radius:19px;background:rgba(255,255,255,.96);box-shadow:0 10px 26px rgba(33,56,85,.09)}
+.meta{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:7px}
+.category{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:#eaf3ff;color:#174d8a;font-size:11px;font-weight:900}
+.status{font-size:11px;color:#667085}
+.question{margin:2px 0 10px;font-size:19px;font-weight:900;line-height:1.35;color:#0f2f57;word-break:keep-all}
+.answers{display:grid;gap:7px}
+.answer-btn{width:100%;min-height:43px;padding:9px 12px;border:1px solid #d7e1ec;border-radius:13px;background:#fff;text-align:left;font-size:14px;font-weight:700;line-height:1.35;color:#24364b;cursor:pointer;transition:.15s}
 .answer-btn:active{transform:scale(.99)}.answer-btn.correct{background:#e9f8ee;border-color:#9ed7ad;color:#166534}.answer-btn.wrong{background:#fff0ee;border-color:#f0afa8;color:#a3261d}.answer-btn.dim{opacity:.55}
-.result{display:none;margin-top:16px;padding:16px;border-radius:18px;line-height:1.65}.result.show{display:block}.result.ok{background:#eef9f1;border:1px solid #bfe1c7;color:#225c2b}.result.no{background:#fff4f2;border:1px solid #f3c5bf;color:#8f2d25}
-.result-title{font-size:18px;font-weight:900;margin-bottom:6px}.explain{margin-top:8px;padding-top:8px;border-top:1px dashed rgba(0,0,0,.14);font-size:14px}
-.next-btn{display:none;width:100%;height:46px;margin-top:12px;border:0;border-radius:15px;background:#0b2d58;color:#fff;font-size:15px;font-weight:900;cursor:pointer}.next-btn.show{display:block}
+.result{display:none;margin-top:9px;padding:10px 12px;border-radius:14px;line-height:1.45}.result.show{display:block}.result.ok{background:#eef9f1;border:1px solid #bfe1c7;color:#225c2b}.result.no{background:#fff4f2;border:1px solid #f3c5bf;color:#8f2d25}
+.result-title{font-size:15px;font-weight:900;margin-bottom:3px}.explain{margin-top:5px;padding-top:5px;border-top:1px dashed rgba(0,0,0,.14);font-size:12px}
+.next-btn{display:none;width:100%;height:40px;margin-top:8px;border:0;border-radius:13px;background:#0b2d58;color:#fff;font-size:14px;font-weight:900;cursor:pointer}.next-btn.show{display:block}
 .complete{display:none;text-align:center;padding:12px 2px}.complete.show{display:block}.complete-emoji{font-size:58px;line-height:1;margin-bottom:10px}.complete h2{margin:0 0 8px;color:#0b2d58;font-size:27px}.score{font-size:38px;font-weight:900;color:#174d8a;margin:8px 0}.score-sub{font-size:14px;color:#667085;line-height:1.6}
-.footer-note{margin-top:14px;text-align:center;color:#7b8794;font-size:12px;line-height:1.55}
-@media(max-width:520px){.title{font-size:18px}.top-btn{min-width:58px;height:36px;padding:0 10px;font-size:12px}.panel{padding:14px;border-radius:20px}.question{font-size:19px}.answer-btn{font-size:14px}}
+.footer-note{margin-top:8px;text-align:center;color:#7b8794;font-size:10px;line-height:1.35}
+@media(max-width:520px){
+  .app{padding:max(6px,env(safe-area-inset-top)) 7px max(6px,env(safe-area-inset-bottom))}
+  .topbar{margin-bottom:4px}
+  .title{font-size:17px}
+  .date{margin-top:1px;font-size:9px}
+  .top-btn{min-width:54px;height:32px;padding:0 8px;border-radius:11px;font-size:11px}
+  .progress-wrap{margin-bottom:5px;padding:5px 8px;border-radius:11px}
+  .progress-row{margin-bottom:3px;font-size:11px}
+  .progress-track{height:5px}
+  .panel{padding:9px;border-radius:16px}
+  .meta{margin-bottom:5px}
+  .category{height:21px;padding:0 7px;font-size:10px}
+  .status{font-size:10px}
+  .question{margin:1px 0 7px;font-size:16px;line-height:1.28}
+  .answers{gap:5px}
+  .answer-btn{min-height:38px;padding:7px 10px;border-radius:11px;font-size:12px;line-height:1.25}
+  .result{margin-top:6px;padding:7px 9px;border-radius:11px;font-size:12px;line-height:1.35}
+  .result-title{font-size:13px;margin-bottom:2px}
+  .explain{margin-top:3px;padding-top:3px;font-size:11px;line-height:1.3}
+  .next-btn{height:36px;margin-top:6px;border-radius:11px;font-size:13px}
+  .footer-note{display:none}
+  .complete{padding:8px 2px}
+  .complete-emoji{font-size:42px;margin-bottom:6px}
+  .complete h2{font-size:22px;margin-bottom:5px}
+  .score{font-size:32px;margin:5px 0}
+  .score-sub{font-size:12px;line-height:1.4}
+}
 </style>
 </head>
 <body>
@@ -42,8 +68,6 @@ button{font-family:inherit}
 <div class="title-box"><h1 class="title">🧠 오늘의 퀴즈</h1><div class="date" id="todayText"></div></div>
 <div class="top-actions"><button type="button" class="top-btn back-btn" id="backBtn">이벤트</button><button type="button" class="top-btn exit-btn" id="exitBtn">나가기</button></div>
 </header>
-
-<div class="member-box" id="memberBox">회원 정보를 확인하는 중입니다.</div>
 
 <div class="progress-wrap">
   <div class="progress-row"><span id="progressText">1 / 5</span><span id="scoreText">정답 0</span></div>
@@ -386,8 +410,6 @@ $("nextBtn").addEventListener("click",nextQuestion);
 
 $("todayText").textContent=displayDate();
 session=loadSession();
-$("memberBox").textContent=session.name+" 회원님 · 오늘은 최대 5문제까지 풀 수 있습니다.";
-
 dailyQuestions=buildDailyQuestions();
 state=loadState();
 
