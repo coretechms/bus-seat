@@ -49,14 +49,14 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
 }
 .title-wrap h1{
   margin:0;
-  font-size:23px;
+  font-size:25px;
   font-weight:900;
   letter-spacing:-.04em;
   color:#244c36;
 }
 .subtitle{
   margin-top:3px;
-  font-size:12px;
+  font-size:13px;
   font-weight:700;
   color:#6f8176;
 }
@@ -90,6 +90,55 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
 }
 .score-label{font-size:10px;font-weight:800;color:#849188}
 .score-value{margin-top:2px;font-size:15px;font-weight:900;color:#315b45}
+
+.source-status{
+  margin:0 1px 8px;
+  padding:8px 10px;
+  border:1px solid #d5e3d8;
+  border-radius:12px;
+  background:rgba(255,255,255,.9);
+  color:#53695b;
+  text-align:center;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.4;
+}
+.source-status.error{
+  border-color:#e7c9c5;
+  background:#fff4f3;
+  color:#93463f;
+}
+.source-status.ready{
+  border-color:#c9dfce;
+  background:#f2faf4;
+  color:#306543;
+}
+.mountain-photo{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  z-index:1;
+}
+.visual.has-photo::before,
+.visual.has-photo::after{display:none}
+.visual.has-photo .mountain-symbol{display:none}
+.visual.has-photo::before{content:none}
+.visual.has-photo:after{content:none}
+.visual.has-photo{
+  background:#dcecdf;
+}
+.visual.has-photo .visual-photo-shade{
+  display:block;
+}
+.visual-photo-shade{
+  display:none;
+  position:absolute;
+  inset:0;
+  z-index:2;
+  background:linear-gradient(180deg,rgba(0,0,0,.03),rgba(0,0,0,.16));
+}
 
 .quiz-card{
   background:#fff;
@@ -145,7 +194,7 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
   border-radius:999px;
   background:rgba(255,255,255,.90);
   border:1px solid rgba(255,255,255,.95);
-  font-size:11px;
+  font-size:12px;
   font-weight:900;
   color:#315b45;
   backdrop-filter:blur(3px);
@@ -165,17 +214,17 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
 
 .question-area{padding:14px}
 .question{
-  margin:0 0 5px;
+  margin:0 0 6px;
   text-align:center;
-  font-size:20px;
+  font-size:22px;
   font-weight:900;
   color:#263b2e;
 }
 .hint{
-  min-height:39px;
-  margin:0 auto 12px;
+  min-height:46px;
+  margin:0 auto 13px;
   text-align:center;
-  font-size:13px;
+  font-size:15px;
   line-height:1.45;
   font-weight:700;
   color:#67766d;
@@ -188,13 +237,13 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
   gap:8px;
 }
 .answer-btn{
-  min-height:50px;
+  min-height:54px;
   padding:9px 8px;
   border:1px solid #cfded3;
   border-radius:14px;
   background:#f9fcfa;
   color:#2e3b33;
-  font-size:15px;
+  font-size:16px;
   font-weight:900;
   cursor:pointer;
 }
@@ -221,13 +270,22 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
 }
 .result.show{display:block}
 .result-title{
-  font-size:16px;
+  font-size:18px;
   font-weight:900;
   color:#315b45;
 }
-.result-desc{
-  margin-top:5px;
+.result-region{
+  margin-top:6px;
+  padding:7px 9px;
+  border-radius:10px;
+  background:#eef6f0;
+  color:#315b45;
   font-size:13px;
+  font-weight:900;
+}
+.result-desc{
+  margin-top:7px;
+  font-size:15px;
   font-weight:700;
   line-height:1.5;
   color:#58675e;
@@ -236,7 +294,7 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
 .next-btn{
   display:none;
   width:100%;
-  height:46px;
+  height:48px;
   margin-top:9px;
   border:0;
   border-radius:14px;
@@ -280,8 +338,8 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
 
 @media(max-width:520px){
   .app{padding:max(7px,env(safe-area-inset-top)) 7px max(8px,env(safe-area-inset-bottom))}
-  .title-wrap h1{font-size:19px}
-  .subtitle{font-size:10px}
+  .title-wrap h1{font-size:21px}
+  .subtitle{font-size:11px}
   .top-btn{height:34px;min-width:55px;padding:0 8px;font-size:11px}
   .scorebox{padding:6px 3px}
   .score-label{font-size:9px}
@@ -289,14 +347,14 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
   .visual{height:175px}
   .mountain-symbol{font-size:58px}
   .question-area{padding:11px}
-  .question{font-size:18px}
-  .hint{font-size:12px;margin-bottom:9px}
+  .question{font-size:20px}
+  .hint{font-size:14px;margin-bottom:10px;line-height:1.5}
   .answers{grid-template-columns:1fr;gap:6px}
-  .answer-btn{min-height:46px;font-size:15px;border-radius:12px}
-  .result{padding:10px}
-  .result-title{font-size:15px}
-  .result-desc{font-size:12px}
-  .next-btn{height:43px;font-size:14px}
+  .answer-btn{min-height:49px;font-size:16px;border-radius:12px}
+  .result{padding:11px}
+  .result-title{font-size:17px}
+  .result-desc{font-size:14px;line-height:1.55}
+  .next-btn{height:45px;font-size:15px}
 }
 </style>
 </head>
@@ -306,7 +364,7 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
     <header class="topbar">
       <div class="title-wrap">
         <h1>🏔️ 산 이름 맞히기</h1>
-        <div class="subtitle">대한민국의 명산을 맞혀보세요</div>
+        <div class="subtitle">웹 산 정보 문제은행 · 대한민국 산</div>
       </div>
       <div class="actions">
         <button class="top-btn back-btn" id="backBtn" type="button">이벤트</button>
@@ -320,8 +378,12 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
       <div class="scorebox"><div class="score-label">정답률</div><div class="score-value" id="accuracy">0%</div></div>
     </section>
 
+    <div class="source-status" id="sourceStatus">산 정보 문제은행을 불러오는 중입니다...</div>
+
     <section class="quiz-card">
       <div class="visual" id="mountainVisual">
+        <img class="mountain-photo" id="mountainPhoto" alt="" hidden>
+        <div class="visual-photo-shade"></div>
         <div class="visual-badge" id="regionBadge">지역</div>
         <div class="height-badge" id="heightBadge">해발</div>
         <div class="mountain-symbol">⛰️</div>
@@ -350,7 +412,7 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
       </div>
     </section>
 
-    <div class="notice">같은 산도 계절·코스에 따라 모습이 달라질 수 있습니다. 재미로 즐겨주세요.</div>
+    <div class="notice">문제는 실행 시 웹의 공개 산 정보를 불러와 구성합니다. 자료의 등록 범위와 내용은 원본 데이터에 따라 달라질 수 있습니다.</div>
   </div>
 </main>
 
@@ -358,34 +420,44 @@ button:focus-visible{outline:3px solid rgba(44,110,73,.28);outline-offset:2px}
 (function(){
 "use strict";
 
-var STATE_KEY="geomam-mountain-quiz-v1";
 var SESSION_KEY="geomam-event-session";
+var STATE_KEY="geomam-mountain-quiz-live-v2";
+var CACHE_KEY="geomam-mountain-bank-wikidata-v2";
+var CACHE_MAX_AGE=24*60*60*1000;
 var session=null;
+var mountains=[];
+var state=null;
 
-var mountains=[
-  {name:"설악산",region:"강원",height:"1,708m",hint:"기암괴석과 공룡능선, 울산바위로 유명한 강원도의 대표 명산입니다.",desc:"설악산은 속초·양양·인제 일대에 걸쳐 있으며 대청봉이 최고봉입니다."},
-  {name:"지리산",region:"전북·전남·경남",height:"1,915m",hint:"천왕봉과 노고단, 긴 종주 코스로 잘 알려진 남부의 대표 명산입니다.",desc:"지리산은 대한민국 최초의 국립공원이며 최고봉은 천왕봉입니다."},
-  {name:"한라산",region:"제주",height:"1,947m",hint:"백록담이 정상에 있으며 대한민국에서 가장 높은 산입니다.",desc:"한라산은 제주도의 중심에 자리한 화산으로 정상에 백록담이 있습니다."},
-  {name:"북한산",region:"서울·경기",height:"836m",hint:"서울 도심 가까이에서 백운대·인수봉·만경대를 볼 수 있는 산입니다.",desc:"북한산은 서울과 경기 북부에 걸쳐 있으며 최고봉은 백운대입니다."},
-  {name:"태백산",region:"강원·경북",height:"1,567m",hint:"겨울 눈꽃과 정상부 천제단으로 유명합니다.",desc:"태백산은 강원 태백과 경북 봉화 일대에 걸쳐 있는 산입니다."},
-  {name:"소백산",region:"충북·경북",height:"1,439m",hint:"비로봉과 연화봉, 봄 철쭉 군락으로 유명합니다.",desc:"소백산은 충북 단양과 경북 영주 일대에 걸쳐 있습니다."},
-  {name:"오대산",region:"강원",height:"1,563m",hint:"월정사와 전나무숲길, 비로봉으로 잘 알려져 있습니다.",desc:"오대산은 강원 평창·홍천 일대의 산으로 월정사가 유명합니다."},
-  {name:"치악산",region:"강원",height:"1,288m",hint:"원주를 대표하며 비로봉과 구룡사 계곡이 유명합니다.",desc:"치악산은 강원 원주 일대에 자리한 산으로 최고봉은 비로봉입니다."},
-  {name:"월악산",region:"충북",height:"1,097m",hint:"충주호와 어우러지는 암봉 풍경, 영봉으로 유명합니다.",desc:"월악산은 충북 제천·충주 일대에 있으며 영봉이 대표 봉우리입니다."},
-  {name:"속리산",region:"충북·경북",height:"1,058m",hint:"법주사와 문장대, 천왕봉으로 유명한 산입니다.",desc:"속리산은 충북 보은과 경북 상주 일대에 걸쳐 있습니다."},
-  {name:"덕유산",region:"전북·경남",height:"1,614m",hint:"향적봉과 겨울 상고대, 무주리조트 곤돌라로 유명합니다.",desc:"덕유산은 전북 무주와 경남 거창 일대에 걸쳐 있습니다."},
-  {name:"계룡산",region:"충남·대전",height:"845m",hint:"천황봉·관음봉과 동학사, 갑사로 잘 알려져 있습니다.",desc:"계룡산은 충남 공주·계룡과 대전 인근에 자리한 산입니다."},
-  {name:"내장산",region:"전북",height:"763m",hint:"가을 단풍과 내장사로 특히 유명합니다.",desc:"내장산은 전북 정읍 일대의 대표적인 단풍 명산입니다."},
-  {name:"가야산",region:"경남·경북",height:"1,433m",hint:"해인사가 자리하며 상왕봉과 칠불봉이 유명합니다.",desc:"가야산은 경남 합천과 경북 성주 일대에 걸쳐 있습니다."},
-  {name:"무등산",region:"광주·전남",height:"1,187m",hint:"광주를 대표하며 서석대·입석대 주상절리로 유명합니다.",desc:"무등산은 광주와 전남 화순·담양 일대에 걸쳐 있습니다."},
-  {name:"주왕산",region:"경북",height:"721m",hint:"기암절벽과 계곡, 주산지 풍경으로 유명합니다.",desc:"주왕산은 경북 청송에 위치하며 독특한 암봉과 계곡 경관이 특징입니다."},
-  {name:"팔공산",region:"대구·경북",height:"1,193m",hint:"동화사와 갓바위로 유명한 대구·경북의 대표 산입니다.",desc:"팔공산은 대구와 경북 여러 지역에 걸쳐 있는 산입니다."},
-  {name:"관악산",region:"서울·경기",height:"632m",hint:"서울 남부와 과천 사이에 있으며 연주대가 유명합니다.",desc:"관악산은 서울 관악구와 경기 과천·안양 일대에 걸쳐 있습니다."},
-  {name:"도봉산",region:"서울·경기",height:"740m",hint:"선인봉·자운봉 등 바위 봉우리와 암릉으로 유명합니다.",desc:"도봉산은 북한산국립공원 북부에 위치한 대표적인 암릉 산입니다."},
-  {name:"마니산",region:"인천 강화",height:"472m",hint:"강화도에 있으며 정상부 참성단으로 유명합니다.",desc:"마니산은 인천 강화도에 위치하며 참성단이 있는 산입니다."}
-];
+var WIKIDATA_ENDPOINT="https://query.wikidata.org/sparql";
+
+/*
+  실시간 문제은행
+  - 대한민국(Q884)에 속한 산(Q8502 및 하위유형)
+  - 이름 / 설명 / 해발고도 / 행정구역 / 이미지 조회
+  - 코드 내부에 산 목록을 고정 저장하지 않음
+*/
+var SPARQL_QUERY=[
+  'SELECT DISTINCT ?item ?itemLabel ?itemDescription ?elevation ?adminLabel ?image WHERE {',
+  '  ?item wdt:P31/wdt:P279* wd:Q8502 .',
+  '  ?item wdt:P17 wd:Q884 .',
+  '  OPTIONAL { ?item wdt:P2044 ?elevation . }',
+  '  OPTIONAL { ?item wdt:P131 ?admin . }',
+  '  OPTIONAL { ?item wdt:P18 ?image . }',
+  '  SERVICE wikibase:label { bd:serviceParam wikibase:language "ko,en". }',
+  '}',
+  'ORDER BY ?itemLabel'
+].join("\n");
 
 function $(id){return document.getElementById(id)}
+
+function setSourceStatus(msg,type){
+  var el=$("sourceStatus");
+  if(!el)return;
+  el.textContent=msg||"";
+  el.classList.remove("ready","error");
+  if(type)el.classList.add(type);
+}
+
 function shuffle(arr){
   var a=arr.slice();
   for(var i=a.length-1;i>0;i--){
@@ -394,6 +466,7 @@ function shuffle(arr){
   }
   return a;
 }
+
 function loadSession(){
   try{
     var raw=sessionStorage.getItem(SESSION_KEY);
@@ -401,27 +474,185 @@ function loadSession(){
   }catch(e){}
   return null;
 }
+
 function stateKey(){
-  var code=String(session&&session.code||"guest");
-  return STATE_KEY+":"+code;
+  return STATE_KEY+":"+String(session&&session.code||"guest");
 }
+
 function newState(){
-  return {order:shuffle(mountains.map(function(_,i){return i})),index:0,correct:0,answered:0,cycle:1,locked:false};
+  return {
+    order:shuffle(mountains.map(function(_,i){return i})),
+    index:0,
+    correct:0,
+    answered:0,
+    cycle:1,
+    locked:false
+  };
 }
+
 function loadState(){
   try{
     var raw=localStorage.getItem(stateKey());
     if(!raw)return newState();
     var s=JSON.parse(raw);
-    if(!s||!Array.isArray(s.order)||s.order.length!==mountains.length)return newState();
+    if(!s || !Array.isArray(s.order) || s.order.length!==mountains.length)return newState();
+    if(s.order.some(function(i){return i<0 || i>=mountains.length}))return newState();
     s.locked=false;
     return s;
-  }catch(e){return newState()}
+  }catch(e){
+    return newState();
+  }
 }
+
 function saveState(){
   try{localStorage.setItem(stateKey(),JSON.stringify(state))}catch(e){}
 }
-function currentMountain(){return mountains[state.order[state.index]]}
+
+function cleanText(value){
+  return String(value||"").replace(/\s+/g," ").trim();
+}
+
+function labelFromBinding(binding,key){
+  return binding && binding[key] ? cleanText(binding[key].value) : "";
+}
+
+function normalizeElevation(raw){
+  if(raw==="" || raw==null)return "";
+  var n=Number(raw);
+  if(!Number.isFinite(n))return "";
+  return Math.round(n).toLocaleString("ko-KR")+"m";
+}
+
+function normalizeWikiImage(url){
+  return cleanText(url).replace(/^http:/,"https:");
+}
+
+function makeHint(m){
+  var parts=[];
+  if(m.region)parts.push("지역은 "+m.region+"입니다.");
+  if(m.height)parts.push("해발 "+m.height+"입니다.");
+  if(m.description){
+    var d=m.description.replace(new RegExp(m.name,"g"),"이 산");
+    if(d.length>110)d=d.slice(0,110)+"…";
+    parts.push(d);
+  }
+  return parts.join(" ");
+}
+
+function normalizeMountain(binding){
+  var name=labelFromBinding(binding,"itemLabel");
+  if(!name || /^Q\d+$/.test(name))return null;
+
+  var mountain={
+    id:labelFromBinding(binding,"item"),
+    name:name,
+    description:labelFromBinding(binding,"itemDescription"),
+    height:normalizeElevation(labelFromBinding(binding,"elevation")),
+    region:labelFromBinding(binding,"adminLabel"),
+    image:normalizeWikiImage(labelFromBinding(binding,"image"))
+  };
+
+  mountain.hint=makeHint(mountain);
+  mountain.desc=[
+    mountain.name+"은(는) 대한민국에 있는 산입니다.",
+    mountain.region ? "행정지역: "+mountain.region+"." : "",
+    mountain.height ? "해발고도는 약 "+mountain.height+"입니다." : "",
+    mountain.description ? mountain.description.replace(new RegExp(mountain.name,"g"),"이 산")+"." : ""
+  ].filter(Boolean).join(" ");
+
+  return mountain;
+}
+
+function dedupeMountainRows(rows){
+  var map={};
+
+  rows.forEach(function(binding){
+    var m=normalizeMountain(binding);
+    if(!m)return;
+
+    var key=m.id||m.name;
+    if(!map[key]){
+      map[key]=m;
+      return;
+    }
+
+    var cur=map[key];
+    if(!cur.region && m.region)cur.region=m.region;
+    else if(m.region && cur.region.indexOf(m.region)<0)cur.region+=" · "+m.region;
+    if(!cur.height && m.height)cur.height=m.height;
+    if(!cur.image && m.image)cur.image=m.image;
+    if(!cur.description && m.description)cur.description=m.description;
+    cur.hint=makeHint(cur);
+  });
+
+  return Object.keys(map).map(function(k){return map[k]})
+    .filter(function(m){return m.name && (m.region || m.height || m.description)})
+    .sort(function(a,b){return a.name.localeCompare(b.name,"ko")});
+}
+
+async function fetchWikidataBank(){
+  var url=WIKIDATA_ENDPOINT+"?format=json&query="+encodeURIComponent(SPARQL_QUERY);
+  var response=await fetch(url,{
+    method:"GET",
+    headers:{"Accept":"application/sparql-results+json"},
+    cache:"no-store"
+  });
+  if(!response.ok)throw new Error("산 정보 서버 응답 오류 ("+response.status+")");
+  var json=await response.json();
+  var rows=json && json.results && Array.isArray(json.results.bindings) ? json.results.bindings : [];
+  var bank=dedupeMountainRows(rows);
+  if(bank.length<4)throw new Error("사용 가능한 산 정보가 부족합니다.");
+  return bank;
+}
+
+function loadCachedBank(){
+  try{
+    var raw=localStorage.getItem(CACHE_KEY);
+    if(!raw)return null;
+    var saved=JSON.parse(raw);
+    if(!saved || !Array.isArray(saved.items) || saved.items.length<4)return null;
+    return saved;
+  }catch(e){
+    return null;
+  }
+}
+
+function saveCachedBank(items){
+  try{
+    localStorage.setItem(CACHE_KEY,JSON.stringify({
+      savedAt:Date.now(),
+      items:items
+    }));
+  }catch(e){}
+}
+
+async function loadMountainBank(forceRefresh){
+  var cached=loadCachedBank();
+
+  if(!forceRefresh && cached && Date.now()-Number(cached.savedAt||0)<CACHE_MAX_AGE){
+    mountains=cached.items;
+    setSourceStatus("Wikidata 문제은행 "+mountains.length+"개 산 · 저장된 최신 자료 사용","ready");
+    return;
+  }
+
+  setSourceStatus("대한민국 산 정보를 웹에서 불러오는 중입니다...");
+  try{
+    mountains=await fetchWikidataBank();
+    saveCachedBank(mountains);
+    setSourceStatus("Wikidata 실시간 문제은행 "+mountains.length+"개 산 불러오기 완료","ready");
+  }catch(error){
+    if(cached && cached.items && cached.items.length>=4){
+      mountains=cached.items;
+      setSourceStatus("웹 연결 실패 · 저장된 문제은행 "+mountains.length+"개 산 사용","error");
+      return;
+    }
+    throw error;
+  }
+}
+
+function currentMountain(){
+  return mountains[state.order[state.index]];
+}
 
 function buildChoices(answer){
   var others=shuffle(mountains.filter(function(m){return m.name!==answer.name})).slice(0,3);
@@ -437,21 +668,51 @@ function updateScore(){
   $("progressBar").style.width=((state.index/mountains.length)*100)+"%";
 }
 
+function renderPhoto(q){
+  var visual=$("mountainVisual");
+  var photo=$("mountainPhoto");
+
+  visual.classList.remove("has-photo");
+  photo.hidden=true;
+  photo.removeAttribute("src");
+  photo.alt="";
+
+  if(!q.image)return;
+
+  photo.onload=function(){
+    photo.hidden=false;
+    visual.classList.add("has-photo");
+  };
+  photo.onerror=function(){
+    photo.hidden=true;
+    visual.classList.remove("has-photo");
+  };
+  photo.alt=q.name+" 참고 이미지";
+  photo.src=q.image;
+}
+
 function render(){
+  if(!mountains.length || !state)return;
+
   state.locked=false;
   var q=currentMountain();
   updateScore();
+  renderPhoto(q);
 
-  $("regionBadge").textContent=q.region;
-  $("heightBadge").textContent="해발 "+q.height;
-  $("hintText").textContent=q.hint;
+  $("regionBadge").textContent=q.region||"대한민국";
+  $("heightBadge").textContent=q.height ? "해발 "+q.height : "산 정보";
+  $("hintText").textContent=q.hint||"대한민국의 산입니다.";
+
   $("resultBox").classList.remove("show");
   $("nextBtn").classList.remove("show");
   $("resultTitle").textContent="";
   $("resultDesc").textContent="";
+  var oldRegion=$("resultBox").querySelector(".result-region");
+  if(oldRegion)oldRegion.remove();
 
   var answerList=$("answerList");
   answerList.innerHTML="";
+
   buildChoices(q).forEach(function(choice,index){
     var btn=document.createElement("button");
     btn.type="button";
@@ -479,7 +740,16 @@ function answer(name,clicked){
   if(!correct)clicked.classList.add("wrong");
 
   $("resultTitle").textContent=correct?"✅ 정답입니다!":"❌ 아쉽습니다. 정답은 "+q.name+"입니다.";
-  $("resultDesc").textContent=q.desc;
+
+  var regionLine=document.createElement("div");
+  regionLine.className="result-region";
+  regionLine.textContent="📍 지역 : "+(q.region||"대한민국")+
+    (q.height?"   ·   ⛰️ 해발 : "+q.height:"");
+
+  var resultDesc=$("resultDesc");
+  resultDesc.textContent=q.desc||q.hint||"웹 산 정보 문제은행에서 불러온 산입니다.";
+  resultDesc.parentNode.insertBefore(regionLine,resultDesc);
+
   $("resultBox").classList.add("show");
   $("nextBtn").classList.add("show");
 
@@ -498,11 +768,24 @@ function next(){
   render();
 }
 
-function reset(){
-  if(!confirm("산 이름 맞히기 기록을 처음부터 시작할까요?"))return;
-  state=newState();
-  saveState();
-  render();
+async function reset(){
+  if(!confirm("기록을 초기화하고 웹 문제은행도 새로 불러올까요?"))return;
+  try{
+    localStorage.removeItem(stateKey());
+    localStorage.removeItem(CACHE_KEY);
+  }catch(e){}
+
+  $("answerList").innerHTML="";
+  setSourceStatus("산 정보 문제은행을 새로 불러오는 중입니다...");
+  try{
+    await loadMountainBank(true);
+    state=newState();
+    saveState();
+    render();
+  }catch(error){
+    setSourceStatus("산 정보를 불러오지 못했습니다. 인터넷 연결 후 다시 시도해 주세요.","error");
+    $("hintText").textContent=String(error && error.message || "문제은행 연결 실패");
+  }
 }
 
 function goEventMain(){
@@ -514,8 +797,20 @@ $("resetBtn").addEventListener("click",reset);
 $("backBtn").addEventListener("click",goEventMain);
 
 session=loadSession();
-var state=loadState();
-render();
+
+(async function init(){
+  try{
+    await loadMountainBank(false);
+    state=loadState();
+    render();
+  }catch(error){
+    setSourceStatus("산 정보를 불러오지 못했습니다. 인터넷 연결 후 ‘처음부터’를 눌러 다시 시도하세요.","error");
+    $("hintText").textContent=String(error && error.message || "문제은행 연결 실패");
+    $("answerList").innerHTML="";
+    $("questionNo").textContent="-";
+    $("bankText").textContent="문제은행 연결 실패";
+  }
+})();
 
 try{
   if(window.parent&&window.parent!==window){
@@ -528,7 +823,7 @@ window.addEventListener("message",function(event){
   if(data.type==="BUS_SEAT_EVENT_SESSION"&&data.session){
     var oldKey=stateKey();
     session=data.session;
-    if(oldKey!==stateKey()){
+    if(mountains.length && oldKey!==stateKey()){
       state=loadState();
       render();
     }
