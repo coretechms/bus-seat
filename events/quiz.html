@@ -56,7 +56,7 @@ button{font-family:inherit}
   .footer-note{display:none}
 }
 
-/* ===== 가감승제 문제 전용 계산기 ===== */
+/* ===== 숫자 퀴즈 자동 계산기 ===== */
 .quiz-calculator{
   display:none;
   margin:10px 0 2px;
@@ -153,7 +153,7 @@ button{font-family:inherit}
 <div class="quiz-calculator" id="quizCalculator" aria-label="계산기">
   <div class="calc-title">
     <span>🧮 계산기</span>
-    <small>계산 문제에서만 표시됩니다</small>
+    <small>숫자 문제에서 자동 표시됩니다</small>
   </div>
   <input type="text" class="calc-display" id="calcDisplay" value="0" readonly aria-label="계산 결과">
   <div class="calc-grid" id="calcGrid">
@@ -210,29 +210,58 @@ var quizSequence=[];
 var state=null;
 
 var questions=[];
-var QUIZ_DATA_URLS=["quiz-data.html?v=4","quiz-data_ver_03.html?v=4"];
-var QUIZ_DATA_CACHE_KEY="geomam-quiz-data-cache-v4";
+var QUIZ_DATA_URLS=["quiz-data.html?v=5","quiz-data_ver_03.html?v=5"];
+var QUIZ_DATA_CACHE_KEY="geomam-quiz-data-cache-v5";
 
 function $(id){return document.getElementById(id)}
 
-/* ===== 가감승제 문제 전용 계산기 ===== */
+/* ===== 숫자 퀴즈 자동 계산기 ===== */
 var calcValue="0";
 var calcStored=null;
 var calcOperator=null;
 var calcNewInput=false;
 
 function isArithmeticQuestion(q){
-  if(!q || q.type!=="choice") return false;
+  if(!q) return false;
 
-  var text=String(q.q||"")
-    .replace(/\s+/g," ")
-    .replace(/−/g,"-");
+  var questionText=String(q.q||"");
+  var category=String(q.cat||"");
 
   /*
-    숫자와 + - × ÷ 연산자가 실제 계산식 형태로 함께 있는 문제만 표시.
-    예: 24 + 6 = ?, 35 × 4 = ?, 120 ÷ 5 = ?
+    계산기 표시 기준
+    1. 문제 문장에 숫자(0~9)가 하나라도 있음
+    2. 4지선다 선택지 중 숫자가 포함된 선택지가 2개 이상
+    3. 계산/수리/단위/논리 계열 카테고리
+
+    예:
+    - 24 + 6 = ?
+    - 1000m는 몇 km?
+    - 1919년 / 1945년 / 1950년 선택 문제
+    - 수열 2, 4, 6, 8 ...
   */
-  return /(?:\d+(?:\.\d+)?)\s*[+\-×÷]\s*(?:\d+(?:\.\d+)?)/.test(text);
+
+  if(/\d/.test(questionText)) return true;
+
+  if(
+    category.indexOf("계산")>=0 ||
+    category.indexOf("수리")>=0 ||
+    category.indexOf("수학")>=0 ||
+    category.indexOf("단위")>=0 ||
+    category.indexOf("논리")>=0 ||
+    category.indexOf("추론")>=0
+  ){
+    return true;
+  }
+
+  if(q.type==="choice" && Array.isArray(q.choices)){
+    var numericChoiceCount=q.choices.filter(function(choice){
+      return /\d/.test(String(choice||""));
+    }).length;
+
+    if(numericChoiceCount>=2) return true;
+  }
+
+  return false;
 }
 
 function updateCalculatorVisibility(q){
