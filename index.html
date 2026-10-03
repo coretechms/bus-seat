@@ -752,6 +752,115 @@
       padding: 4px 6px;
       font-size: 10px;
     }
+    /* 로그인 후 회원 안내 말풍선 */
+    #memberLoginPromptStack {
+      position: fixed;
+      top: max(18px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(460px, calc(100vw - 28px));
+      z-index: 12050;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      pointer-events: none;
+    }
+    .member-login-prompt {
+      position: relative;
+      width: 100%;
+      padding: 13px 42px 13px 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.97);
+      border: 1px solid rgba(38,93,168,.22);
+      box-shadow: 0 12px 30px rgba(16,42,76,.22);
+      color: #17365d;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: keep-all;
+      pointer-events: auto;
+      cursor: pointer;
+      animation: memberPromptIn .25s ease both;
+    }
+    .member-login-prompt::before {
+      content: "";
+      position: absolute;
+      left: 28px;
+      bottom: -8px;
+      width: 16px;
+      height: 16px;
+      background: inherit;
+      border-right: 1px solid rgba(38,93,168,.22);
+      border-bottom: 1px solid rgba(38,93,168,.22);
+      transform: rotate(45deg);
+    }
+    .member-login-prompt::after {
+      content: "×";
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 20px;
+      font-weight: 500;
+      color: #60758f;
+    }
+    .member-login-prompt.event-prompt {
+      background: rgba(236,248,255,.98);
+      border-color: rgba(18,112,187,.28);
+      color: #0b4c7f;
+    }
+    .member-login-prompt.seat-prompt {
+      background: rgba(255,250,226,.98);
+      border-color: rgba(210,157,37,.32);
+      color: #674b00;
+    }
+    .member-login-prompt.is-hiding {
+      animation: memberPromptOut .22s ease both;
+    }
+    @keyframes memberPromptIn {
+      from { opacity:0; transform:translateY(-10px) scale(.98); }
+      to { opacity:1; transform:translateY(0) scale(1); }
+    }
+    @keyframes memberPromptOut {
+      from { opacity:1; transform:translateY(0) scale(1); }
+      to { opacity:0; transform:translateY(-8px) scale(.98); }
+    }
+    @media (max-width:760px) {
+      #memberLoginPromptStack { top:max(12px, env(safe-area-inset-top)); width:calc(100vw - 24px); }
+      .member-login-prompt { padding:12px 38px 12px 14px; border-radius:16px; font-size:13px; }
+    }
+
+    .admin-login-notice-settings {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #d7e0eb;
+      border-radius: 14px;
+      background: #f8fbff;
+    }
+    .admin-login-notice-settings > label {
+      display:block;
+      margin-bottom:6px;
+      color:#17365d;
+      font-size:12px;
+      font-weight:800;
+    }
+    .admin-login-notice-settings textarea {
+      min-height:58px;
+      resize:vertical;
+      line-height:1.45;
+      border-radius:12px;
+      margin-bottom:7px;
+    }
+    .admin-login-notice-time-row {
+      display:grid;
+      grid-template-columns:auto 82px 1fr;
+      align-items:center;
+      gap:6px;
+    }
+    .admin-login-notice-time-row label { margin:0; width:auto; white-space:nowrap; font-size:11px; }
+    .admin-login-notice-time-row input { width:100%; }
+
     .hidden { display: none !important; }
     .muted { color: #666; font-size: 12px; }
 
@@ -4070,7 +4179,7 @@ body.member-mode .alt-arrow-cell {
             <div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; min-width:0; margin-left:0;">
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
               <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">로그아웃</button>
-              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">이 벤 트</button>
+              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">행운뽑기</button>
 </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
@@ -4211,6 +4320,18 @@ body.member-mode .alt-arrow-cell {
               <button class="btn btn-outline" id="toggleNameEntryLockBtn" type="button">입력제한설정</button>
               <div id="nameEntryLockStatus" class="status-box" role="status" aria-live="polite"><strong>입력가능</strong></div>
               <button class="btn btn-primary" id="systemAdminEnterBtn" type="button">시스템관리자</button>
+            </div>
+
+            <div class="admin-login-notice-settings">
+              <label for="noSeatLoginNoticeInput">로그인 · 좌석 미등록 안내문구</label>
+              <textarea id="noSeatLoginNoticeInput" aria-label="좌석 미등록 회원 로그인 안내문구"></textarea>
+              <label for="eventLoginNoticeInput">로그인 · 이벤트 안내문구</label>
+              <textarea id="eventLoginNoticeInput" aria-label="이벤트 안내문구"></textarea>
+              <div class="admin-login-notice-time-row">
+                <label for="eventLoginNoticeSecondsInput">표시시간(초)</label>
+                <input id="eventLoginNoticeSecondsInput" type="number" min="0.5" max="30" step="0.5" value="2.5" aria-label="이벤트 안내 표시시간 초">
+                <button class="btn btn-outline" id="saveLoginNoticeSettingsBtn" type="button">안내설정 저장</button>
+              </div>
             </div>
 
             <div id="systemAdminGatePanel" style="margin-top:10px;">
@@ -4476,6 +4597,9 @@ const firebaseConfig = {
     const SYSTEM_ADMIN_PASSWORD_HASH_STORAGE_KEY = "bus-seat-system-admin-password-hash-v1";
     const ROOT_PATH = "busSeatApp";
     const DEFAULT_WAITING_EXPIRE_HOURS = 48;
+    const DEFAULT_NO_SEAT_LOGIN_NOTICE = "아직 산행에 참석 하지 않으셨네요~ 어서 등록하고 즐거운 여행이 되도록 해보세요~";
+    const DEFAULT_EVENT_LOGIN_NOTICE = "이벤트에 참석 해보세요";
+    const DEFAULT_EVENT_LOGIN_NOTICE_SECONDS = 2.5;
     const NAME_EXPORT_STORAGE_KEY = "bus-seat-name-export-v1";
     const BOARD_IMAGE_MODE_STORAGE_KEY = "bus-seat-board-image-mode-v1";
     const TRIP_PLAN_ACCESS_TICKET_KEY = "trip-plan-access-ticket-v1";
@@ -4609,6 +4733,11 @@ const firebaseConfig = {
       nameEntryLocked: false,
       boardImageMode: false,
       noticeCheckBlink: false,
+      loginNoticeSettings: {
+        noSeatMessage: DEFAULT_NO_SEAT_LOGIN_NOTICE,
+        eventMessage: DEFAULT_EVENT_LOGIN_NOTICE,
+        eventSeconds: DEFAULT_EVENT_LOGIN_NOTICE_SECONDS
+      },
       hikingNotice: { text: "", locked: false, editing: true },
       securityMemos: {}
     };
@@ -5106,6 +5235,11 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
         waitingExpireHours: DEFAULT_WAITING_EXPIRE_HOURS,
         nameEntryLocked: false,
         noticeCheckBlink: false,
+        loginNoticeSettings: {
+          noSeatMessage: DEFAULT_NO_SEAT_LOGIN_NOTICE,
+          eventMessage: DEFAULT_EVENT_LOGIN_NOTICE,
+          eventSeconds: DEFAULT_EVENT_LOGIN_NOTICE_SECONDS
+        },
         hikingNotice: { text: "", locked: false },
         meta: { createdAt: Date.now(), updatedAt: Date.now() }
       };
@@ -5917,6 +6051,128 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       const memberName = normalizeName(session?.name || "");
       return Boolean(memberName && normalizeName(seat.name || "") === memberName);
     }
+
+    function syncLoginNoticeSettingsControls() {
+      const settings = state.loginNoticeSettings || {};
+      const noSeat = byId("noSeatLoginNoticeInput");
+      const eventText = byId("eventLoginNoticeInput");
+      const seconds = byId("eventLoginNoticeSecondsInput");
+      if (noSeat && document.activeElement !== noSeat) noSeat.value = String(settings.noSeatMessage || DEFAULT_NO_SEAT_LOGIN_NOTICE);
+      if (eventText && document.activeElement !== eventText) eventText.value = String(settings.eventMessage || DEFAULT_EVENT_LOGIN_NOTICE);
+      if (seconds && document.activeElement !== seconds) seconds.value = String(Number(settings.eventSeconds || DEFAULT_EVENT_LOGIN_NOTICE_SECONDS));
+    }
+
+    function getAllFleetSeatRecords() {
+      const root = state.fleetPayload || {};
+      const records = [];
+      const appendSeats = (vehicleId, seatsObject) => {
+        Object.entries(seatsObject || {}).forEach(([number, raw]) => {
+          if (!raw || !String(raw.name || "").trim()) return;
+          records.push({ ...raw, number: Number(number), vehicleId: String(vehicleId) });
+        });
+      };
+      appendSeats("1", root.seats || {});
+      appendSeats("2", root?.vehicles?.["2"]?.seats || {});
+      return records;
+    }
+
+    function memberHasRegisteredSeat(session) {
+      const code = String(session?.code || "").trim();
+      const memberName = normalizeName(session?.name || "");
+      if (!code && !memberName) return false;
+      return getAllFleetSeatRecords().some((seat) => {
+        const ownerCode = String(seat.ownerMemberCode || "").trim();
+        if (code && ownerCode) return code === ownerCode;
+        return !ownerCode && memberName && normalizeName(seat.name || "") === memberName;
+      });
+    }
+
+    function ensureMemberLoginPromptStack() {
+      let stack = byId("memberLoginPromptStack");
+      if (stack) return stack;
+      stack = document.createElement("div");
+      stack.id = "memberLoginPromptStack";
+      stack.setAttribute("aria-live", "polite");
+      document.body.appendChild(stack);
+      return stack;
+    }
+
+    function dismissMemberLoginPrompt(prompt) {
+      if (!prompt || prompt.dataset.hiding === "1") return;
+      prompt.dataset.hiding = "1";
+      prompt.classList.add("is-hiding");
+      window.setTimeout(() => prompt.remove(), 230);
+    }
+
+    function showMemberLoginPrompt(kind, message, autoHideMs = 0) {
+      const text = String(message || "").trim();
+      if (!text) return null;
+      const stack = ensureMemberLoginPromptStack();
+      const prompt = document.createElement("div");
+      prompt.className = `member-login-prompt ${kind === "seat" ? "seat-prompt" : "event-prompt"}`;
+      prompt.textContent = text;
+      prompt.title = "터치하면 닫힙니다";
+      prompt.addEventListener("click", () => dismissMemberLoginPrompt(prompt));
+      prompt.addEventListener("touchend", (event) => {
+        event.preventDefault();
+        dismissMemberLoginPrompt(prompt);
+      }, { passive: false });
+      stack.appendChild(prompt);
+      if (autoHideMs > 0) window.setTimeout(() => dismissMemberLoginPrompt(prompt), autoHideMs);
+      return prompt;
+    }
+
+    function clearMemberLoginPrompts() {
+      byId("memberLoginPromptStack")?.remove();
+    }
+
+    function showPostLoginMemberPrompts(session, attempt = 0) {
+      if (!session || !session.code) return;
+      if (document.body?.classList.contains("membership-locked")) return;
+      if (!state.fleetLoaded && attempt < 12) {
+        window.setTimeout(() => showPostLoginMemberPrompts(session, attempt + 1), 250);
+        return;
+      }
+      clearMemberLoginPrompts();
+      const settings = state.loginNoticeSettings || {};
+      const isAdminSession = String(session.code || "").toUpperCase() === "ADMIN" || String(session.role || "") === "admin";
+      if (!isAdminSession && !memberHasRegisteredSeat(session)) {
+        showMemberLoginPrompt("seat", settings.noSeatMessage || DEFAULT_NO_SEAT_LOGIN_NOTICE, 0);
+      }
+      const seconds = Math.min(30, Math.max(0.5, Number(settings.eventSeconds || DEFAULT_EVENT_LOGIN_NOTICE_SECONDS)));
+      showMemberLoginPrompt("event", settings.eventMessage || DEFAULT_EVENT_LOGIN_NOTICE, seconds * 1000);
+    }
+
+    async function handleSaveLoginNoticeSettings() {
+      if (!state.isAdminAuthenticated) {
+        alert("관리자 인증 후 사용할 수 있습니다.");
+        return;
+      }
+      const noSeatMessage = String(byId("noSeatLoginNoticeInput")?.value || "").trim() || DEFAULT_NO_SEAT_LOGIN_NOTICE;
+      const eventMessage = String(byId("eventLoginNoticeInput")?.value || "").trim() || DEFAULT_EVENT_LOGIN_NOTICE;
+      const eventSeconds = Math.min(30, Math.max(0.5, Number(byId("eventLoginNoticeSecondsInput")?.value || DEFAULT_EVENT_LOGIN_NOTICE_SECONDS)));
+      const next = { noSeatMessage, eventMessage, eventSeconds };
+      state.loginNoticeSettings = next;
+      syncLoginNoticeSettingsControls();
+      if (!state.isFirebaseReady || !state.db) {
+        setStatusMessage("Firebase 미연결 - 안내설정은 현재 화면에만 적용", state.projectLabel);
+        alert("Firebase가 연결되지 않아 현재 화면에만 적용되었습니다.");
+        return;
+      }
+      const ok = await safeUpdate(ref(state.db, `${ROOT_PATH}/loginNoticeSettings`), next, {
+        label: "login-notice-settings",
+        permissionMessage: "로그인 안내설정 저장 권한이 없습니다.",
+        genericMessage: "로그인 안내설정 저장 실패"
+      });
+      if (!ok) return;
+      setStatusMessage("로그인 안내설정 저장완료", state.projectLabel);
+      alert("로그인 안내문구와 표시시간이 저장되었습니다.");
+    }
+
+    window.__busSeatShowPostLoginPrompts = function(session) {
+      window.setTimeout(() => showPostLoginMemberPrompts(session, 0), 120);
+    };
+    window.__busSeatClearLoginPrompts = clearMemberLoginPrompts;
 
     function isOwnWaitingSeat(seat) {
       return state.mode === "member" && isMemberOwnedWaitingSeatRecord(seat, state.activeVehicle, seat?.number);
@@ -7431,6 +7687,13 @@ function renderAll() {
       state.waitingExpireHours = expireHours;
       state.nameEntryLocked = Boolean(payload?.nameEntryLocked);
       state.noticeCheckBlink = Boolean(payload?.noticeCheckBlink);
+      const rawLoginNoticeSettings = rootPayload?.loginNoticeSettings || payload?.loginNoticeSettings || {};
+      state.loginNoticeSettings = {
+        noSeatMessage: String(rawLoginNoticeSettings.noSeatMessage || DEFAULT_NO_SEAT_LOGIN_NOTICE),
+        eventMessage: String(rawLoginNoticeSettings.eventMessage || DEFAULT_EVENT_LOGIN_NOTICE),
+        eventSeconds: Math.min(30, Math.max(0.5, Number(rawLoginNoticeSettings.eventSeconds ?? DEFAULT_EVENT_LOGIN_NOTICE_SECONDS) || DEFAULT_EVENT_LOGIN_NOTICE_SECONDS))
+      };
+      syncLoginNoticeSettingsControls();
       state.hikingNotice = { text: String(payload?.hikingNotice?.text || ""), locked: Boolean(payload?.hikingNotice?.locked), editing: !Boolean(payload?.hikingNotice?.locked) };
 
       if (state.editingSeat && !state.seats.find((s) => s.number === state.editingSeat)) {
@@ -9489,6 +9752,12 @@ function renderAll() {
       bindIfPresent("saveBusType1Btn", "click", () => handleSaveBusType("1"));
       bindIfPresent("saveBusType2Btn", "click", () => handleSaveBusType("2"));
       bindIfPresent("toggleNameEntryLockBtn", "click", handleToggleNameEntryLock);
+      bindIfPresent("saveLoginNoticeSettingsBtn", "click", () => {
+        handleSaveLoginNoticeSettings().catch((error) => {
+          console.error("로그인 안내설정 저장 오류:", error);
+          alert("로그인 안내설정 저장 중 오류가 발생했습니다.");
+        });
+      });
       bindIfPresent("resetVehicleSelect", "change", (event) => {
         const vehicleId = String(event.target.value || "");
         if (!vehicleId) return;
@@ -11882,6 +12151,7 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
           window.__busSeatSwitchMode("member");
         }
         setAuthMessage("관리자 비밀번호로 로그인되었습니다. 회원 입력 모드로 진입했습니다.", true);
+        try { window.__busSeatShowPostLoginPrompts?.(registeredAdminSession); } catch (error) {}
         return;
       }
       setAuthMessage("올바른 비밀번호 회원은 이름도 입력하세요.");
@@ -11965,6 +12235,7 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
     enforceMemberInputModeHiddenUi();
     setTimeout(enforceMemberInputModeHiddenUi, 0);
     setTimeout(enforceMemberInputModeHiddenUi, 250);
+    try { window.__busSeatShowPostLoginPrompts?.(registeredSession); } catch (error) {}
   }
 
   async function joinMember() {
@@ -13447,6 +13718,7 @@ if (action === "delete") {
 
     byId("memberTopLogoutBtn")?.addEventListener("click", (event) => {
       event.preventDefault();
+      try { window.__busSeatClearLoginPrompts?.(); } catch (error) {}
       showMembershipLoginScreenAfterLogout().catch((error) => {
         console.error("회원 로그아웃 오류:", error);
         setAuthMessage("로그아웃 처리 중 오류가 발생했습니다.");
@@ -19217,11 +19489,6 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     background: #fff;
   }
   #busSeatExternalEventHost[hidden] { display: none !important; }
-  #busSeatExternalEventStatus {
-    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
-    padding: 24px; text-align: center; background: #fff; color: #222; font-size: 15px; line-height: 1.6; z-index: 2;
-  }
-  #busSeatExternalEventStatus.show { display: flex; }
   #busSeatExternalEventFrame {
     width: 100%;
     height: 100%;
@@ -19238,11 +19505,9 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   if (window.__busSeatExternalEventBridgeApplied) return;
   window.__busSeatExternalEventBridgeApplied = true;
 
-  var EVENT_URL = "https://coretechms.github.io/bus-seat/events/index.html";
+  var EVENT_PATH = "events/lucky.html";
   var host = null;
   var frame = null;
-  var status = null;
-  var readyTimer = 0;
 
   function getMemberSession() {
     try {
@@ -19258,7 +19523,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   }
 
   function eventUrl() {
-    return EVENT_URL;
+    return new URL(EVENT_PATH, window.location.href).href;
   }
 
   function ensureHost() {
@@ -19267,20 +19532,16 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     host.id = "busSeatExternalEventHost";
     host.hidden = true;
 
-    status = document.createElement("div");
-    status.id = "busSeatExternalEventStatus";
-    host.appendChild(status);
-
     frame = document.createElement("iframe");
     frame.id = "busSeatExternalEventFrame";
-    frame.title = "오늘의 이벤트";
+    frame.title = "오늘의 행운뽑기";
     frame.setAttribute("allow", "fullscreen");
     frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     host.appendChild(frame);
     document.body.appendChild(host);
   }
 
-  function openEventMain() {
+  function openLuckyEvent() {
     var session = getMemberSession();
     if (!session) {
       alert("회원 로그인 후 이용할 수 있습니다.");
@@ -19290,21 +19551,11 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     host.hidden = false;
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
-    if (status) { status.classList.remove("show"); status.textContent = ""; }
     frame.src = eventUrl();
-    clearTimeout(readyTimer);
-    readyTimer = window.setTimeout(function () {
-      if (!host || host.hidden) return;
-      if (status) {
-        status.textContent = "이벤트 메인 파일에 연결하지 못했습니다.\nGitHub에 events/index.html 파일이 업로드되어 있는지 확인해 주세요.";
-        status.classList.add("show");
-      }
-    }, 5000);
   }
 
   function closeEvent() {
     if (!host) return;
-    clearTimeout(readyTimer);
     host.hidden = true;
     if (frame) frame.src = "about:blank";
     document.documentElement.style.overflow = "";
@@ -19319,17 +19570,15 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
   window.addEventListener("message", function (event) {
     if (!frame || event.source !== frame.contentWindow) return;
     var data = event.data || {};
-    if (data.type === "BUS_SEAT_EVENT_READY" && (data.event === "index" || data.event === "lucky")) {
-      clearTimeout(readyTimer);
-      if (status) { status.classList.remove("show"); status.textContent = ""; }
+    if (data.type === "BUS_SEAT_EVENT_READY" && data.event === "lucky") {
       var session = getMemberSession();
       if (!session) { closeEvent(); return; }
       try {
-        frame.contentWindow.postMessage({ type: "BUS_SEAT_EVENT_SESSION", event: data.event || "index", session: session }, event.origin || "*");
+        frame.contentWindow.postMessage({ type: "BUS_SEAT_EVENT_SESSION", event: "lucky", session: session }, event.origin || "*");
       } catch (_) {}
       return;
     }
-    if (data.type === "BUS_SEAT_EVENT_EXIT" && (data.event === "index" || data.event === "lucky")) {
+    if (data.type === "BUS_SEAT_EVENT_EXIT" && data.event === "lucky") {
       closeEvent();
     }
   });
@@ -19338,7 +19587,7 @@ body.admin-mode:not(.member-manage-mode):not(.admin-settings-open):not(.admin-ma
     var btn = event.target && event.target.closest ? event.target.closest("#memberLuckyEventBtn") : null;
     if (!btn) return;
     event.preventDefault();
-    openEventMain();
+    openLuckyEvent();
   }, true);
 })();
 </script>
