@@ -73,7 +73,7 @@ button,select{font-family:inherit}
 
 .birth-input-row{
   display:grid;
-  grid-template-columns:1.5fr .75fr .75fr;
+  grid-template-columns:.8fr 1.35fr .78fr .78fr;
   gap:8px;
   align-items:end;
   margin-bottom:5px;
@@ -107,6 +107,16 @@ button,select{font-family:inherit}
   border-color:#9c78bb;
   box-shadow:0 0 0 3px rgba(123,81,160,.10);
 }
+
+.calendar-convert-info{
+  margin:4px 4px 5px;
+  min-height:15px;
+  text-align:center;
+  font-size:11px;
+  font-weight:800;
+  color:#796989;
+}
+.calendar-convert-info strong{color:#5b3b78}
 
 .profile-sync-status{
   margin:5px 4px 8px;
@@ -317,7 +327,7 @@ button,select{font-family:inherit}
   }
 
   .birth-input-row{
-    grid-template-columns:1.45fr .72fr .72fr;
+    grid-template-columns:.78fr 1.3fr .7fr .7fr;
     gap:5px;
     padding:8px;
     border-radius:14px;
@@ -328,6 +338,12 @@ button,select{font-family:inherit}
     padding:0 5px;
     font-size:13px;
     border-radius:9px;
+  }
+
+  .calendar-convert-info{
+    margin:3px 2px 4px;
+    font-size:10px;
+    line-height:1.35;
   }
 
   .profile-sync-status{
@@ -423,6 +439,14 @@ button,select{font-family:inherit}
 </header>
 
 <section class="birth-input-row">
+  <div class="birth-field calendar-field">
+    <label for="calendarTypeSelect">구분</label>
+    <select id="calendarTypeSelect">
+      <option value="solar">양력</option>
+      <option value="lunar">음력</option>
+    </select>
+  </div>
+
   <div class="birth-field year-field">
     <label for="birthYearSelect">출생년</label>
     <select id="birthYearSelect"></select>
@@ -438,6 +462,8 @@ button,select{font-family:inherit}
     <select id="birthDaySelect"></select>
   </div>
 </section>
+
+<div class="calendar-convert-info" id="calendarConvertInfo"></div>
 
 <div class="profile-sync-status" id="profileSyncStatus"></div>
 
@@ -633,8 +659,10 @@ function saveRemoteProfile(profile){
         event:"fortune",
         profile:{
           zodiac:String(profile.zodiac||""),
+          calendarType:String(profile.calendarType||"solar"),
           birthYear:Number(profile.year),
           birthMonth:Number(profile.month),
+          lunarMonthKey:String(profile.lunarMonthKey||""),
           birthDay:Number(profile.day)
         }
       },"*");
@@ -647,27 +675,29 @@ function saveRemoteProfile(profile){
 function applyRemoteProfile(profile){
   if(!profile || typeof profile!=="object")return false;
 
-  var zodiac=String(profile.zodiac||"");
+  var calendarType=String(profile.calendarType||"solar")==="lunar"?"lunar":"solar";
   var year=Number(profile.birthYear);
   var month=Number(profile.birthMonth);
   var day=Number(profile.birthDay);
+  var lunarMonthKey=String(profile.lunarMonthKey||month||"");
   var now=getKoreaNowParts();
 
   if(!year || year<now.year-100 || year>now.year)return false;
-  zodiac=zodiacForYear(year);
-  if(month<1 || month>12)return false;
-  if(day<1 || day>validDaysInMonth(year,month))return false;
+  if(day<1 || day>31)return false;
 
+  $("calendarTypeSelect").value=calendarType;
   $("birthYearSelect").value=String(year);
-  $("birthMonthSelect").value=String(month);
-  refreshBirthDays();
-  $("birthDaySelect").value=String(day);
+  refreshMonthAndDaySelectors({
+    monthValue: calendarType==="lunar" ? lunarMonthKey : String(month),
+    dayValue: day
+  });
 
   try{
     localStorage.setItem(profileStorageKey(),JSON.stringify({
-      zodiac:zodiac,
+      calendarType:calendarType,
       year:year,
       month:month,
+      lunarMonthKey:calendarType==="lunar"?lunarMonthKey:"",
       day:day
     }));
   }catch(e){}
@@ -709,12 +739,81 @@ window.addEventListener("message",function(event){
   }
 });
 
-function populateBirthSelectors(){
+function chineseCalendarParts(date){
+  try{
+    var parts=new Intl.DateTimeFormat("en-u-ca-chinese",{
+      timeZone:"Asia/Seoul",
+      year:"numeric",
+      month:"numeric",
+      day:"numeric"
+    }).formatToParts(date);
+    var out={};
+    parts.forEach(function(p){
+      if(p.type!=="literal")out[p.type]=p.value;
+    });
+    return {
+      year:Number(out.relatedYear||out.year||0),
+      monthKey:String(out.month||""),
+      month:Number(String(out.month||"").replace(/\D/g,"")||0),
+      leap:String(out.month||"").indexOf("bis")>=0,
+      day:Number(out.day||0)
+    };
+  }catch(e){
+    return null;
+  }
+}
+
+function makeSolarDate(year,month,day){
+  return new Date(Date.UTC(Number(year),Number(month)-1,Number(day),3,0,0));
+}
+
+function solarToLunar(year,month,day){
+  return chineseCalendarParts(makeSolarDate(year,month,day));
+}
+
+function scanLunarYear(lunarYear){
+  var result={months:[],dateMap:{}};
+  var seen={};
+  var start=new Date(Date.UTC(Number(lunarYear)-1,11,1,3,0,0));
+  var end=new Date(Date.UTC(Number(lunarYear)+1,2,31,3,0,0));
+
+  for(var d=new Date(start);d<=end;d.setUTCDate(d.getUTCDate()+1)){
+    var parts=chineseCalendarParts(d);
+    if(!parts || parts.year!==Number(lunarYear))continue;
+
+    var key=parts.monthKey;
+    if(!seen[key]){
+      seen[key]={key:key,month:parts.month,leap:parts.leap,maxDay:parts.day};
+      result.months.push(seen[key]);
+    }else{
+      seen[key].maxDay=Math.max(seen[key].maxDay,parts.day);
+    }
+
+    result.dateMap[key+"|"+parts.day]={
+      year:d.getUTCFullYear(),
+      month:d.getUTCMonth()+1,
+      day:d.getUTCDate()
+    };
+  }
+
+  return result;
+}
+
+var lunarYearCache={};
+function getLunarYearInfo(year){
+  var key=String(year);
+  if(!lunarYearCache[key])lunarYearCache[key]=scanLunarYear(year);
+  return lunarYearCache[key];
+}
+
+function lunarToSolar(year,monthKey,day){
+  var info=getLunarYearInfo(year);
+  return info.dateMap[String(monthKey)+"|"+Number(day)]||null;
+}
+
+function populateBirthYearSelector(){
   var now=getKoreaNowParts();
   var yearSelect=$("birthYearSelect");
-  var monthSelect=$("birthMonthSelect");
-  var daySelect=$("birthDaySelect");
-
   yearSelect.innerHTML="";
   for(var y=now.year-100;y<=now.year;y++){
     var option=document.createElement("option");
@@ -722,43 +821,123 @@ function populateBirthSelectors(){
     option.textContent=String(y);
     yearSelect.appendChild(option);
   }
-
-  monthSelect.innerHTML="";
-  for(var m=1;m<=12;m++){
-    var monthOption=document.createElement("option");
-    monthOption.value=String(m);
-    monthOption.textContent=String(m);
-    monthSelect.appendChild(monthOption);
-  }
-
-  daySelect.innerHTML="";
-  for(var d=1;d<=31;d++){
-    var dayOption=document.createElement("option");
-    dayOption.value=String(d);
-    dayOption.textContent=String(d);
-    daySelect.appendChild(dayOption);
-  }
 }
 
 function validDaysInMonth(year,month){
   return new Date(Number(year),Number(month),0).getDate();
 }
 
-function refreshBirthDays(){
-  var year=Number($("birthYearSelect").value||1970);
-  var month=Number($("birthMonthSelect").value||1);
+function refreshMonthAndDaySelectors(preferred){
+  preferred=preferred||{};
+  var type=$("calendarTypeSelect").value==="lunar"?"lunar":"solar";
+  var year=Number($("birthYearSelect").value||1972);
+  var monthSelect=$("birthMonthSelect");
   var daySelect=$("birthDaySelect");
-  var previous=Math.max(1,Number(daySelect.value||1));
-  var maxDay=validDaysInMonth(year,month);
 
-  daySelect.innerHTML="";
-  for(var day=1;day<=maxDay;day++){
-    var option=document.createElement("option");
-    option.value=String(day);
-    option.textContent=String(day);
-    daySelect.appendChild(option);
+  var previousMonth=String(preferred.monthValue||monthSelect.value||"1");
+  var previousDay=Math.max(1,Number(preferred.dayValue||daySelect.value||1));
+
+  monthSelect.innerHTML="";
+
+  if(type==="lunar"){
+    var info=getLunarYearInfo(year);
+    info.months.forEach(function(item){
+      var option=document.createElement("option");
+      option.value=item.key;
+      option.textContent=(item.leap?"윤":"")+item.month+"월";
+      monthSelect.appendChild(option);
+    });
+    if(Array.from(monthSelect.options).some(function(o){return o.value===previousMonth})){
+      monthSelect.value=previousMonth;
+    }else if(monthSelect.options.length){
+      monthSelect.selectedIndex=0;
+    }
+
+    var selected=info.months.find(function(item){return item.key===monthSelect.value})||info.months[0];
+    var maxDay=selected?selected.maxDay:30;
+    daySelect.innerHTML="";
+    for(var ld=1;ld<=maxDay;ld++){
+      var lo=document.createElement("option");
+      lo.value=String(ld);
+      lo.textContent=String(ld);
+      daySelect.appendChild(lo);
+    }
+    daySelect.value=String(Math.min(previousDay,maxDay));
+  }else{
+    for(var m=1;m<=12;m++){
+      var option=document.createElement("option");
+      option.value=String(m);
+      option.textContent=String(m)+"월";
+      monthSelect.appendChild(option);
+    }
+    var monthNumber=Math.min(12,Math.max(1,Number(previousMonth.replace(/\D/g,"")||1)));
+    monthSelect.value=String(monthNumber);
+
+    var maxSolarDay=validDaysInMonth(year,monthNumber);
+    daySelect.innerHTML="";
+    for(var sd=1;sd<=maxSolarDay;sd++){
+      var so=document.createElement("option");
+      so.value=String(sd);
+      so.textContent=String(sd);
+      daySelect.appendChild(so);
+    }
+    daySelect.value=String(Math.min(previousDay,maxSolarDay));
   }
-  daySelect.value=String(Math.min(previous,maxDay));
+}
+
+function resolveBirthContext(){
+  var type=$("calendarTypeSelect").value==="lunar"?"lunar":"solar";
+  var year=Number($("birthYearSelect").value||1972);
+  var monthKey=String($("birthMonthSelect").value||"1");
+  var day=Number($("birthDaySelect").value||1);
+
+  if(type==="lunar"){
+    var solar=lunarToSolar(year,monthKey,day);
+    var monthNumber=Number(monthKey.replace(/\D/g,"")||1);
+    return {
+      calendarType:"lunar",
+      year:year,
+      month:monthNumber,
+      lunarMonthKey:monthKey,
+      day:day,
+      zodiacYear:year,
+      solar:solar
+    };
+  }
+
+  var month=Number(monthKey||1);
+  var lunar=solarToLunar(year,month,day);
+  return {
+    calendarType:"solar",
+    year:year,
+    month:month,
+    lunarMonthKey:"",
+    day:day,
+    zodiacYear:lunar&&lunar.year?lunar.year:year,
+    solar:{year:year,month:month,day:day},
+    lunar:lunar
+  };
+}
+
+function updateCalendarConvertInfo(context){
+  var el=$("calendarConvertInfo");
+  if(!el || !context)return;
+
+  if(context.calendarType==="lunar"){
+    var lunarLabel=(String(context.lunarMonthKey).indexOf("bis")>=0?"윤":"")+context.month+"월 "+context.day+"일";
+    if(context.solar){
+      el.innerHTML="음력 "+context.year+"년 "+lunarLabel+
+        " → <strong>양력 "+context.solar.year+"."+String(context.solar.month).padStart(2,"0")+"."+String(context.solar.day).padStart(2,"0")+"</strong>";
+    }else{
+      el.textContent="음력 날짜를 확인할 수 없습니다.";
+    }
+  }else if(context.lunar){
+    var lunarLabel2=(context.lunar.leap?"윤":"")+context.lunar.month+"월 "+context.lunar.day+"일";
+    el.innerHTML="양력 "+context.year+"."+String(context.month).padStart(2,"0")+"."+String(context.day).padStart(2,"0")+
+      " → <strong>음력 "+context.lunar.year+"년 "+lunarLabel2+"</strong>";
+  }else{
+    el.textContent="";
+  }
 }
 
 function profileStorageKey(){
@@ -769,9 +948,10 @@ function loadManualProfile(){
   var now=getKoreaNowParts();
   var fallbackYear=now.year-50;
   var fallback={
-    zodiac:zodiacForYear(fallbackYear),
+    calendarType:"solar",
     year:fallbackYear,
     month:1,
+    lunarMonthKey:"",
     day:1
   };
 
@@ -782,42 +962,45 @@ function loadManualProfile(){
     var year=Number(saved.year);
     var month=Number(saved.month);
     var day=Number(saved.day);
+    var calendarType=String(saved.calendarType||"solar")==="lunar"?"lunar":"solar";
+    var lunarMonthKey=String(saved.lunarMonthKey||month||"");
 
     if(!year||year<now.year-100||year>now.year)year=fallback.year;
     if(month<1||month>12)month=1;
-    var maxDay=validDaysInMonth(year,month);
-    if(day<1||day>maxDay)day=1;
+    if(day<1||day>31)day=1;
 
     return {
-      zodiac:zodiacForYear(year),
+      calendarType:calendarType,
       year:year,
       month:month,
+      lunarMonthKey:calendarType==="lunar"?lunarMonthKey:"",
       day:day
     };
   }catch(e){
     return fallback;
   }
 }
-
 function saveManualProfile(){
-  var year=Number($("birthYearSelect").value);
+  var context=resolveBirthContext();
   var profile={
-    zodiac:zodiacForYear(year),
-    year:year,
-    month:Number($("birthMonthSelect").value),
-    day:Number($("birthDaySelect").value)
+    calendarType:context.calendarType,
+    zodiac:zodiacForYear(context.zodiacYear),
+    year:context.year,
+    month:context.month,
+    lunarMonthKey:context.lunarMonthKey||"",
+    day:context.day,
+    solar:context.solar||null
   };
   try{
     localStorage.setItem(profileStorageKey(),JSON.stringify(profile));
   }catch(e){}
   return profile;
 }
-
 function zodiacForYear(year){
   /* 한국 연도 기준 띠:
-     1973년 = 쥐띠, 1974년 = 소띠
+     1972년 = 쥐띠, 1973년 = 소띠
      이후 12년 주기로 반복 */
-  var baseYear = 1973; // 쥐띠
+  var baseYear = 1972; // 쥐띠
   var idx = ((Number(year) - baseYear) % 12 + 12) % 12;
   return zodiacOrder[idx];
 }
@@ -848,17 +1031,22 @@ function renderFortune(syncRemote){
   refreshBirthDays();
 
   var profile=saveManualProfile();
+  var context=resolveBirthContext();
   var zodiac=profile.zodiac;
+
+  updateCalendarConvertInfo(context);
 
   $("zodiacEmoji").textContent=zodiacEmoji[zodiac]||"🔮";
   $("zodiacNameText").textContent=zodiac+"띠";
-  var fullAge=ageAtToday(profile.year,profile.month,profile.day);
-  var simpleYearAge=yearAge(profile.year);
+
+  var ageBase=context.solar||{year:profile.year,month:profile.month,day:profile.day};
+  var fullAge=ageAtToday(ageBase.year,ageBase.month,ageBase.day);
+  var simpleYearAge=yearAge(ageBase.year);
 
   $("fullAgeText").textContent="만 "+fullAge+"세";
   $("yearAgeText").textContent="연나이 "+simpleYearAge+"세";
   var seed=koreaDateKey()+"|"+String(session&&session.code||"guest")+"|"+
-    profile.year+"|"+profile.month+"|"+profile.day+"|"+zodiac;
+    profile.calendarType+"|"+profile.year+"|"+profile.month+"|"+profile.lunarMonthKey+"|"+profile.day+"|"+zodiac;
 
   var score=70+(hashText(seed+"|score")%30);
 
@@ -886,12 +1074,16 @@ function goEventMain(){
 $("backBtn").addEventListener("click",goEventMain);
 $("exitBtn").addEventListener("click",goEventMain);
 
+$("calendarTypeSelect").addEventListener("change",function(){
+  refreshMonthAndDaySelectors();
+  renderFortune();
+});
 $("birthYearSelect").addEventListener("change",function(){
-  refreshBirthDays();
+  refreshMonthAndDaySelectors();
   renderFortune();
 });
 $("birthMonthSelect").addEventListener("change",function(){
-  refreshBirthDays();
+  refreshMonthAndDaySelectors();
   renderFortune();
 });
 $("birthDaySelect").addEventListener("change",renderFortune);
@@ -899,13 +1091,15 @@ $("birthDaySelect").addEventListener("change",renderFortune);
 $("dateText").textContent=displayDate();
 session=loadSession();
 
-populateBirthSelectors();
+populateBirthYearSelector();
 
 var savedProfile=loadManualProfile();
+$("calendarTypeSelect").value=savedProfile.calendarType;
 $("birthYearSelect").value=String(savedProfile.year);
-$("birthMonthSelect").value=String(savedProfile.month);
-refreshBirthDays();
-$("birthDaySelect").value=String(savedProfile.day);
+refreshMonthAndDaySelectors({
+  monthValue:savedProfile.calendarType==="lunar"?savedProfile.lunarMonthKey:String(savedProfile.month),
+  dayValue:savedProfile.day
+});
 
 renderFortune(false);
 requestRemoteProfile();
