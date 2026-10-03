@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0b2d58">
-<title>오늘의 한문제</title>
+<title>오늘의 퀴즈</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;min-height:100%;font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:#eef4fb;color:#111}
@@ -16,7 +16,10 @@ button{font-family:inherit}
 .title-box{min-width:0}.title{margin:0;font-size:22px;font-weight:900;color:#0b2d58;letter-spacing:-.04em}.date{margin-top:4px;font-size:12px;color:#667085}
 .top-actions{display:flex;gap:6px;flex:0 0 auto}.top-btn{height:38px;min-width:66px;padding:0 12px;border:0;border-radius:14px;font-size:13px;font-weight:800;cursor:pointer}
 .back-btn{background:#fff;color:#123b72;border:1px solid #b9c9dc}.exit-btn{background:#111827;color:#fff}
-.member-box{margin-bottom:12px;padding:10px 14px;border:1px solid rgba(255,255,255,.95);border-radius:16px;background:rgba(255,255,255,.82);box-shadow:0 8px 24px rgba(30,60,90,.06);font-size:14px}
+.member-box{margin-bottom:10px;padding:10px 14px;border:1px solid rgba(255,255,255,.95);border-radius:16px;background:rgba(255,255,255,.82);box-shadow:0 8px 24px rgba(30,60,90,.06);font-size:14px}
+.progress-wrap{margin-bottom:12px;padding:11px 13px;border-radius:16px;background:#fff;border:1px solid #dce5ef;box-shadow:0 6px 18px rgba(30,60,90,.05)}
+.progress-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:13px;font-weight:800;color:#29435f}
+.progress-track{height:8px;border-radius:999px;background:#e9eef4;overflow:hidden}.progress-bar{height:100%;width:0;background:linear-gradient(90deg,#2f73c8,#0b2d58);transition:width .25s ease}
 .panel{padding:18px;border-radius:24px;background:rgba(255,255,255,.96);box-shadow:0 16px 42px rgba(33,56,85,.10)}
 .meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
 .category{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;background:#eaf3ff;color:#174d8a;font-size:12px;font-weight:900}
@@ -25,9 +28,10 @@ button{font-family:inherit}
 .answers{display:grid;gap:10px}
 .answer-btn{width:100%;min-height:52px;padding:12px 14px;border:1px solid #d7e1ec;border-radius:16px;background:#fff;text-align:left;font-size:15px;font-weight:700;line-height:1.45;color:#24364b;cursor:pointer;transition:.15s}
 .answer-btn:active{transform:scale(.99)}.answer-btn.correct{background:#e9f8ee;border-color:#9ed7ad;color:#166534}.answer-btn.wrong{background:#fff0ee;border-color:#f0afa8;color:#a3261d}.answer-btn.dim{opacity:.55}
-.input-row{display:flex;gap:8px}.text-answer{flex:1;height:46px;border:1px solid #cfd9e5;border-radius:14px;padding:0 12px;font-size:15px;outline:none}.submit-btn{height:46px;padding:0 18px;border:0;border-radius:14px;background:#0b2d58;color:#fff;font-weight:800;cursor:pointer}
 .result{display:none;margin-top:16px;padding:16px;border-radius:18px;line-height:1.65}.result.show{display:block}.result.ok{background:#eef9f1;border:1px solid #bfe1c7;color:#225c2b}.result.no{background:#fff4f2;border:1px solid #f3c5bf;color:#8f2d25}
 .result-title{font-size:18px;font-weight:900;margin-bottom:6px}.explain{margin-top:8px;padding-top:8px;border-top:1px dashed rgba(0,0,0,.14);font-size:14px}
+.next-btn{display:none;width:100%;height:46px;margin-top:12px;border:0;border-radius:15px;background:#0b2d58;color:#fff;font-size:15px;font-weight:900;cursor:pointer}.next-btn.show{display:block}
+.complete{display:none;text-align:center;padding:12px 2px}.complete.show{display:block}.complete-emoji{font-size:58px;line-height:1;margin-bottom:10px}.complete h2{margin:0 0 8px;color:#0b2d58;font-size:27px}.score{font-size:38px;font-weight:900;color:#174d8a;margin:8px 0}.score-sub{font-size:14px;color:#667085;line-height:1.6}
 .footer-note{margin-top:14px;text-align:center;color:#7b8794;font-size:12px;line-height:1.55}
 @media(max-width:520px){.title{font-size:18px}.top-btn{min-width:58px;height:36px;padding:0 10px;font-size:12px}.panel{padding:14px;border-radius:20px}.question{font-size:19px}.answer-btn{font-size:14px}}
 </style>
@@ -35,22 +39,40 @@ button{font-family:inherit}
 <body>
 <main class="app"><div class="shell">
 <header class="topbar">
-<div class="title-box"><h1 class="title">🧠 오늘의 한문제</h1><div class="date" id="todayText"></div></div>
+<div class="title-box"><h1 class="title">🧠 오늘의 퀴즈</h1><div class="date" id="todayText"></div></div>
 <div class="top-actions"><button type="button" class="top-btn back-btn" id="backBtn">이벤트</button><button type="button" class="top-btn exit-btn" id="exitBtn">나가기</button></div>
 </header>
 
 <div class="member-box" id="memberBox">회원 정보를 확인하는 중입니다.</div>
 
-<section class="panel">
-<div class="meta"><span class="category" id="categoryText"></span><span class="status" id="statusText"></span></div>
-<div class="question" id="questionText"></div>
-<div id="answerArea"></div>
-<div class="result" id="resultBox">
-  <div class="result-title" id="resultTitle"></div>
-  <div id="correctAnswer"></div>
-  <div class="explain" id="explainText"></div>
+<div class="progress-wrap">
+  <div class="progress-row"><span id="progressText">1 / 5</span><span id="scoreText">정답 0</span></div>
+  <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 </div>
-<div class="footer-note">하루에 한 문제씩 가볍게 즐기는 코너입니다.<br>내일은 새로운 문제가 나옵니다.</div>
+
+<section class="panel">
+<div id="quizArea">
+  <div class="meta"><span class="category" id="categoryText"></span><span class="status" id="statusText"></span></div>
+  <div class="question" id="questionText"></div>
+  <div id="answerArea"></div>
+
+  <div class="result" id="resultBox">
+    <div class="result-title" id="resultTitle"></div>
+    <div id="correctAnswer"></div>
+    <div class="explain" id="explainText"></div>
+  </div>
+
+  <button type="button" class="next-btn" id="nextBtn">다음 문제</button>
+</div>
+
+<div class="complete" id="completeBox">
+  <div class="complete-emoji">🏆</div>
+  <h2>오늘의 퀴즈 완료!</h2>
+  <div class="score" id="finalScore"></div>
+  <div class="score-sub" id="finalMessage"></div>
+</div>
+
+<div class="footer-note">하루 최대 5문제까지 제출할 수 있습니다.<br>내일은 새로운 5문제가 준비됩니다.</div>
 </section>
 </div></main>
 
@@ -59,12 +81,12 @@ button{font-family:inherit}
 "use strict";
 
 var SESSION_KEY="geomam-event-session";
-var PLAY_PREFIX="geomam-quiz-v1:";
+var PLAY_PREFIX="geomam-quiz-v2:";
+var DAILY_LIMIT=5;
 var session=null;
+var dailyQuestions=[];
+var state=null;
 
-/* 넌센스 + 상식 + 정보 혼합 문제은행
-   type: choice / ox / text
-*/
 var questions=[
 /* ===== 넌센스 ===== */
 {cat:"넌센스",type:"choice",q:"세상에서 가장 뜨거운 과일은?",choices:["사과","천도복숭아","수박","감"],answer:1,ex:"'천도(1000도)'라는 말장난을 이용한 넌센스 문제입니다."},
@@ -158,69 +180,145 @@ function hashText(text){
   return h>>>0;
 }
 
-function categoryForDate(){
-  var d=new Date(new Date().toLocaleString("en-US",{timeZone:"Asia/Seoul"}));
-  var day=d.getDay(); // 0 sun
-  if(day===1||day===4)return "넌센스";
-  if(day===2||day===5)return "상식";
-  if(day===3||day===6)return "정보";
-  return null;
+function seededOrder(list,seed){
+  return list.slice().sort(function(a,b){
+    return hashText(seed+"|"+a.q)-hashText(seed+"|"+b.q);
+  });
 }
 
-function getDailyQuestion(){
-  var cat=categoryForDate();
-  var pool=cat?questions.filter(function(q){return q.cat===cat}):questions;
-  var idx=hashText(koreaDateKey()+"|GEOMAM-QUIZ-V1")%pool.length;
-  return pool[idx];
+function buildDailyQuestions(){
+  var date=koreaDateKey();
+  var nonsense=seededOrder(questions.filter(function(q){return q.cat==="넌센스"}),date+"|N");
+  var common=seededOrder(questions.filter(function(q){return q.cat==="상식"}),date+"|C");
+  var info=seededOrder(questions.filter(function(q){return q.cat==="정보"}),date+"|I");
+
+  /* 매일 5문제: 넌센스 2 + 상식 2 + 정보 1, 날짜마다 순서 변동 */
+  var selected=[
+    nonsense[0], common[0], info[0], nonsense[1], common[1]
+  ].filter(Boolean);
+
+  return seededOrder(selected,date+"|ORDER").slice(0,DAILY_LIMIT);
 }
 
-function playKey(){return PLAY_PREFIX+session.code+":"+koreaDateKey()}
+function stateKey(){return PLAY_PREFIX+session.code+":"+koreaDateKey()}
 
-function readPlayed(){
-  try{var raw=localStorage.getItem(playKey());return raw?JSON.parse(raw):null}catch(e){return null}
-}
-
-function savePlayed(correct,userAnswer){
+function loadState(){
   try{
-    localStorage.setItem(playKey(),JSON.stringify({date:koreaDateKey(),correct:correct,userAnswer:userAnswer,savedAt:Date.now()}));
+    var raw=localStorage.getItem(stateKey());
+    if(raw){
+      var saved=JSON.parse(raw);
+      if(saved && Array.isArray(saved.answers)) return saved;
+    }
   }catch(e){}
+  return {index:0,answers:[],score:0,completed:false};
 }
 
-function renderQuestion(q){
+function saveState(){
+  try{localStorage.setItem(stateKey(),JSON.stringify(state))}catch(e){}
+}
+
+function currentQuestion(){return dailyQuestions[state.index]}
+
+function updateProgress(){
+  var answered=state.answers.length;
+  var current=state.completed?DAILY_LIMIT:Math.min(state.index+1,DAILY_LIMIT);
+  $("progressText").textContent=current+" / "+DAILY_LIMIT;
+  $("scoreText").textContent="정답 "+state.score;
+  $("progressBar").style.width=((answered/DAILY_LIMIT)*100)+"%";
+}
+
+function resetQuestionUI(){
+  $("resultBox").className="result";
+  $("nextBtn").className="next-btn";
+  $("answerArea").innerHTML="";
+  $("statusText").textContent="";
+}
+
+function renderQuestion(){
+  if(state.completed || state.index>=dailyQuestions.length){
+    showComplete();
+    return;
+  }
+
+  $("quizArea").style.display="block";
+  $("completeBox").className="complete";
+  resetQuestionUI();
+
+  var q=currentQuestion();
   $("categoryText").textContent=q.cat;
-  $("questionText").textContent=q.q;
-  var area=$("answerArea");
-  area.innerHTML="";
+  $("questionText").textContent=(state.index+1)+". "+q.q;
+  updateProgress();
+
+  var wrap=document.createElement("div");
+  wrap.className="answers";
 
   if(q.type==="choice"){
-    var wrap=document.createElement("div");wrap.className="answers";
     q.choices.forEach(function(choice,i){
       var b=document.createElement("button");
       b.type="button";b.className="answer-btn";b.textContent=(i+1)+". "+choice;
-      b.addEventListener("click",function(){gradeChoice(q,i,b)});
+      b.addEventListener("click",function(){submitAnswer(i,b)});
       wrap.appendChild(b);
     });
-    area.appendChild(wrap);
   }else if(q.type==="ox"){
-    var wrap=document.createElement("div");wrap.className="answers";
     [["O",true],["X",false]].forEach(function(pair){
       var b=document.createElement("button");
       b.type="button";b.className="answer-btn";b.textContent=pair[0];
-      b.addEventListener("click",function(){gradeOX(q,pair[1],b)});
+      b.dataset.value=String(pair[1]);
+      b.addEventListener("click",function(){submitAnswer(pair[1],b)});
       wrap.appendChild(b);
     });
-    area.appendChild(wrap);
-  }else{
-    var row=document.createElement("div");row.className="input-row";
-    var input=document.createElement("input");input.className="text-answer";input.placeholder="정답을 입력하세요";
-    var btn=document.createElement("button");btn.className="submit-btn";btn.type="button";btn.textContent="정답";
-    btn.addEventListener("click",function(){gradeText(q,input.value)});
-    row.appendChild(input);row.appendChild(btn);area.appendChild(row);
   }
+
+  $("answerArea").appendChild(wrap);
+
+  var already=state.answers[state.index];
+  if(already) restoreAnswer(already);
 }
 
-function lockButtons(){
-  document.querySelectorAll(".answer-btn").forEach(function(b){b.disabled=true});
+function submitAnswer(value,button){
+  if(state.answers[state.index]) return;
+
+  var q=currentQuestion();
+  var correct=value===q.answer;
+
+  state.answers[state.index]={
+    value:value,
+    correct:correct
+  };
+
+  if(correct) state.score++;
+  saveState();
+
+  markAnswers(q,value);
+  showResult(q,correct);
+
+  if(state.index>=DAILY_LIMIT-1){
+    $("nextBtn").textContent="결과 보기";
+  }else{
+    $("nextBtn").textContent="다음 문제";
+  }
+  $("nextBtn").className="next-btn show";
+  updateProgress();
+}
+
+function markAnswers(q,userValue){
+  var buttons=document.querySelectorAll(".answer-btn");
+  buttons.forEach(function(b){b.disabled=true});
+
+  if(q.type==="choice"){
+    buttons.forEach(function(b,i){
+      if(i===q.answer)b.classList.add("correct");
+      else if(i===userValue)b.classList.add("wrong");
+      else b.classList.add("dim");
+    });
+  }else{
+    buttons.forEach(function(b){
+      var val=b.textContent==="O";
+      if(val===q.answer)b.classList.add("correct");
+      else if(val===userValue)b.classList.add("wrong");
+      else b.classList.add("dim");
+    });
+  }
 }
 
 function showResult(q,correct){
@@ -229,66 +327,53 @@ function showResult(q,correct){
   $("resultTitle").textContent=correct?"✅ 정답입니다!":"❌ 아쉽습니다.";
   if(q.type==="choice"){
     $("correctAnswer").textContent="정답: "+q.choices[q.answer];
-  }else if(q.type==="ox"){
-    $("correctAnswer").textContent="정답: "+(q.answer?"O":"X");
   }else{
-    $("correctAnswer").textContent="정답: "+q.answer;
+    $("correctAnswer").textContent="정답: "+(q.answer?"O":"X");
   }
   $("explainText").textContent="해설: "+q.ex;
-  $("statusText").textContent="오늘 문제 완료";
+  $("statusText").textContent="제출 완료";
 }
 
-function gradeChoice(q,idx,btn){
-  lockButtons();
-  var correct=idx===q.answer;
-  btn.classList.add(correct?"correct":"wrong");
-  document.querySelectorAll(".answer-btn").forEach(function(b,i){
-    if(i===q.answer)b.classList.add("correct");else if(i!==idx)b.classList.add("dim");
-  });
-  savePlayed(correct,idx);
-  showResult(q,correct);
+function restoreAnswer(saved){
+  var q=currentQuestion();
+  markAnswers(q,saved.value);
+  showResult(q,!!saved.correct);
+  $("nextBtn").textContent=state.index>=DAILY_LIMIT-1?"결과 보기":"다음 문제";
+  $("nextBtn").className="next-btn show";
 }
 
-function gradeOX(q,val,btn){
-  lockButtons();
-  var correct=val===q.answer;
-  btn.classList.add(correct?"correct":"wrong");
-  document.querySelectorAll(".answer-btn").forEach(function(b){
-    var isO=b.textContent==="O";
-    if(isO===q.answer)b.classList.add("correct");else if(b!==btn)b.classList.add("dim");
-  });
-  savePlayed(correct,val);
-  showResult(q,correct);
-}
+function nextQuestion(){
+  if(!state.answers[state.index]) return;
 
-function gradeText(q,val){
-  var ans=String(val||"").trim();
-  var correct=ans===String(q.answer).trim();
-  savePlayed(correct,ans);
-  showResult(q,correct);
-  document.querySelector(".text-answer").disabled=true;
-  document.querySelector(".submit-btn").disabled=true;
-}
-
-function restorePlayed(q,played){
-  if(!played)return;
-  $("statusText").textContent="오늘 문제 완료";
-  showResult(q,!!played.correct);
-  if(q.type==="choice"){
-    document.querySelectorAll(".answer-btn").forEach(function(b,i){
-      b.disabled=true;
-      if(i===q.answer)b.classList.add("correct");
-      if(i===played.userAnswer && i!==q.answer)b.classList.add("wrong");
-      if(i!==q.answer && i!==played.userAnswer)b.classList.add("dim");
-    });
-  }else if(q.type==="ox"){
-    document.querySelectorAll(".answer-btn").forEach(function(b){
-      b.disabled=true;
-      var isO=b.textContent==="O";
-      if(isO===q.answer)b.classList.add("correct");
-      if(isO===played.userAnswer && isO!==q.answer)b.classList.add("wrong");
-    });
+  if(state.index>=DAILY_LIMIT-1){
+    state.completed=true;
+    saveState();
+    showComplete();
+    return;
   }
+
+  state.index++;
+  saveState();
+  renderQuestion();
+}
+
+function showComplete(){
+  state.completed=true;
+  saveState();
+  $("quizArea").style.display="none";
+  $("completeBox").className="complete show";
+  $("finalScore").textContent=state.score+" / "+DAILY_LIMIT;
+
+  var msg="";
+  if(state.score===5) msg="완벽합니다! 오늘의 퀴즈 5문제를 모두 맞혔습니다.";
+  else if(state.score>=4) msg="훌륭합니다! 오늘도 좋은 성적입니다.";
+  else if(state.score>=3) msg="좋습니다! 내일도 가볍게 도전해 보세요.";
+  else msg="재미있게 풀었다면 성공입니다. 내일 다시 도전해 보세요.";
+
+  $("finalMessage").textContent=msg;
+  $("progressText").textContent=DAILY_LIMIT+" / "+DAILY_LIMIT;
+  $("scoreText").textContent="정답 "+state.score;
+  $("progressBar").style.width="100%";
 }
 
 function goEventMain(){
@@ -297,14 +382,20 @@ function goEventMain(){
 
 $("backBtn").addEventListener("click",goEventMain);
 $("exitBtn").addEventListener("click",goEventMain);
+$("nextBtn").addEventListener("click",nextQuestion);
 
 $("todayText").textContent=displayDate();
 session=loadSession();
-$("memberBox").textContent=session.name+" 회원님 · 오늘도 한 문제 가볍게 풀어보세요.";
+$("memberBox").textContent=session.name+" 회원님 · 오늘은 최대 5문제까지 풀 수 있습니다.";
 
-var q=getDailyQuestion();
-renderQuestion(q);
-restorePlayed(q,readPlayed());
+dailyQuestions=buildDailyQuestions();
+state=loadState();
+
+/* 이전 저장 데이터 이상 방지 */
+if(state.index<0) state.index=0;
+if(state.index>=DAILY_LIMIT && !state.completed) state.completed=true;
+
+renderQuestion();
 
 })();
 </script>
