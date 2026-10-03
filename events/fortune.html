@@ -20,25 +20,21 @@ button,select{font-family:inherit}
 .back{background:#fff;border:1px solid #cfc2dd;color:#59357d}
 .exit{background:#3c2d50;color:#fff}
 
-.profile-card{margin-bottom:8px;padding:10px 12px;background:#fff;border:1px solid #e1d7eb;border-radius:16px;box-shadow:0 6px 18px rgba(60,40,80,.06)}
-.profile-title{margin-bottom:7px;font-size:12px;font-weight:900;color:#5b3a75}
-.profile-row{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:8px 0;border-top:1px solid #eee7f3}
-.profile-row:first-of-type{border-top:0}
-.profile-label{font-size:11px;font-weight:900;color:#756580}
-.profile-value{width:100%;font-size:14px;font-weight:900;color:#352443;word-break:keep-all;line-height:1.5}
-.profile-value .sub{font-size:11px;font-weight:600;color:#8b7c95;margin-left:4px}
-.profile-warning{display:none;margin-top:6px;padding:7px 9px;border-radius:10px;background:#fff4e8;color:#945114;font-size:11px;line-height:1.4}
+.birth-input-row{display:grid;grid-template-columns:1.45fr 1fr .62fr .62fr;gap:6px;align-items:end;margin-bottom:7px;padding:8px 9px;background:#fff;border:1px solid #e1d7eb;border-radius:14px;box-shadow:0 5px 16px rgba(60,40,80,.05)}
+.birth-field{min-width:0}
+.birth-field label{display:block;margin:0 0 3px;font-size:10px;font-weight:900;color:#5a347e;white-space:nowrap}
+.birth-field select{width:100%;height:32px;border:1px solid #d5c8df;border-radius:9px;padding:0 6px;background:#fff;font-size:12px;font-weight:800;color:#352443}
 
-.selector{display:flex;align-items:center;gap:7px;margin-bottom:8px;padding:8px 10px;background:#fff;border:1px solid #e1d7eb;border-radius:14px}
-.selector label{font-size:12px;font-weight:900;color:#51316f;white-space:nowrap}
-.selector select{flex:1;height:34px;border:1px solid #d5c8df;border-radius:10px;padding:0 9px;background:#fff;font-size:13px}
-.selector-note{font-size:10px;color:#8a7e92;line-height:1.35;margin-top:2px}
+.identity-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:7px}
+.identity-zodiac,.identity-age{display:flex;align-items:center;justify-content:center;gap:7px;min-height:46px;padding:7px 10px;background:#fff;border:1px solid #e1d7eb;border-radius:14px;box-shadow:0 4px 12px rgba(60,40,80,.04)}
+.identity-emoji{font-size:27px;line-height:1}
+.identity-zodiac strong,.identity-age strong{font-size:15px;color:#4a2b75}
+.identity-age span{font-size:11px;font-weight:800;color:#867791}
 
-.hero{padding:16px 14px;border-radius:20px;background:linear-gradient(135deg,#5c3784,#7a4da7);color:#fff;box-shadow:0 12px 28px rgba(78,44,110,.20);text-align:center}
-.zodiac{font-size:34px;line-height:1;margin-bottom:5px}
-.hero-title{font-size:13px;font-weight:800;opacity:.9}
-.fortune-score{font-size:34px;font-weight:900;line-height:1.1;margin:5px 0}
-.fortune-summary{font-size:15px;font-weight:900;line-height:1.45;word-break:keep-all}
+.total-fortune-row{display:flex;align-items:flex-start;gap:6px;margin-bottom:8px;padding:10px 12px;border-radius:14px;background:linear-gradient(135deg,#5c3784,#7a4da7);color:#fff;box-shadow:0 8px 20px rgba(78,44,110,.17);line-height:1.45}
+.total-fortune-title{flex:0 0 auto;font-size:13px;white-space:nowrap}
+.total-fortune-score{flex:0 0 auto;font-size:13px;color:#fff7b7;white-space:nowrap}
+.total-fortune-summary{font-size:13px;font-weight:800;word-break:keep-all}
 
 .grid{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}
 .card{background:#fff;border:1px solid #e6ddec;border-radius:15px;padding:10px;box-shadow:0 5px 16px rgba(60,40,80,.05)}
@@ -58,20 +54,6 @@ button,select{font-family:inherit}
   .title-wrap h1{font-size:17px}
   .date{font-size:9px}
   .top-btn{height:31px;min-width:52px;padding:0 8px;font-size:11px}
-  .profile-card{padding:8px 10px;margin-bottom:6px;border-radius:13px}
-  .profile-title{margin-bottom:4px;font-size:11px}
-  .profile-row{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:6px 0}
-  .profile-label{font-size:10px}
-  .profile-value{font-size:12px}
-  .profile-value .sub{font-size:9px}
-  .selector{padding:6px 8px;margin-bottom:6px}
-  .selector select{height:31px;font-size:12px}
-  .selector-note{font-size:9px}
-  .hero{padding:12px 10px;border-radius:16px}
-  .zodiac{font-size:28px;margin-bottom:3px}
-  .hero-title{font-size:11px}
-  .fortune-score{font-size:28px;margin:3px 0}
-  .fortune-summary{font-size:13px;line-height:1.35}
   .grid{gap:5px;margin-top:6px}
   .card{padding:8px;border-radius:12px}
   .card h3{font-size:11px;margin-bottom:3px}
@@ -82,6 +64,17 @@ button,select{font-family:inherit}
   .lucky-value{font-size:11px}
   .message{margin-top:6px;padding:8px;font-size:11px}
   .notice{font-size:8px;margin-top:5px}
+
+  .birth-input-row{grid-template-columns:1.45fr 1fr .58fr .58fr;gap:4px;padding:6px;margin-bottom:5px;border-radius:11px}
+  .birth-field label{font-size:9px;margin-bottom:2px}
+  .birth-field select{height:29px;padding:0 3px;font-size:10px}
+  .identity-row{gap:5px;margin-bottom:5px}
+  .identity-zodiac,.identity-age{min-height:39px;padding:5px 7px;border-radius:11px}
+  .identity-emoji{font-size:22px}
+  .identity-zodiac strong,.identity-age strong{font-size:13px}
+  .identity-age span{font-size:9px}
+  .total-fortune-row{gap:4px;margin-bottom:6px;padding:8px 9px;border-radius:11px;line-height:1.35}
+  .total-fortune-title,.total-fortune-score,.total-fortune-summary{font-size:11px}
 }
 </style>
 </head>
@@ -92,50 +85,56 @@ button,select{font-family:inherit}
   <div class="actions"><button type="button" class="top-btn back" id="backBtn">이벤트</button><button type="button" class="top-btn exit" id="exitBtn">나가기</button></div>
 </header>
 
-<section class="profile-card">
-  <div class="profile-title">회원 출생정보</div>
-
-  <div class="profile-row">
-    <div class="profile-label">1. 가입정보 기준</div>
-    <div class="profile-value" id="registeredProfile">확인 중...</div>
+<section class="birth-input-row">
+  <div class="birth-field zodiac-field">
+    <label for="zodiacSelect">본인 띠</label>
+    <select id="zodiacSelect">
+      <option value="쥐">🐭 쥐띠</option>
+      <option value="소">🐮 소띠</option>
+      <option value="호랑이">🐯 호랑이띠</option>
+      <option value="토끼">🐰 토끼띠</option>
+      <option value="용">🐲 용띠</option>
+      <option value="뱀">🐍 뱀띠</option>
+      <option value="말">🐴 말띠</option>
+      <option value="양">🐑 양띠</option>
+      <option value="원숭이">🐵 원숭이띠</option>
+      <option value="닭">🐔 닭띠</option>
+      <option value="개">🐶 개띠</option>
+      <option value="돼지">🐷 돼지띠</option>
+    </select>
   </div>
 
-  <div class="profile-row">
-    <div class="profile-label">2. 본인선택 기준</div>
-    <div class="profile-value" id="selectedProfile">띠를 선택해 주세요.</div>
+  <div class="birth-field year-field">
+    <label for="birthYearSelect">출생년</label>
+    <select id="birthYearSelect"></select>
   </div>
 
-  <div class="profile-warning" id="profileWarning"></div>
+  <div class="birth-field month-field">
+    <label for="birthMonthSelect">월</label>
+    <select id="birthMonthSelect"></select>
+  </div>
+
+  <div class="birth-field day-field">
+    <label for="birthDaySelect">일</label>
+    <select id="birthDaySelect"></select>
+  </div>
 </section>
 
-<div class="selector">
-  <div style="flex:1;min-width:0">
-    <div style="display:flex;align-items:center;gap:7px">
-      <label for="zodiacSelect">본인 띠 선택</label>
-      <select id="zodiacSelect">
-        <option value="쥐">🐭 쥐띠</option>
-        <option value="소">🐮 소띠</option>
-        <option value="호랑이">🐯 호랑이띠</option>
-        <option value="토끼">🐰 토끼띠</option>
-        <option value="용">🐲 용띠</option>
-        <option value="뱀">🐍 뱀띠</option>
-        <option value="말">🐴 말띠</option>
-        <option value="양">🐑 양띠</option>
-        <option value="원숭이">🐵 원숭이띠</option>
-        <option value="닭">🐔 닭띠</option>
-        <option value="개">🐶 개띠</option>
-        <option value="돼지">🐷 돼지띠</option>
-      </select>
-    </div>
-    <div class="selector-note">가입 출생년도와 다른 띠를 선택하면 가장 가까운 위·아래 출생년도로 자동 보정합니다.</div>
+<section class="identity-row">
+  <div class="identity-zodiac">
+    <span class="identity-emoji" id="zodiacEmoji">🔮</span>
+    <strong id="zodiacNameText">띠 선택</strong>
   </div>
-</div>
+  <div class="identity-age">
+    <span>나이</span>
+    <strong id="ageText">만 --세</strong>
+  </div>
+</section>
 
-<section class="hero">
-  <div class="zodiac" id="zodiacEmoji">🔮</div>
-  <div class="hero-title" id="heroTitle">오늘의 총운</div>
-  <div class="fortune-score" id="fortuneScore">--</div>
-  <div class="fortune-summary" id="fortuneSummary"></div>
+<section class="total-fortune-row">
+  <strong class="total-fortune-title">오늘의 총운 :</strong>
+  <strong class="total-fortune-score" id="fortuneScore">--점</strong>
+  <span class="total-fortune-summary" id="fortuneSummary"></span>
 </section>
 
 <section class="grid">
@@ -160,9 +159,8 @@ button,select{font-family:inherit}
 "use strict";
 
 var SESSION_KEY="geomam-event-session";
-var ZODIAC_KEY="geomam-fortune-zodiac-v2:";
+var PROFILE_KEY="geomam-fortune-profile-v3:";
 var session=null;
-var registeredBirth=null;
 
 var zodiacOrder=["쥐","소","호랑이","토끼","용","뱀","말","양","원숭이","닭","개","돼지"];
 var zodiacEmoji={
@@ -269,55 +267,107 @@ function loadSession(){
   return {code:"guest",name:"회원",birthDate:""};
 }
 
-function saveSession(nextSession){
-  session=normalizeSession(nextSession)||{code:"guest",name:"회원",birthDate:""};
-  try{
-    sessionStorage.setItem(SESSION_KEY,JSON.stringify(session));
-  }catch(e){}
-  registeredBirth=parseBirth6(session.birthDate);
-}
-
-function requestSessionFromBusSeat(){
-  try{
-    if(window.parent&&window.parent!==window){
-      window.parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"fortune"},"*");
-    }
-  }catch(e){}
-}
-
-window.addEventListener("message",function(event){
-  var data=event.data||{};
-  if(data.type!=="BUS_SEAT_EVENT_SESSION")return;
-  if(data.event && data.event!=="fortune" && data.event!=="index")return;
-
-  saveSession(data.session);
-
-  var defaultZodiac=registeredBirth?zodiacForYear(registeredBirth.year):"쥐";
-  var savedZodiac=loadSelectedZodiac(defaultZodiac);
-  if(zodiacOrder.indexOf(savedZodiac)<0)savedZodiac=defaultZodiac;
-  $("zodiacSelect").value=savedZodiac;
-
-  renderFortune();
-});
-
-function parseBirth6(value){
-  var digits=String(value||"").replace(/\D/g,"");
-  if(digits.length!==6)return null;
-
-  var yy=Number(digits.slice(0,2));
-  var month=Number(digits.slice(2,4));
-  var day=Number(digits.slice(4,6));
+function populateBirthSelectors(){
   var now=getKoreaNowParts();
-  var currentYY=now.year%100;
+  var yearSelect=$("birthYearSelect");
+  var monthSelect=$("birthMonthSelect");
+  var daySelect=$("birthDaySelect");
 
-  /* 현재 연도보다 큰 두 자리 연도는 1900년대, 그 이하는 2000년대로 해석 */
-  var year=yy<=currentYY?2000+yy:1900+yy;
+  yearSelect.innerHTML="";
+  for(var y=now.year-100;y<=now.year;y++){
+    var option=document.createElement("option");
+    option.value=String(y);
+    option.textContent=String(y);
+    yearSelect.appendChild(option);
+  }
 
-  if(month<1||month>12||day<1||day>31)return null;
-  var test=new Date(year,month-1,day);
-  if(test.getFullYear()!==year||test.getMonth()!==month-1||test.getDate()!==day)return null;
+  monthSelect.innerHTML="";
+  for(var m=1;m<=12;m++){
+    var monthOption=document.createElement("option");
+    monthOption.value=String(m);
+    monthOption.textContent=String(m);
+    monthSelect.appendChild(monthOption);
+  }
 
-  return {year:year,month:month,day:day,raw:digits};
+  daySelect.innerHTML="";
+  for(var d=1;d<=31;d++){
+    var dayOption=document.createElement("option");
+    dayOption.value=String(d);
+    dayOption.textContent=String(d);
+    daySelect.appendChild(dayOption);
+  }
+}
+
+function validDaysInMonth(year,month){
+  return new Date(Number(year),Number(month),0).getDate();
+}
+
+function refreshBirthDays(){
+  var year=Number($("birthYearSelect").value||1970);
+  var month=Number($("birthMonthSelect").value||1);
+  var daySelect=$("birthDaySelect");
+  var previous=Math.max(1,Number(daySelect.value||1));
+  var maxDay=validDaysInMonth(year,month);
+
+  daySelect.innerHTML="";
+  for(var day=1;day<=maxDay;day++){
+    var option=document.createElement("option");
+    option.value=String(day);
+    option.textContent=String(day);
+    daySelect.appendChild(option);
+  }
+  daySelect.value=String(Math.min(previous,maxDay));
+}
+
+function profileStorageKey(){
+  return PROFILE_KEY+String(session&&session.code||"guest");
+}
+
+function loadManualProfile(){
+  var now=getKoreaNowParts();
+  var fallbackYear=now.year-50;
+  var fallback={
+    zodiac:zodiacForYear(fallbackYear),
+    year:fallbackYear,
+    month:1,
+    day:1
+  };
+
+  try{
+    var raw=localStorage.getItem(profileStorageKey());
+    if(!raw)return fallback;
+    var saved=JSON.parse(raw)||{};
+    var year=Number(saved.year);
+    var month=Number(saved.month);
+    var day=Number(saved.day);
+
+    if(!year||year<now.year-100||year>now.year)year=fallback.year;
+    if(month<1||month>12)month=1;
+    var maxDay=validDaysInMonth(year,month);
+    if(day<1||day>maxDay)day=1;
+
+    return {
+      zodiac:zodiacOrder.indexOf(saved.zodiac)>=0?saved.zodiac:zodiacForYear(year),
+      year:year,
+      month:month,
+      day:day
+    };
+  }catch(e){
+    return fallback;
+  }
+}
+
+function saveManualProfile(){
+  var profile={
+    zodiac:$("zodiacSelect").value,
+    year:Number($("birthYearSelect").value),
+    month:Number($("birthMonthSelect").value),
+    day:Number($("birthDaySelect").value)
+  };
+  try{
+    localStorage.setItem(profileStorageKey(),JSON.stringify(profile));
+  }catch(e){}
+  return profile;
 }
 
 function zodiacForYear(year){
@@ -336,26 +386,6 @@ function ageAtToday(year,month,day){
   return age;
 }
 
-function nearestYearForZodiac(baseYear,zodiac){
-  var best=null;
-  for(var delta=-24;delta<=24;delta++){
-    var y=baseYear+delta;
-    if(zodiacForYear(y)!==zodiac)continue;
-    var candidate={year:y,delta:delta,distance:Math.abs(delta)};
-    if(!best ||
-       candidate.distance<best.distance ||
-       (candidate.distance===best.distance && candidate.year<best.year)){
-      best=candidate;
-    }
-  }
-  return best?best.year:baseYear;
-}
-
-function profileText(year,month,day,zodiac){
-  var age=ageAtToday(year,month,day);
-  return year+"년생 · 만 "+age+"세 · "+zodiac+"띠";
-}
-
 function hashText(text){
   var h=2166136261;
   for(var i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619)}
@@ -366,63 +396,25 @@ function pick(arr,seed,salt){
   return arr[hashText(seed+"|"+salt)%arr.length];
 }
 
-function loadSelectedZodiac(defaultValue){
-  try{
-    return localStorage.getItem(ZODIAC_KEY+session.code)||defaultValue;
-  }catch(e){return defaultValue}
-}
-
-function saveSelectedZodiac(value){
-  try{localStorage.setItem(ZODIAC_KEY+session.code,value)}catch(e){}
-}
-
-function renderProfiles(){
-  var warning=$("profileWarning");
-  warning.style.display="none";
-  warning.textContent="";
-
-  if(!registeredBirth){
-    $("registeredProfile").textContent="가입정보의 생년월일을 확인할 수 없습니다.";
-    $("selectedProfile").textContent="출생년도 확인 후 계산할 수 있습니다.";
-    warning.textContent="가입정보를 다시 불러오는 중입니다. 잠시 후에도 표시되지 않으면 bus-seat에서 다시 로그인해 주세요.";
-    warning.style.display="block";
-    return null;
-  }
-
-  var registeredZodiac=zodiacForYear(registeredBirth.year);
-  $("registeredProfile").textContent=profileText(
-    registeredBirth.year,registeredBirth.month,registeredBirth.day,registeredZodiac
-  );
-
-  var selected=$("zodiacSelect").value;
-  var adjustedYear=nearestYearForZodiac(registeredBirth.year,selected);
-
-  $("selectedProfile").innerHTML=
-    profileText(adjustedYear,registeredBirth.month,registeredBirth.day,selected)+
-    (adjustedYear!==registeredBirth.year
-      ? '<span class="sub">(가입년도 '+registeredBirth.year+'년 → '+adjustedYear+'년 보정)</span>'
-      : '<span class="sub">(가입년도와 일치)</span>');
-
-  return {
-    selectedZodiac:selected,
-    adjustedYear:adjustedYear,
-    age:ageAtToday(adjustedYear,registeredBirth.month,registeredBirth.day)
-  };
-}
-
 function renderFortune(){
-  var profile=renderProfiles();
-  var zodiac=$("zodiacSelect").value;
-  saveSelectedZodiac(zodiac);
+  refreshBirthDays();
 
-  var birthSeed=profile?String(profile.adjustedYear):"unknown";
-  var seed=koreaDateKey()+"|"+session.code+"|"+birthSeed+"|"+zodiac;
+  var profile=saveManualProfile();
+  var zodiac=profile.zodiac;
+  var age=ageAtToday(profile.year,profile.month,profile.day);
+
+  var seed=koreaDateKey()+"|"+String(session&&session.code||"guest")+"|"+
+    profile.year+"|"+profile.month+"|"+profile.day+"|"+zodiac;
+
   var score=70+(hashText(seed+"|score")%30);
 
   $("zodiacEmoji").textContent=zodiacEmoji[zodiac]||"🔮";
-  $("heroTitle").textContent=zodiac+"띠 · 오늘의 총운";
-  $("fortuneScore").textContent=score;
+  $("zodiacNameText").textContent=zodiac+"띠";
+  $("ageText").textContent="만 "+age+"세";
+
+  $("fortuneScore").textContent=score+"점";
   $("fortuneSummary").textContent=pick(summaries,seed,"summary");
+
   $("healthText").textContent=pick(health,seed,"health");
   $("moneyText").textContent=pick(money,seed,"money");
   $("relationText").textContent=pick(relation,seed,"relation");
@@ -439,27 +431,31 @@ function goEventMain(){
 
 $("backBtn").addEventListener("click",goEventMain);
 $("exitBtn").addEventListener("click",goEventMain);
+
 $("zodiacSelect").addEventListener("change",renderFortune);
+$("birthYearSelect").addEventListener("change",function(){
+  refreshBirthDays();
+  renderFortune();
+});
+$("birthMonthSelect").addEventListener("change",function(){
+  refreshBirthDays();
+  renderFortune();
+});
+$("birthDaySelect").addEventListener("change",renderFortune);
 
 $("dateText").textContent=displayDate();
+session=loadSession();
 
-saveSession(loadSession());
+populateBirthSelectors();
 
-var defaultZodiac=registeredBirth?zodiacForYear(registeredBirth.year):"쥐";
-var initialZodiac=loadSelectedZodiac(defaultZodiac);
-if(zodiacOrder.indexOf(initialZodiac)<0)initialZodiac=defaultZodiac;
-$("zodiacSelect").value=initialZodiac;
+var savedProfile=loadManualProfile();
+$("zodiacSelect").value=savedProfile.zodiac;
+$("birthYearSelect").value=String(savedProfile.year);
+$("birthMonthSelect").value=String(savedProfile.month);
+refreshBirthDays();
+$("birthDaySelect").value=String(savedProfile.day);
 
 renderFortune();
-
-/* fortune 화면이 직접 bus-seat에 로그인 회원정보를 다시 요청 */
-requestSessionFromBusSeat();
-window.setTimeout(function(){
-  if(!registeredBirth)requestSessionFromBusSeat();
-},500);
-window.setTimeout(function(){
-  if(!registeredBirth)requestSessionFromBusSeat();
-},1500);
 
 })();
 </script>
