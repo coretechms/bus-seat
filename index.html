@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#0b2d58" />
-  <meta name="bus-seat-version" content="50.9.8" />
+  <meta name="bus-seat-version" content="50.9.7" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" sizes="180x180" href="geomam-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="geomam-icon-192.png" />
@@ -38,7 +38,7 @@
        ============================================================== -->
   <script id="bus-seat-map-maintenance-config">
     window.BUS_SEAT_MAP_CONFIG = Object.freeze({
-      version: "50.9.8-manual-update-only",
+      version: "50.9.7-full-seat-prompt-soft-event",
       mobileQuery: "(max-width: 760px), (pointer: coarse)",
 
       back: Object.freeze({
@@ -4234,7 +4234,7 @@ body.member-mode .alt-arrow-cell {
               <button class="btn btn-outline" id="boardImageModeBtn" type="button" style="height:28px; padding:0 13px; white-space:nowrap;">화면반전</button>
               <button class="btn btn-outline" id="appUpdateBtn" type="button" title="신규 버전을 확인하고 자동 업데이트합니다." style="height:28px; padding:0 10px; white-space:nowrap;">업데이트</button>
               <button class="btn btn-outline" id="memberTopLogoutBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">로그아웃</button>
-              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap;">이 벤 트</button>
+              <button class="btn btn-outline" id="memberLuckyEventBtn" type="button" style="width:auto; height:28px; padding:0 10px; font-size:10px; white-space:nowrap; background:#e8f3f8 !important; border-color:#bfd9e5 !important; color:#355b6d !important;">이 벤 트</button>
 </div>
             <div class="tabs">
               <button class="tab active" id="memberTab" type="button">회원 입력</button>
@@ -6279,8 +6279,9 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       clearMemberLoginPrompts();
       const settings = state.loginNoticeSettings || {};
       const isAdminSession = String(session.code || "").toUpperCase() === "ADMIN" || String(session.role || "") === "admin";
-      /* 1호차가 만차이면 새 좌석을 등록할 수 없으므로
-         좌석 미등록 회원에게도 등록 안내 말풍선을 표시하지 않는다. */
+
+      /* 1호차가 만차이면 신규 좌석 등록 안내가 불필요하므로
+         좌석 미등록 회원에게 로그인 안내 말풍선을 표시하지 않는다. */
       const firstVehicleIsFull = vehicleSummary("1").remaining <= 0;
       if (!isAdminSession && !firstVehicleIsFull && !memberHasRegisteredSeat(session)) {
         showMemberLoginPrompt("seat", settings.noSeatMessage || DEFAULT_NO_SEAT_LOGIN_NOTICE, 0);
@@ -12479,7 +12480,6 @@ const adminLogout = e.target && e.target.closest ? e.target.closest("#adminPanel
     setTimeout(enforceMemberInputModeHiddenUi, 0);
     setTimeout(enforceMemberInputModeHiddenUi, 250);
     try { window.__busSeatShowPostLoginPrompts?.(registeredSession); } catch (error) {}
-
   }
 
   async function joinMember() {
@@ -17348,7 +17348,13 @@ body.admin-mode:not(.member-manage-mode) .controls {
     function initAppUpdater() {
       bindUpdateButton();
       registerServiceWorker();
-      /* 업데이트 확인/적용은 관리자 업데이트 버튼 클릭 시에만 실행 */
+
+      /* 관리자 화면 진입 시 백그라운드로 새 버전 존재 여부만 확인 */
+      window.setTimeout(function () {
+        if (document.body?.classList.contains("admin-mode")) {
+          checkForUpdate(true);
+        }
+      }, 900);
     }
 
     if (document.readyState === "loading") {
@@ -17358,6 +17364,18 @@ body.admin-mode:not(.member-manage-mode) .controls {
     }
 
     window.addEventListener("load", initAppUpdater);
+
+    /* 모드가 나중에 관리자 화면으로 바뀌는 경우 버튼 상태와 버전도 확인 */
+    document.addEventListener("click", function (event) {
+      var adminTab = event.target?.closest?.("#adminTab");
+      if (!adminTab) return;
+      window.setTimeout(function () {
+        bindUpdateButton();
+        if (document.body?.classList.contains("admin-mode")) {
+          checkForUpdate(true);
+        }
+      }, 400);
+    }, true);
 
     window.__busSeatCheckForUpdate = checkForUpdate;
   })();
