@@ -291,20 +291,12 @@ function restorePlayed(q,played){
   }
 }
 
-function sendExit(){
-  try{
-    if(window.parent&&window.parent!==window){
-      window.parent.postMessage({type:"BUS_SEAT_EVENT_EXIT",event:"quiz"},"*");
-      return;
-    }
-  }catch(e){}
-  try{history.back()}catch(e){}
+function goEventMain(){
+  window.location.href=new URL("index.html",window.location.href).href;
 }
 
-$("backBtn").addEventListener("click",function(){
-  window.location.href=new URL("index.html",window.location.href).href;
-});
-$("exitBtn").addEventListener("click",sendExit);
+$("backBtn").addEventListener("click",goEventMain);
+$("exitBtn").addEventListener("click",goEventMain);
 
 $("todayText").textContent=displayDate();
 session=loadSession();
