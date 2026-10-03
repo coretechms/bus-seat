@@ -31,7 +31,7 @@ button{font-family:inherit}
 .result{display:none;margin-top:9px;padding:10px 12px;border-radius:14px;line-height:1.45}.result.show{display:block}.result.ok{background:#eef9f1;border:1px solid #bfe1c7;color:#225c2b}.result.no{background:#fff4f2;border:1px solid #f3c5bf;color:#8f2d25}
 .result-title{font-size:15px;font-weight:900;margin-bottom:3px}.explain{margin-top:5px;padding-top:5px;border-top:1px dashed rgba(0,0,0,.14);font-size:12px}
 .next-btn{display:none;width:100%;height:40px;margin-top:8px;border:0;border-radius:13px;background:#0b2d58;color:#fff;font-size:14px;font-weight:900;cursor:pointer}.next-btn.show{display:block}
-.complete{display:none;text-align:center;padding:12px 2px}.complete.show{display:block}.complete-emoji{font-size:58px;line-height:1;margin-bottom:10px}.complete h2{margin:0 0 8px;color:#0b2d58;font-size:27px}.score{font-size:38px;font-weight:900;color:#174d8a;margin:8px 0}.score-sub{font-size:14px;color:#667085;line-height:1.6}
+
 .footer-note{margin-top:8px;text-align:center;color:#7b8794;font-size:10px;line-height:1.35}
 @media(max-width:520px){
   .app{padding:max(6px,env(safe-area-inset-top)) 7px max(6px,env(safe-area-inset-bottom))}
@@ -54,11 +54,6 @@ button{font-family:inherit}
   .explain{margin-top:3px;padding-top:3px;font-size:11px;line-height:1.3}
   .next-btn{height:36px;margin-top:6px;border-radius:11px;font-size:13px}
   .footer-note{display:none}
-  .complete{padding:8px 2px}
-  .complete-emoji{font-size:42px;margin-bottom:6px}
-  .complete h2{font-size:22px;margin-bottom:5px}
-  .score{font-size:32px;margin:5px 0}
-  .score-sub{font-size:12px;line-height:1.4}
 }
 </style>
 </head>
@@ -70,7 +65,7 @@ button{font-family:inherit}
 </header>
 
 <div class="progress-wrap">
-  <div class="progress-row"><span id="progressText">1 / 5</span><span id="scoreText">정답 0</span></div>
+  <div class="progress-row"><span id="progressText">1번째 문제</span><span id="scoreText">정답 0</span></div>
   <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
 </div>
 
@@ -89,14 +84,7 @@ button{font-family:inherit}
   <button type="button" class="next-btn" id="nextBtn">다음 문제</button>
 </div>
 
-<div class="complete" id="completeBox">
-  <div class="complete-emoji">🏆</div>
-  <h2>오늘의 퀴즈 완료!</h2>
-  <div class="score" id="finalScore"></div>
-  <div class="score-sub" id="finalMessage"></div>
-</div>
-
-<div class="footer-note">하루 최대 5문제까지 제출할 수 있습니다.<br>내일은 새로운 5문제가 준비됩니다.</div>
+<div class="footer-note">문제 수 제한 없이 계속 도전할 수 있습니다.</div>
 </section>
 </div></main>
 
@@ -105,10 +93,9 @@ button{font-family:inherit}
 "use strict";
 
 var SESSION_KEY="geomam-event-session";
-var PLAY_PREFIX="geomam-quiz-v2:";
-var DAILY_LIMIT=5;
+var PLAY_PREFIX="geomam-quiz-v3-unlimited:";
 var session=null;
-var dailyQuestions=[];
+var quizSequence=[];
 var state=null;
 
 var questions=[
@@ -210,45 +197,54 @@ function seededOrder(list,seed){
   });
 }
 
-function buildDailyQuestions(){
+function buildQuestionSequence(cycle){
   var date=koreaDateKey();
-  var nonsense=seededOrder(questions.filter(function(q){return q.cat==="넌센스"}),date+"|N");
-  var common=seededOrder(questions.filter(function(q){return q.cat==="상식"}),date+"|C");
-  var info=seededOrder(questions.filter(function(q){return q.cat==="정보"}),date+"|I");
+  var memberSeed=String(session&&session.code||"guest");
+  var cycleNo=Math.max(0,Number(cycle||0));
 
-  /* 매일 5문제: 넌센스 2 + 상식 2 + 정보 1, 날짜마다 순서 변동 */
-  var selected=[
-    nonsense[0], common[0], info[0], nonsense[1], common[1]
-  ].filter(Boolean);
-
-  return seededOrder(selected,date+"|ORDER").slice(0,DAILY_LIMIT);
+  /* 전체 문제은행을 매 회차마다 다른 순서로 섞어서 사용 */
+  return seededOrder(
+    questions,
+    date+"|"+memberSeed+"|CYCLE|"+cycleNo
+  );
 }
 
-function stateKey(){return PLAY_PREFIX+session.code+":"+koreaDateKey()}
+function stateKey(){return PLAY_PREFIX+session.code}
 
 function loadState(){
   try{
     var raw=localStorage.getItem(stateKey());
     if(raw){
       var saved=JSON.parse(raw);
-      if(saved && Array.isArray(saved.answers)) return saved;
+      if(saved && Array.isArray(saved.answers)){
+        return {
+          index:Math.max(0,Number(saved.index||0)),
+          answers:saved.answers,
+          score:Math.max(0,Number(saved.score||0)),
+          cycle:Math.max(0,Number(saved.cycle||0)),
+          totalAnswered:Math.max(0,Number(saved.totalAnswered||saved.answers.length||0))
+        };
+      }
     }
   }catch(e){}
-  return {index:0,answers:[],score:0,completed:false};
+  return {index:0,answers:[],score:0,cycle:0,totalAnswered:0};
 }
 
 function saveState(){
   try{localStorage.setItem(stateKey(),JSON.stringify(state))}catch(e){}
 }
 
-function currentQuestion(){return dailyQuestions[state.index]}
+function currentQuestion(){return quizSequence[state.index]}
 
 function updateProgress(){
-  var answered=state.answers.length;
-  var current=state.completed?DAILY_LIMIT:Math.min(state.index+1,DAILY_LIMIT);
-  $("progressText").textContent=current+" / "+DAILY_LIMIT;
+  var questionNumber=state.totalAnswered+1;
+  $("progressText").textContent=questionNumber+"번째 문제";
   $("scoreText").textContent="정답 "+state.score;
-  $("progressBar").style.width=((answered/DAILY_LIMIT)*100)+"%";
+
+  /* 제한 없는 퀴즈이므로 진행바는 현재 문제은행 한 바퀴의 진행 정도만 표시 */
+  var total=Math.max(1,quizSequence.length);
+  var position=Math.min(state.index,total-1);
+  $("progressBar").style.width=(((position+1)/total)*100)+"%";
 }
 
 function resetQuestionUI(){
@@ -259,18 +255,21 @@ function resetQuestionUI(){
 }
 
 function renderQuestion(){
-  if(state.completed || state.index>=dailyQuestions.length){
-    showComplete();
+  if(!quizSequence.length){
+    $("questionText").textContent="출제할 문제가 없습니다.";
     return;
   }
 
+  if(state.index>=quizSequence.length){
+    state.index=0;
+  }
+
   $("quizArea").style.display="block";
-  $("completeBox").className="complete";
   resetQuestionUI();
 
   var q=currentQuestion();
   $("categoryText").textContent=q.cat;
-  $("questionText").textContent=(state.index+1)+". "+q.q;
+  $("questionText").textContent=(state.totalAnswered+1)+". "+q.q;
   updateProgress();
 
   var wrap=document.createElement("div");
@@ -311,18 +310,16 @@ function submitAnswer(value,button){
   };
 
   if(correct) state.score++;
+  state.totalAnswered++;
   saveState();
 
   markAnswers(q,value);
   showResult(q,correct);
 
-  if(state.index>=DAILY_LIMIT-1){
-    $("nextBtn").textContent="결과 보기";
-  }else{
-    $("nextBtn").textContent="다음 문제";
-  }
+  $("nextBtn").textContent="다음 문제";
   $("nextBtn").className="next-btn show";
-  updateProgress();
+  $("progressText").textContent=state.totalAnswered+"문제 완료";
+  $("scoreText").textContent="정답 "+state.score;
 }
 
 function markAnswers(q,userValue){
@@ -362,42 +359,25 @@ function restoreAnswer(saved){
   var q=currentQuestion();
   markAnswers(q,saved.value);
   showResult(q,!!saved.correct);
-  $("nextBtn").textContent=state.index>=DAILY_LIMIT-1?"결과 보기":"다음 문제";
+  $("nextBtn").textContent="다음 문제";
   $("nextBtn").className="next-btn show";
 }
 
 function nextQuestion(){
   if(!state.answers[state.index]) return;
 
-  if(state.index>=DAILY_LIMIT-1){
-    state.completed=true;
-    saveState();
-    showComplete();
-    return;
+  state.index++;
+
+  /* 문제은행 끝까지 풀면 새 순서로 다시 시작 */
+  if(state.index>=quizSequence.length){
+    state.cycle++;
+    state.index=0;
+    state.answers=[];
+    quizSequence=buildQuestionSequence(state.cycle);
   }
 
-  state.index++;
   saveState();
   renderQuestion();
-}
-
-function showComplete(){
-  state.completed=true;
-  saveState();
-  $("quizArea").style.display="none";
-  $("completeBox").className="complete show";
-  $("finalScore").textContent=state.score+" / "+DAILY_LIMIT;
-
-  var msg="";
-  if(state.score===5) msg="완벽합니다! 오늘의 퀴즈 5문제를 모두 맞혔습니다.";
-  else if(state.score>=4) msg="훌륭합니다! 오늘도 좋은 성적입니다.";
-  else if(state.score>=3) msg="좋습니다! 내일도 가볍게 도전해 보세요.";
-  else msg="재미있게 풀었다면 성공입니다. 내일 다시 도전해 보세요.";
-
-  $("finalMessage").textContent=msg;
-  $("progressText").textContent=DAILY_LIMIT+" / "+DAILY_LIMIT;
-  $("scoreText").textContent="정답 "+state.score;
-  $("progressBar").style.width="100%";
 }
 
 function goEventMain(){
@@ -410,12 +390,19 @@ $("nextBtn").addEventListener("click",nextQuestion);
 
 $("todayText").textContent=displayDate();
 session=loadSession();
-dailyQuestions=buildDailyQuestions();
+quizSequence=buildQuestionSequence(0);
 state=loadState();
 
-/* 이전 저장 데이터 이상 방지 */
+/* 저장 데이터 이상 방지 */
 if(state.index<0) state.index=0;
-if(state.index>=DAILY_LIMIT && !state.completed) state.completed=true;
+if(state.cycle<0) state.cycle=0;
+if(state.totalAnswered<0) state.totalAnswered=0;
+
+quizSequence=buildQuestionSequence(state.cycle);
+if(state.index>=quizSequence.length){
+  state.index=0;
+  state.answers=[];
+}
 
 renderQuestion();
 
