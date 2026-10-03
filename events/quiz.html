@@ -84,7 +84,7 @@ button{font-family:inherit}
   <button type="button" class="next-btn" id="nextBtn">다음 문제</button>
 </div>
 
-<div class="footer-note">문제 수 제한 없이 계속 도전할 수 있습니다.</div>
+<div class="footer-note">2,000문제 문제은행을 계속 도전할 수 있습니다.</div>
 </section>
 </div></main>
 
@@ -98,60 +98,32 @@ var session=null;
 var quizSequence=[];
 var state=null;
 
-var questions=[
-/* ===== 넌센스 ===== */
-{cat:"넌센스",type:"choice",q:"세상에서 가장 뜨거운 과일은?",choices:["사과","천도복숭아","수박","감"],answer:1,ex:"'천도(1000도)'라는 말장난을 이용한 넌센스 문제입니다."},
-{cat:"넌센스",type:"choice",q:"세상에서 가장 야한 닭은?",choices:["후라이드","백숙","홀닭","삼계탕"],answer:2,ex:"'홀딱'과 '홀닭'의 발음을 이용한 넌센스입니다."},
-{cat:"넌센스",type:"choice",q:"세상에서 가장 지저분한 집은?",choices:["계집","옆집","우리집","빈집"],answer:0,ex:"'계집'이라는 단어를 집으로 비튼 말장난입니다."},
-{cat:"넌센스",type:"choice",q:"오리가 얼면 무엇이 될까요?",choices:["언덕","얼오리","빙수","오리탕"],answer:0,ex:"오리(duck)가 언다는 뜻을 '언 덕'으로 비튼 문제입니다."},
-{cat:"넌센스",type:"choice",q:"왕이 넘어지면?",choices:["킹콩","왕복","킹카","임금"],answer:0,ex:"'킹'이 '콩' 하고 넘어진다는 말장난입니다."},
-{cat:"넌센스",type:"choice",q:"신사가 자기 소개할 때 하는 말은?",choices:["신사임당","반갑습니다","젠틀맨","안녕하세요"],answer:0,ex:"'신사임당'을 '신사입니다'처럼 비튼 말장난입니다."},
-{cat:"넌센스",type:"choice",q:"세상에서 가장 쉬운 숫자는?",choices:["190000","1004","2","0"],answer:0,ex:"190000을 '십구만' → '쉽구만'으로 읽는 말장난입니다."},
-{cat:"넌센스",type:"choice",q:"세상에서 가장 가난한 왕은?",choices:["최저임금","최저왕","거지왕","임금"],answer:0,ex:"왕의 임금과 급여의 임금을 겹친 말장난입니다."},
-{cat:"넌센스",type:"choice",q:"세상에서 가장 뜨거운 전화는?",choices:["화상전화","휴대전화","공중전화","영상통화"],answer:0,ex:"'화상'을 뜨거워 입은 화상과 영상통화 의미로 겹친 말장난입니다."},
-{cat:"넌센스",type:"choice",q:"세상에서 가장 잔인한 비빔밥은?",choices:["산채비빔밥","돌솥비빔밥","육회비빔밥","열무비빔밥"],answer:0,ex:"'산채'를 '산 채로'처럼 해석한 넌센스입니다."},
-{cat:"넌센스",type:"choice",q:"자동차를 톡 치면?",choices:["카톡","택시","톡카","차차차"],answer:0,ex:"카(car)를 톡 친다는 말장난입니다."},
-{cat:"넌센스",type:"choice",q:"소가 웃으면?",choices:["우하하","소소","음메","미소"],answer:3,ex:"'미소'에 '소'가 들어가는 말장난입니다."},
-{cat:"넌센스",type:"choice",q:"세상에서 가장 억울한 도형은?",choices:["원통","삼각형","사각형","타원"],answer:0,ex:"억울하면 '원통하다'는 표현을 이용한 문제입니다."},
-{cat:"넌센스",type:"choice",q:"세상에서 가장 뜨거운 바다는?",choices:["열받아","동해","남해","홍해"],answer:0,ex:"'열 받아'를 바다 이름처럼 만든 말장난입니다."},
-{cat:"넌센스",type:"choice",q:"도둑이 가장 싫어하는 아이스크림은?",choices:["누가바","돼지바","메로나","스크류바"],answer:0,ex:"도둑 입장에서 '누가 봐'를 떠올리는 말장난입니다."},
-
-/* ===== 상식 ===== */
-{cat:"상식",type:"choice",q:"대한민국의 국화는 무엇일까요?",choices:["장미","무궁화","진달래","개나리"],answer:1,ex:"대한민국의 국화는 무궁화입니다."},
-{cat:"상식",type:"choice",q:"우리나라에서 가장 높은 산은?",choices:["설악산","지리산","한라산","북한산"],answer:2,ex:"한라산은 해발 1,947m로 대한민국에서 가장 높은 산입니다."},
-{cat:"상식",type:"choice",q:"물의 화학식은?",choices:["CO2","H2O","O2","NaCl"],answer:1,ex:"물은 수소 2개와 산소 1개로 이루어진 H2O입니다."},
-{cat:"상식",type:"choice",q:"지구의 위성은 무엇일까요?",choices:["태양","달","금성","화성"],answer:1,ex:"달은 지구의 자연위성입니다."},
-{cat:"상식",type:"choice",q:"대한민국 수도는?",choices:["부산","서울","인천","대전"],answer:1,ex:"대한민국의 수도는 서울입니다."},
-{cat:"상식",type:"choice",q:"태양계에서 가장 큰 행성은?",choices:["지구","토성","목성","화성"],answer:2,ex:"목성은 태양계에서 가장 큰 행성입니다."},
-{cat:"상식",type:"choice",q:"한글을 창제한 왕은?",choices:["태조","세종대왕","정조","광해군"],answer:1,ex:"세종대왕은 훈민정음을 창제했습니다."},
-{cat:"상식",type:"choice",q:"우리나라의 동쪽 바다는?",choices:["동해","서해","남해","황해"],answer:0,ex:"대한민국 동쪽에 있는 바다는 동해입니다."},
-{cat:"상식",type:"choice",q:"1년은 보통 며칠일까요?",choices:["364일","365일","366일","360일"],answer:1,ex:"평년은 365일이며, 윤년은 366일입니다."},
-{cat:"상식",type:"choice",q:"사람의 정상 체온은 대략 어느 범위일까요?",choices:["30~32℃","36~37℃","40~42℃","25~27℃"],answer:1,ex:"개인차는 있지만 일반적으로 약 36~37℃ 범위로 알려져 있습니다."},
-{cat:"상식",type:"ox",q:"달은 스스로 빛을 낸다.",answer:false,ex:"달은 태양빛을 반사해서 밝게 보입니다."},
-{cat:"상식",type:"ox",q:"고래는 물고기이다.",answer:false,ex:"고래는 새끼를 낳고 젖을 먹이는 포유류입니다."},
-{cat:"상식",type:"ox",q:"대한민국의 국기는 태극기이다.",answer:true,ex:"대한민국의 국기는 태극기입니다."},
-{cat:"상식",type:"ox",q:"사계절은 봄, 여름, 가을, 겨울이다.",answer:true,ex:"우리나라의 대표적인 사계절은 봄·여름·가을·겨울입니다."},
-{cat:"상식",type:"ox",q:"금성은 태양계 행성 중 하나이다.",answer:true,ex:"금성은 태양에서 두 번째로 가까운 행성입니다."},
-
-/* ===== 정보 ===== */
-{cat:"정보",type:"choice",q:"산행 중 갈증이 심해지기 전에 하는 것이 좋은 것은?",choices:["물을 조금씩 자주 마신다","끝날 때까지 참는다","한 번에 아주 많이 마신다","커피만 마신다"],answer:0,ex:"산행 중에는 갈증이 심해지기 전에 물을 조금씩 자주 마시는 편이 좋습니다."},
-{cat:"정보",type:"choice",q:"내리막길에서 무릎 부담을 줄이는 데 도움이 되는 방법은?",choices:["보폭을 크게 한다","빠르게 뛴다","보폭을 줄이고 천천히 걷는다","뒤로 걷는다"],answer:2,ex:"내리막에서는 보폭을 줄이고 속도를 낮추는 것이 무릎 부담을 줄이는 데 도움이 됩니다."},
-{cat:"정보",type:"choice",q:"산행 전 준비운동으로 적절한 것은?",choices:["갑자기 전력질주","발목과 종아리를 가볍게 풀기","아무 준비 없이 출발","식사 직후 바로 뛰기"],answer:1,ex:"산행 전에는 발목·종아리·무릎 주변을 가볍게 풀어주는 것이 좋습니다."},
-{cat:"정보",type:"choice",q:"등산화 끈을 너무 느슨하게 묶으면 생길 수 있는 문제는?",choices:["발이 신발 안에서 움직일 수 있다","체온이 올라간다","배낭이 가벼워진다","시야가 좋아진다"],answer:0,ex:"끈이 너무 느슨하면 발이 신발 안에서 움직여 물집이나 발목 불안정이 생길 수 있습니다."},
-{cat:"정보",type:"choice",q:"더운 날 산행 때 중요한 준비는?",choices:["수분 준비","두꺼운 외투만 준비","물을 가져가지 않기","햇빛을 오래 쬐기"],answer:0,ex:"더운 날에는 충분한 수분과 햇빛 대비가 중요합니다."},
-{cat:"정보",type:"choice",q:"산행 중 길을 잃었을 때 가장 피해야 할 행동은?",choices:["현재 위치를 확인한다","무작정 계속 이동한다","일행과 연락한다","표지판을 확인한다"],answer:1,ex:"길을 잃었을 때 무작정 이동하면 더 멀리 벗어날 수 있어 현재 위치 확인이 우선입니다."},
-{cat:"정보",type:"choice",q:"배낭을 멜 때 무게 중심은 어디에 가까운 것이 좋을까요?",choices:["몸에서 멀리","등 쪽에 가깝게","한쪽 어깨에만","허리 아래로만"],answer:1,ex:"배낭은 몸에 밀착시키고 무게 중심을 등에 가깝게 두는 편이 안정적입니다."},
-{cat:"정보",type:"choice",q:"장시간 걷기 전 가장 좋은 신발은?",choices:["새 신발","발에 익숙한 신발","슬리퍼","굽 높은 신발"],answer:1,ex:"장시간 걷기에는 이미 발에 익숙한 신발이 물집 예방에 도움이 됩니다."},
-{cat:"정보",type:"choice",q:"산행 중 번개가 치기 시작하면 피하는 것이 좋은 곳은?",choices:["넓게 트인 능선","낮은 지대","건물 내부","안전한 대피소"],answer:0,ex:"번개가 칠 때는 노출된 능선이나 정상부처럼 높은 곳을 피하는 것이 좋습니다."},
-{cat:"정보",type:"choice",q:"걷다가 발에 물집이 생길 것 같은 느낌이 들면?",choices:["계속 참는다","초기에 쉬면서 마찰 부위를 확인한다","더 꽉 조인다","물을 묻힌다"],answer:1,ex:"초기에 마찰 부위를 확인하고 양말·신발 상태를 조정하면 악화를 줄이는 데 도움이 됩니다."},
-{cat:"정보",type:"ox",q:"산행 중에는 목이 마를 때까지 물을 전혀 마시지 않는 것이 좋다.",answer:false,ex:"갈증이 심해지기 전에 조금씩 수분을 보충하는 편이 좋습니다."},
-{cat:"정보",type:"ox",q:"산행 전날 충분한 수면은 컨디션 관리에 도움이 된다.",answer:true,ex:"충분한 수면은 피로와 집중력 관리에 도움이 됩니다."},
-{cat:"정보",type:"ox",q:"내리막길에서는 속도를 최대한 빨리 내는 것이 안전하다.",answer:false,ex:"내리막에서는 속도를 줄이고 균형을 유지하는 것이 안전에 더 도움이 됩니다."},
-{cat:"정보",type:"ox",q:"등산 스틱은 내리막에서 무릎 부담을 줄이는 데 도움을 줄 수 있다.",answer:true,ex:"올바르게 사용하면 체중 일부를 분산해 무릎 부담을 줄이는 데 도움이 될 수 있습니다."},
-{cat:"정보",type:"ox",q:"산행 중 일행과 너무 멀리 떨어져 걷는 것은 안전에 도움이 된다.",answer:false,ex:"일행과 적절한 간격을 유지하는 것이 비상 상황 대응에 더 유리합니다."}
-];
+var questions=[];
+var QUIZ_DATA_URL="quiz-data.html";
+var QUIZ_DATA_CACHE_KEY="geomam-quiz-data-cache-v2";
 
 function $(id){return document.getElementById(id)}
+function normalizeQuizItems(items){
+  return (Array.isArray(items)?items:[]).filter(function(q){
+    return q&&q.q&&q.cat&&(q.type==="choice"||q.type==="ox");
+  }).map(function(q){
+    var out={id:Number(q.id||0),cat:String(q.cat),type:String(q.type),q:String(q.q),answer:q.type==="choice"?Number(q.answer):!!q.answer,ex:String(q.ex||"")};
+    if(q.type==="choice")out.choices=Array.isArray(q.choices)?q.choices.map(String):[];
+    return out;
+  }).filter(function(q){return q.type==="ox"||(q.choices&&q.choices.length===4)});
+}
+function loadQuizDatabase(){
+  return new Promise(function(resolve,reject){
+    var done=false,frame=document.createElement("iframe");frame.hidden=true;frame.src=QUIZ_DATA_URL+"?v=2";document.body.appendChild(frame);
+    function clean(){window.removeEventListener("message",msg);if(frame.parentNode)frame.remove()}
+    function finish(items){if(done)return;var n=normalizeQuizItems(items);if(n.length<4)return;done=true;questions=n;try{localStorage.setItem(QUIZ_DATA_CACHE_KEY,JSON.stringify(n))}catch(e){}clean();resolve()}
+    function msg(ev){var d=ev.data||{};if(d.type==="QUIZ_DATABASE_READY")finish(d.items)}
+    window.addEventListener("message",msg);
+    frame.onerror=function(){var c=[];try{c=normalizeQuizItems(JSON.parse(localStorage.getItem(QUIZ_DATA_CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){done=true;questions=c;clean();resolve()}else{clean();reject(new Error("quiz-data.html 연결 실패"))}};
+    setTimeout(function(){if(done)return;var c=[];try{c=normalizeQuizItems(JSON.parse(localStorage.getItem(QUIZ_DATA_CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){done=true;questions=c;clean();resolve()}else{clean();reject(new Error("퀴즈 데이터 응답시간 초과"))}},5000);
+  });
+}
+
 
 function koreaDateKey(){
   try{
@@ -390,21 +362,26 @@ $("nextBtn").addEventListener("click",nextQuestion);
 
 $("todayText").textContent=displayDate();
 session=loadSession();
-quizSequence=buildQuestionSequence(0);
-state=loadState();
 
-/* 저장 데이터 이상 방지 */
-if(state.index<0) state.index=0;
-if(state.cycle<0) state.cycle=0;
-if(state.totalAnswered<0) state.totalAnswered=0;
+loadQuizDatabase().then(function(){
+  quizSequence=buildQuestionSequence(0);
+  state=loadState();
 
-quizSequence=buildQuestionSequence(state.cycle);
-if(state.index>=quizSequence.length){
-  state.index=0;
-  state.answers=[];
-}
+  if(state.index<0) state.index=0;
+  if(state.cycle<0) state.cycle=0;
+  if(state.totalAnswered<0) state.totalAnswered=0;
 
-renderQuestion();
+  quizSequence=buildQuestionSequence(state.cycle);
+  if(state.index>=quizSequence.length){
+    state.index=0;
+    state.answers=[];
+  }
+  renderQuestion();
+}).catch(function(error){
+  $("questionText").textContent="퀴즈 문제 데이터를 불러오지 못했습니다.";
+  $("statusText").textContent=String(error&&error.message||"quiz-data.html 연결 실패");
+  $("answerArea").innerHTML="";
+});
 
 })();
 </script>
