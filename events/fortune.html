@@ -482,6 +482,9 @@ button,select{font-family:inherit}
     </div>
   </div>
 </section>
+<section class="message" id="traditionalFactBox" style="margin-top:0;margin-bottom:8px;background:#f7f1fb;color:#5d4670;">
+  <strong>📚 전통 띠 정보</strong><br><span id="traditionalFactText"></span>
+</section>
 <section class="total-fortune-row">
   <div class="total-fortune-head">
     <strong class="total-fortune-title">오늘의 총운 :</strong>
@@ -515,66 +518,83 @@ var SESSION_KEY="geomam-event-session";
 var PROFILE_KEY="geomam-fortune-profile-v3:";
 var session=null;
 
+var FORTUNE_DATA_URL="fortune-data.html";
+var FORTUNE_DATA_CACHE_KEY="geomam-fortune-data-cache-v1";
+var FORTUNE_DB=null;
+
 var zodiacOrder=["쥐","소","호랑이","토끼","용","뱀","말","양","원숭이","닭","개","돼지"];
 var zodiacEmoji={
   "쥐":"🐭","소":"🐮","호랑이":"🐯","토끼":"🐰","용":"🐲","뱀":"🐍",
   "말":"🐴","양":"🐑","원숭이":"🐵","닭":"🐔","개":"🐶","돼지":"🐷"
 };
 
-var summaries=[
-  "작은 기회가 자연스럽게 찾아오는 날입니다. 서두르지 말고 흐름을 살펴보세요.",
-  "익숙한 사람과의 대화에서 좋은 힌트를 얻을 수 있는 날입니다.",
-  "평소 미뤄둔 일을 하나 정리하면 마음까지 가벼워지는 날입니다.",
-  "욕심보다 균형을 택하면 결과가 더 편안하게 따라오는 날입니다.",
-  "기분 좋은 변화가 생길 수 있습니다. 열린 마음으로 하루를 시작해 보세요.",
-  "한 번 더 확인하는 습관이 좋은 결과로 이어지는 날입니다.",
-  "주변 사람에게 건넨 따뜻한 말 한마디가 다시 좋은 기운으로 돌아옵니다.",
-  "오늘은 꾸준함이 힘을 발휘하는 날입니다. 천천히 가도 방향만 맞으면 좋습니다."
-];
+var summaries=[],health=[],money=[],relation=[],hiking=[],colors=[],times=[],messages=[];
 
-var health=[
-  "몸을 급하게 움직이기보다 가볍게 스트레칭하고 천천히 리듬을 올려보세요.",
-  "충분한 수분과 휴식이 컨디션 유지에 도움이 되는 날입니다.",
-  "평소보다 몸의 신호를 잘 살피고 무리한 일정은 조금 줄여보세요.",
-  "가벼운 걷기와 규칙적인 식사가 기분 전환에 도움이 될 수 있습니다.",
-  "잠깐의 휴식이 오히려 하루 전체의 집중력을 높여줄 수 있습니다."
-];
+function applyFortuneData(db){
+  if(!db||typeof db!=="object")return false;
+  var advice=db.advice||{},ent=db.entertainment||{};
+  summaries=Array.isArray(advice.summaries)?advice.summaries:[];
+  health=Array.isArray(advice.health)?advice.health:[];
+  money=Array.isArray(advice.money)?advice.money:[];
+  relation=Array.isArray(advice.relation)?advice.relation:[];
+  hiking=Array.isArray(advice.hiking)?advice.hiking:[];
+  messages=Array.isArray(advice.messages)?advice.messages:[];
+  colors=Array.isArray(ent.colors)?ent.colors:[];
+  times=Array.isArray(ent.times)?ent.times:[];
+  FORTUNE_DB=db;
+  return summaries.length&&health.length&&money.length&&relation.length&&hiking.length;
+}
 
-var money=[
-  "충동구매보다 필요한 것인지 한 번 더 생각하면 만족도가 높아집니다.",
-  "작은 절약이 기분 좋은 성취감으로 이어질 수 있는 날입니다.",
-  "큰 결정보다는 기존 지출을 정리하고 점검하기에 좋은 날입니다.",
-  "사소한 할인이나 유용한 정보를 발견할 수 있으니 꼼꼼히 살펴보세요.",
-  "오늘은 쓰는 즐거움보다 남기는 즐거움에 조금 더 무게를 둬보세요."
-];
+function loadFortuneDatabase(){
+  return new Promise(function(resolve,reject){
+    var done=false,frame=document.createElement("iframe");
+    frame.hidden=true;
+    frame.src=FORTUNE_DATA_URL+"?v=1";
+    document.body.appendChild(frame);
 
-var relation=[
-  "먼저 안부를 건네면 예상보다 따뜻한 반응을 얻을 수 있습니다.",
-  "상대의 말을 끝까지 들어주는 것이 좋은 분위기를 만드는 날입니다.",
-  "가벼운 농담과 미소가 어색한 분위기를 풀어줄 수 있습니다.",
-  "작은 오해는 오래 두지 말고 부드럽게 풀어보는 것이 좋습니다.",
-  "오래 알고 지낸 사람에게 감사의 말을 전하기 좋은 날입니다."
-];
+    function clean(){
+      window.removeEventListener("message",onMessage);
+      if(frame.parentNode)frame.remove();
+    }
+    function finish(db){
+      if(done)return;
+      if(!applyFortuneData(db))return;
+      done=true;
+      try{localStorage.setItem(FORTUNE_DATA_CACHE_KEY,JSON.stringify(db))}catch(e){}
+      clean();resolve(true);
+    }
+    function onMessage(ev){
+      var d=ev.data||{};
+      if(d.type==="FORTUNE_DATABASE_READY")finish(d.data);
+    }
+    window.addEventListener("message",onMessage);
 
-var hiking=[
-  "오늘 산행에서는 속도보다 일정한 페이스를 유지해 보세요.",
-  "오르막에서는 호흡을 일정하게, 내리막에서는 보폭을 조금 줄여보세요.",
-  "좋은 풍경을 발견하면 잠시 멈춰 주변을 즐겨보는 것도 좋습니다.",
-  "출발 전에 물과 준비물을 한 번 더 확인하면 마음이 편해집니다.",
-  "일행과 적당한 간격을 유지하며 함께 걷는 즐거움을 느껴보세요."
-];
+    frame.onerror=function(){
+      var cached=null;
+      try{cached=JSON.parse(localStorage.getItem(FORTUNE_DATA_CACHE_KEY)||"null")}catch(e){}
+      if(cached&&applyFortuneData(cached)){done=true;clean();resolve(true)}
+      else{clean();reject(new Error("fortune-data.html 연결 실패"))}
+    };
+    setTimeout(function(){
+      if(done)return;
+      var cached=null;
+      try{cached=JSON.parse(localStorage.getItem(FORTUNE_DATA_CACHE_KEY)||"null")}catch(e){}
+      if(cached&&applyFortuneData(cached)){done=true;clean();resolve(true)}
+      else{clean();reject(new Error("운세 데이터 응답시간 초과"))}
+    },5000);
+  });
+}
 
-var colors=["파랑","초록","노랑","주황","하늘색","보라","흰색","분홍","연두","남색"];
-var times=["오전 8~10시","오전 10~12시","오후 1~3시","오후 3~5시","오후 5~7시"];
-var messages=[
-  "오늘도 좋은 사람들과 좋은 시간을 만들어 보세요.",
-  "천천히 가도 괜찮습니다. 즐겁게 가는 것이 더 중요합니다.",
-  "작은 웃음 하나가 하루의 분위기를 바꿀 수 있습니다.",
-  "좋은 기분은 나누면 더 커집니다.",
-  "오늘의 한 걸음이 내일의 좋은 기억이 됩니다.",
-  "기대하지 않았던 곳에서 작은 즐거움을 발견해 보세요.",
-  "너무 완벽하려 하지 말고 오늘을 편안하게 즐겨보세요."
-];
+function zodiacTraditionalFact(zodiac){
+  try{
+    var list=FORTUNE_DB&&FORTUNE_DB.facts&&FORTUNE_DB.facts.zodiac;
+    if(Array.isArray(list)){
+      var item=list.find(function(x){return x.animal===zodiac});
+      if(item)return item.fact;
+    }
+  }catch(e){}
+  return "";
+}
 
 function $(id){return document.getElementById(id)}
 
@@ -1082,6 +1102,7 @@ function renderFortune(syncRemote){
 
   $("zodiacEmoji").textContent=zodiacEmoji[zodiac]||"🔮";
   $("zodiacNameText").textContent=zodiac+"띠";
+  $("traditionalFactText").textContent=zodiacTraditionalFact(zodiac);
 
   var ageBase=context.solar||{year:profile.year,month:profile.month,day:profile.day};
   var fullAge=ageAtToday(ageBase.year,ageBase.month,ageBase.day);
@@ -1104,7 +1125,7 @@ function renderFortune(syncRemote){
   $("colorText").textContent=pick(colors,seed,"color");
   $("numberText").textContent=String(1+(hashText(seed+"|number")%9));
   $("timeText").textContent=pick(times,seed,"time");
-  $("messageText").textContent="✨ "+pick(messages,seed,"message");
+  $("messageText").textContent="✨ "+pick(messages,seed,"message")+"  ·  운세 점수/행운 정보는 오락용입니다.";
 
   if(syncRemote!==false){
     saveRemoteProfile(profile);
@@ -1145,8 +1166,14 @@ refreshMonthAndDaySelectors({
   dayValue:savedProfile.day
 });
 
-renderFortune(false);
-requestRemoteProfile();
+loadFortuneDatabase().then(function(){
+  renderFortune(false);
+  requestRemoteProfile();
+}).catch(function(error){
+  $("fortuneSummary").textContent="운세 데이터 파일을 불러오지 못했습니다.";
+  $("messageText").textContent="fortune-data.html 파일 위치를 확인하세요.";
+  try{$("traditionalFactText").textContent=String(error&&error.message||"데이터 연결 오류");}catch(e){}
+});
 
 })();
 </script>
