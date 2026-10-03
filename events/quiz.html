@@ -99,8 +99,8 @@ var quizSequence=[];
 var state=null;
 
 var questions=[];
-var QUIZ_DATA_URL="quiz-data.html";
-var QUIZ_DATA_CACHE_KEY="geomam-quiz-data-cache-v2";
+var QUIZ_DATA_URLS=["quiz-data.html?v=3","quiz-data_ver_03.html?v=3"];
+var QUIZ_DATA_CACHE_KEY="geomam-quiz-data-cache-v3";
 
 function $(id){return document.getElementById(id)}
 function normalizeQuizItems(items){
@@ -114,17 +114,97 @@ function normalizeQuizItems(items){
 }
 function loadQuizDatabase(){
   return new Promise(function(resolve,reject){
-    var done=false,frame=document.createElement("iframe");frame.hidden=true;frame.src=QUIZ_DATA_URL+"?v=2";document.body.appendChild(frame);
-    function clean(){window.removeEventListener("message",msg);if(frame.parentNode)frame.remove()}
-    function finish(items){if(done)return;var n=normalizeQuizItems(items);if(n.length<4)return;done=true;questions=n;try{localStorage.setItem(QUIZ_DATA_CACHE_KEY,JSON.stringify(n))}catch(e){}clean();resolve()}
-    function msg(ev){var d=ev.data||{};if(d.type==="QUIZ_DATABASE_READY")finish(d.items)}
-    window.addEventListener("message",msg);
-    frame.onerror=function(){var c=[];try{c=normalizeQuizItems(JSON.parse(localStorage.getItem(QUIZ_DATA_CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){done=true;questions=c;clean();resolve()}else{clean();reject(new Error("quiz-data.html 연결 실패"))}};
-    setTimeout(function(){if(done)return;var c=[];try{c=normalizeQuizItems(JSON.parse(localStorage.getItem(QUIZ_DATA_CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){done=true;questions=c;clean();resolve()}else{clean();reject(new Error("퀴즈 데이터 응답시간 초과"))}},5000);
+    var resolved=false;
+    var index=0;
+    var lastError="";
+
+    function useCache(){
+      var cached=[];
+      try{
+        cached=normalizeQuizItems(JSON.parse(localStorage.getItem(QUIZ_DATA_CACHE_KEY)||"[]"));
+      }catch(e){}
+      if(cached.length>=4){
+        questions=cached;
+        resolved=true;
+        resolve();
+        return true;
+      }
+      return false;
+    }
+
+    function tryNext(){
+      if(resolved)return;
+
+      if(index>=QUIZ_DATA_URLS.length){
+        if(useCache())return;
+        reject(new Error(lastError||"퀴즈 데이터 파일을 찾지 못했습니다."));
+        return;
+      }
+
+      var url=QUIZ_DATA_URLS[index++];
+      var frame=document.createElement("iframe");
+      var done=false;
+      var timer=null;
+
+      frame.hidden=true;
+      frame.src=url;
+
+      function cleanup(){
+        window.removeEventListener("message",onMessage);
+        if(timer)clearTimeout(timer);
+        if(frame.parentNode)frame.remove();
+      }
+
+      function finish(items){
+        if(done||resolved)return;
+        var normalized=normalizeQuizItems(items);
+        if(normalized.length<4){
+          lastError=url+" : 유효한 문제가 없습니다.";
+          cleanup();
+          tryNext();
+          return;
+        }
+        done=true;
+        resolved=true;
+        questions=normalized;
+        try{
+          localStorage.setItem(QUIZ_DATA_CACHE_KEY,JSON.stringify(normalized));
+        }catch(e){}
+        cleanup();
+        resolve();
+      }
+
+      function onMessage(event){
+        var data=event.data||{};
+        if(data.type==="QUIZ_DATABASE_READY"){
+          finish(data.items);
+        }
+      }
+
+      window.addEventListener("message",onMessage);
+
+      frame.onerror=function(){
+        if(done||resolved)return;
+        done=true;
+        lastError=url+" : 파일 로드 실패";
+        cleanup();
+        tryNext();
+      };
+
+      timer=setTimeout(function(){
+        if(done||resolved)return;
+        done=true;
+        lastError=url+" : 데이터 응답시간 초과";
+        cleanup();
+        tryNext();
+      },2500);
+
+      document.body.appendChild(frame);
+    }
+
+    tryNext();
   });
 }
-
-
 function koreaDateKey(){
   try{
     var parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
@@ -380,7 +460,7 @@ loadQuizDatabase().then(function(){
 }).catch(function(error){
   $("questionText").textContent="퀴즈 문제 데이터를 불러오지 못했습니다.";
   $("statusText").textContent=String(error&&error.message||"quiz-data.html 연결 실패");
-  $("answerArea").innerHTML="";
+  $("answerArea").innerHTML='<div style="padding:12px;border-radius:12px;background:#fff4f2;color:#8f2d25;font-weight:800;line-height:1.5">GitHub의 events 폴더에 <b>quiz-data.html</b> 파일이 있는지 확인하세요.<br>파일명을 quiz-data_ver_03.html로 올렸다면 quiz-data.html로 변경하세요.</div>';
 });
 
 })();
