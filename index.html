@@ -752,83 +752,103 @@
       padding: 4px 6px;
       font-size: 10px;
     }
-    /* 로그인 후 회원 안내 말풍선 */
+    /* 로그인 후 회원 안내 말풍선 - 실제 대상 UI에 고정 */
     #memberLoginPromptStack {
       position: fixed;
-      top: max(18px, env(safe-area-inset-top));
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(460px, calc(100vw - 28px));
+      inset: 0;
       z-index: 12050;
-      display: flex;
-      flex-direction: column;
-      gap: 9px;
       pointer-events: none;
     }
+
     .member-login-prompt {
-      position: relative;
-      width: 100%;
-      padding: 13px 42px 13px 16px;
-      border-radius: 18px;
-      background: rgba(255,255,255,.97);
+      position: fixed;
+      width: min(360px, calc(100vw - 24px));
+      padding: 12px 38px 12px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.98);
       border: 1px solid rgba(38,93,168,.22);
-      box-shadow: 0 12px 30px rgba(16,42,76,.22);
+      box-shadow: 0 10px 26px rgba(16,42,76,.22);
       color: #17365d;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 800;
-      line-height: 1.55;
+      line-height: 1.5;
       white-space: pre-wrap;
       word-break: keep-all;
       pointer-events: auto;
       cursor: pointer;
       animation: memberPromptIn .25s ease both;
+      transform-origin: center bottom;
     }
+
+    /* 아래쪽 꼬리: 말풍선이 대상 버튼/운전석 위에 위치 */
     .member-login-prompt::before {
       content: "";
       position: absolute;
-      left: 28px;
-      bottom: -8px;
-      width: 16px;
-      height: 16px;
+      left: var(--prompt-tail-left, 50%);
+      bottom: -7px;
+      width: 13px;
+      height: 13px;
       background: inherit;
       border-right: 1px solid rgba(38,93,168,.22);
       border-bottom: 1px solid rgba(38,93,168,.22);
-      transform: rotate(45deg);
+      transform: translateX(-50%) rotate(45deg);
     }
+
     .member-login-prompt::after {
       content: "×";
       position: absolute;
-      right: 14px;
+      right: 12px;
       top: 50%;
       transform: translateY(-50%);
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 500;
       color: #60758f;
     }
+
+    /* 이벤트 안내: 이벤트 버튼 바로 위 */
     .member-login-prompt.event-prompt {
-      background: rgba(236,248,255,.98);
-      border-color: rgba(18,112,187,.28);
+      background: rgba(236,248,255,.99);
+      border-color: rgba(18,112,187,.30);
       color: #0b4c7f;
+      width: min(280px, calc(100vw - 24px));
+      text-align: center;
     }
+
+    /* 좌석 미등록 안내: 운전석 위쪽 */
     .member-login-prompt.seat-prompt {
-      background: rgba(255,250,226,.98);
-      border-color: rgba(210,157,37,.32);
+      background: rgba(255,250,226,.99);
+      border-color: rgba(210,157,37,.34);
       color: #674b00;
+      width: min(430px, calc(100vw - 24px));
+      text-align: center;
     }
+
     .member-login-prompt.is-hiding {
       animation: memberPromptOut .22s ease both;
     }
+
     @keyframes memberPromptIn {
-      from { opacity:0; transform:translateY(-10px) scale(.98); }
+      from { opacity:0; transform:translateY(-8px) scale(.98); }
       to { opacity:1; transform:translateY(0) scale(1); }
     }
+
     @keyframes memberPromptOut {
       from { opacity:1; transform:translateY(0) scale(1); }
-      to { opacity:0; transform:translateY(-8px) scale(.98); }
+      to { opacity:0; transform:translateY(-6px) scale(.98); }
     }
+
     @media (max-width:760px) {
-      #memberLoginPromptStack { top:max(12px, env(safe-area-inset-top)); width:calc(100vw - 24px); }
-      .member-login-prompt { padding:12px 38px 12px 14px; border-radius:16px; font-size:13px; }
+      .member-login-prompt {
+        padding: 11px 34px 11px 12px;
+        border-radius: 15px;
+        font-size: 12px;
+      }
+      .member-login-prompt.event-prompt {
+        width: min(250px, calc(100vw - 20px));
+      }
+      .member-login-prompt.seat-prompt {
+        width: min(390px, calc(100vw - 20px));
+      }
     }
 
     .admin-login-notice-settings {
@@ -6104,26 +6124,114 @@ ${duplicateLocation} 좌석에서 자리이동 인가요?`, " ");
       window.setTimeout(() => prompt.remove(), 230);
     }
 
+    function getVisibleDriverBox() {
+      const drivers = Array.from(document.querySelectorAll(".driver-box"));
+      return drivers.find((el) => {
+        try {
+          const r = el.getBoundingClientRect();
+          const s = window.getComputedStyle(el);
+          return r.width > 0 && r.height > 0 && s.display !== "none" && s.visibility !== "hidden";
+        } catch (_) {
+          return false;
+        }
+      }) || drivers[0] || null;
+    }
+
+    function positionMemberLoginPrompt(prompt, kind) {
+      if (!prompt || !prompt.isConnected) return;
+
+      const anchor = kind === "seat"
+        ? getVisibleDriverBox()
+        : byId("memberLuckyEventBtn");
+
+      if (!anchor) return;
+
+      const rect = anchor.getBoundingClientRect();
+      const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+      const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+
+      const gap = kind === "seat" ? 10 : 9;
+      const edge = 10;
+
+      /* 실제 렌더 폭/높이를 얻기 위해 우선 화면 안 임시 배치 */
+      prompt.style.left = edge + "px";
+      prompt.style.top = edge + "px";
+
+      const pr = prompt.getBoundingClientRect();
+      const width = pr.width;
+      const height = pr.height;
+
+      const anchorCenter = rect.left + (rect.width / 2);
+      let left = anchorCenter - (width / 2);
+      left = Math.max(edge, Math.min(left, viewportWidth - width - edge));
+
+      let top = rect.top - height - gap;
+
+      /* 위 공간이 아주 부족한 경우에도 대상 바로 위를 우선하고 화면 밖 이탈만 방지 */
+      top = Math.max(edge, Math.min(top, viewportHeight - height - edge));
+
+      const tailLeft = Math.max(
+        18,
+        Math.min(width - 18, anchorCenter - left)
+      );
+
+      prompt.style.left = Math.round(left) + "px";
+      prompt.style.top = Math.round(top) + "px";
+      prompt.style.setProperty("--prompt-tail-left", Math.round(tailLeft) + "px");
+    }
+
+    function repositionMemberLoginPrompts() {
+      const stack = byId("memberLoginPromptStack");
+      if (!stack) return;
+      stack.querySelectorAll(".member-login-prompt").forEach((prompt) => {
+        positionMemberLoginPrompt(prompt, prompt.dataset.promptKind || "event");
+      });
+    }
+
     function showMemberLoginPrompt(kind, message, autoHideMs = 0) {
       const text = String(message || "").trim();
       if (!text) return null;
+
       const stack = ensureMemberLoginPromptStack();
       const prompt = document.createElement("div");
+
+      prompt.dataset.promptKind = kind === "seat" ? "seat" : "event";
       prompt.className = `member-login-prompt ${kind === "seat" ? "seat-prompt" : "event-prompt"}`;
       prompt.textContent = text;
       prompt.title = "터치하면 닫힙니다";
+
       prompt.addEventListener("click", () => dismissMemberLoginPrompt(prompt));
       prompt.addEventListener("touchend", (event) => {
         event.preventDefault();
         dismissMemberLoginPrompt(prompt);
       }, { passive: false });
+
       stack.appendChild(prompt);
-      if (autoHideMs > 0) window.setTimeout(() => dismissMemberLoginPrompt(prompt), autoHideMs);
+
+      /* DOM 배치 직후와 레이아웃 안정화 후 한 번 더 위치 보정 */
+      positionMemberLoginPrompt(prompt, prompt.dataset.promptKind);
+      window.requestAnimationFrame(() => {
+        positionMemberLoginPrompt(prompt, prompt.dataset.promptKind);
+      });
+      window.setTimeout(() => {
+        positionMemberLoginPrompt(prompt, prompt.dataset.promptKind);
+      }, 120);
+
+      if (autoHideMs > 0) {
+        window.setTimeout(() => dismissMemberLoginPrompt(prompt), autoHideMs);
+      }
+
       return prompt;
     }
 
     function clearMemberLoginPrompts() {
       byId("memberLoginPromptStack")?.remove();
+    }
+
+    if (!window.__busSeatLoginPromptRepositionBound) {
+      window.__busSeatLoginPromptRepositionBound = true;
+      window.addEventListener("resize", repositionMemberLoginPrompts, { passive: true });
+      window.addEventListener("scroll", repositionMemberLoginPrompts, true);
     }
 
     function showPostLoginMemberPrompts(session, attempt = 0) {
