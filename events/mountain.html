@@ -57,7 +57,7 @@ button{font-family:inherit}
 <body>
 <main class="app"><div class="shell">
 <header class="topbar">
-<div class="title-wrap"><h1>🏔️ 산 이름 맞히기</h1><div class="subtitle">국내산 데이터 문제은행</div></div>
+<div class="title-wrap"><h1>🏔️ 산 이름 맞히기</h1><div class="subtitle">마운틴 데이터 퀴즈</div></div>
 <div class="actions"><button class="top-btn back-btn" id="backBtn">이벤트</button><button class="top-btn reset-btn" id="resetBtn">처음부터</button></div>
 </header>
 <div class="db-status" id="dbStatus">국내산 데이터를 불러오는 중입니다...</div>
@@ -67,21 +67,21 @@ button{font-family:inherit}
 <div class="scorebox"><div class="score-label">정답률</div><div class="score-value" id="accuracy">0%</div></div>
 </section>
 <section class="quiz-card">
-<div class="visual"><div class="visual-badge" id="regionBadge">대한민국</div><div class="height-badge" id="heightBadge">산 정보</div><div class="mountain-symbol">⛰️</div><div class="visual-copy"><h2 class="question">[ 힌 트 ]</h2><div class="hint" id="hintText">문제은행 연결 중...</div></div></div>
+<div class="visual"><div class="visual-badge" id="regionBadge">대한민국</div><div class="height-badge" id="heightBadge">산 정보</div><div class="mountain-symbol">⛰️</div><div class="visual-copy"><h2 class="question">[ 힌 트 ]</h2><div class="hint" id="hintText">마운틴 데이터 연결 중...</div></div></div>
 <div class="question-area">
 <div class="answers" id="answerList"></div>
 <div class="result" id="resultBox"><div class="result-title" id="resultTitle"></div><div class="result-desc" id="resultDesc"></div></div>
 <button class="next-btn" id="nextBtn">다음 문제</button>
-<div class="progress-wrap"><div class="progress-text"><span id="cycleText">1회차</span><span id="bankText">문제은행</span></div><div class="progress"><div class="progress-bar" id="progressBar"></div></div></div>
+<div class="progress-wrap"><div class="progress-text"><span id="cycleText">1회차</span><span id="bankText">마운틴 데이터</span></div><div class="progress"><div class="progress-bar" id="progressBar"></div></div></div>
 </div>
 </section>
-<div class="notice">산 문제는 mountin-data.html 내부에 직접 저장된 정적 데이터로 출제합니다.</div>
+<div class="notice">산 문제는 mountin-data.html의 마운틴 데이터를 직접 활용하여 출제합니다.</div>
 </div></main>
 
 <script>
 (function(){
 "use strict";
-var DATA_URL="mountin-data.html"; // 정적 산 문제 데이터 파일
+var DATA_URL="mountin-data.html"; // 마운틴 데이터 파일
 var SESSION_KEY="geomam-event-session";
 var STATE_KEY="geomam-mountin-quiz-v1";
 var CACHE_KEY="geomam-mountin-data-cache-v2";
@@ -94,11 +94,11 @@ function loadData(){
  return new Promise(function(resolve,reject){
   var done=false,frame=document.createElement("iframe");frame.hidden=true;frame.src=DATA_URL+"?v=2";document.body.appendChild(frame);
   function clean(){window.removeEventListener("message",msg);if(frame.parentNode)frame.remove()}
-  function finish(items){if(done)return;var n=normalize(items);if(n.length<4)return;done=true;mountains=n;try{localStorage.setItem(CACHE_KEY,JSON.stringify(n))}catch(e){}setStatus("국내산 문제은행 "+n.length+"개 불러오기 완료","ready");clean();resolve()}
+  function finish(items){if(done)return;var n=normalize(items);if(n.length<4)return;done=true;mountains=n;try{localStorage.setItem(CACHE_KEY,JSON.stringify(n))}catch(e){}setStatus("마운틴 데이터 "+n.length+"개 불러오기 완료","ready");clean();resolve()}
   function msg(ev){var d=ev.data||{};if(d.type==="MOUNTIN_DATABASE_READY")finish(d.items)}
   window.addEventListener("message",msg);
   frame.onerror=function(){var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){mountains=c;done=true;setStatus("데이터 파일 연결 실패 · 저장자료 "+c.length+"개 사용","error");clean();resolve()}else{clean();reject(new Error("mountin-data.html 연결 실패"))}};
-  setTimeout(function(){if(done)return;var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){mountains=c;done=true;setStatus("응답 지연 · 저장자료 "+c.length+"개 사용","error");clean();resolve()}else{clean();reject(new Error("문제은행 응답시간 초과"))}},5000);
+  setTimeout(function(){if(done)return;var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){mountains=c;done=true;setStatus("응답 지연 · 저장자료 "+c.length+"개 사용","error");clean();resolve()}else{clean();reject(new Error("마운틴 데이터 응답시간 초과"))}},5000);
  });
 }
 function loadSession(){try{return JSON.parse(sessionStorage.getItem(SESSION_KEY)||"null")}catch(e){return null}}
@@ -108,7 +108,7 @@ function loadState(){try{var s=JSON.parse(localStorage.getItem(stateKey())||"nul
 function save(){try{localStorage.setItem(stateKey(),JSON.stringify(state))}catch(e){}}
 function current(){return mountains[state.order[state.index]]}
 function choices(q){return shuffle([q].concat(shuffle(mountains.filter(function(x){return x.name!==q.name})).slice(0,3)))}
-function updateScore(){$("questionNo").textContent=state.answered+1;$("correctCount").textContent=state.correct;$("accuracy").textContent=state.answered?Math.round(state.correct/state.answered*100)+"%":"0%";$("cycleText").textContent=state.cycle+"회차";$("bankText").textContent="문제은행 "+mountains.length+"산";$("progressBar").style.width=(state.index/mountains.length*100)+"%"}
+function updateScore(){$("questionNo").textContent=state.answered+1;$("correctCount").textContent=state.correct;$("accuracy").textContent=state.answered?Math.round(state.correct/state.answered*100)+"%":"0%";$("cycleText").textContent=state.cycle+"회차";$("bankText").textContent="마운틴 데이터 "+mountains.length+"산";$("progressBar").style.width=(state.index/mountains.length*100)+"%"}
 function render(){
  state.locked=false;var q=current();updateScore();$("regionBadge").textContent=q.region||"대한민국";$("heightBadge").textContent=q.height?"해발 "+q.height:"산 정보";$("hintText").textContent=q.hint||"대한민국의 산입니다.";
  $("resultBox").classList.remove("show");$("nextBtn").classList.remove("show");$("resultTitle").textContent="";$("resultDesc").textContent="";var old=$("resultBox").querySelector(".result-region");if(old)old.remove();
@@ -126,7 +126,7 @@ function reset(){if(!mountains.length)return;if(!confirm("기록을 처음부터
 function home(){location.href=new URL("index.html",location.href).href}
 $("nextBtn").onclick=next;$("resetBtn").onclick=reset;$("backBtn").onclick=home;
 session=loadSession();
-loadData().then(function(){state=loadState();render()}).catch(function(e){setStatus(e.message||"문제은행 연결 실패","error");$("hintText").textContent="mountin-data.html 파일 위치를 확인하세요."});
+loadData().then(function(){state=loadState();render()}).catch(function(e){setStatus(e.message||"마운틴 데이터 연결 실패","error");$("hintText").textContent="mountin-data.html 파일 위치를 확인하세요."});
 try{if(parent&&parent!==window)parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"mountin"},"*")}catch(e){}
 window.addEventListener("message",function(ev){var d=ev.data||{};if(d.type==="BUS_SEAT_EVENT_SESSION"&&d.session){var old=stateKey();session=d.session;if(mountains.length&&old!==stateKey()){state=loadState();render()}}});
 })();
