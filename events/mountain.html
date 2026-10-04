@@ -22,17 +22,21 @@ button{font-family:inherit}
 .db-status{margin-bottom:7px;padding:8px;border:1px solid #d4e2d7;border-radius:11px;background:#fff;color:#4f6657;text-align:center;font-size:12px;font-weight:900}
 .db-status.ready{background:#f1f9f3;color:#2f6742}.db-status.error{background:#fff3f2;color:#97483f}
 .scorebar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:7px}
-.scorebox{padding:7px 4px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:12px}
-.score-label{font-size:10px;font-weight:800;color:#849188}.score-value{font-size:15px;font-weight:900;color:#315b45}
+.scorebox{padding:10px 6px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:12px}
+.score-label{font-size:14px;font-weight:900}.score-value{margin-top:4px;font-size:22px;font-weight:900}
+.scorebox:nth-child(1) .score-label,.scorebox:nth-child(1) .score-value{color:#1f5fbf}
+.scorebox:nth-child(2) .score-label,.scorebox:nth-child(2) .score-value{color:#1d7a46}
+.scorebox:nth-child(3) .score-label,.scorebox:nth-child(3) .score-value{color:#b24a14}
 .quiz-card{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow)}
-.visual{position:relative;height:180px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(180deg,#c9dfe6,#e0ecdf)}
-.visual:before{content:"";position:absolute;left:-5%;right:-5%;bottom:-25px;height:125px;background:#6f9977;clip-path:polygon(0 100%,0 75%,18% 55%,30% 73%,45% 25%,59% 70%,73% 46%,100% 68%,100% 100%)}
-.mountain-symbol{position:relative;z-index:2;font-size:65px;margin-top:-20px}
-.visual-badge,.height-badge{position:absolute;z-index:3;top:10px;padding:6px 9px;border-radius:999px;font-size:12px;font-weight:900}
+.visual{position:relative;height:220px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#dfe9e1}
+.visual:before{display:none}
+.mountain-symbol{position:absolute;z-index:2;top:24px;left:50%;transform:translateX(-50%);font-size:62px;line-height:1}
+.visual-badge,.height-badge{position:absolute;z-index:3;top:10px;padding:8px 12px;border-radius:999px;font-size:15px;font-weight:900}
 .visual-badge{left:10px;background:rgba(255,255,255,.92);color:#315b45}.height-badge{right:10px;background:rgba(39,73,52,.88);color:#fff}
+.visual-copy{position:absolute;left:12px;right:12px;bottom:12px;z-index:4;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.84);backdrop-filter:blur(1px);box-shadow:0 6px 18px rgba(33,74,50,.10)}
 .question-area{padding:13px}
-.question{margin:0 0 6px;text-align:center;font-size:21px;font-weight:900}
-.hint{min-height:44px;margin-bottom:11px;text-align:center;font-size:14px;line-height:1.5;font-weight:800;color:#67766d;word-break:keep-all}
+.question{margin:0 0 6px;text-align:center;font-size:15px;font-weight:900;color:#315b45}
+.hint{min-height:44px;margin:0;text-align:center;font-size:17px;line-height:1.55;font-weight:800;color:#000;word-break:keep-all}
 .answers{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .answer-btn{min-height:51px;padding:9px;border:1px solid #cfded3;border-radius:13px;background:#f9fcfa;font-size:16px;font-weight:900;cursor:pointer}
 .answer-btn.correct{background:#dff3e4;border-color:#6aaa7a;color:#1e6335}.answer-btn.wrong{background:#fde7e5;border-color:#d99892;color:#9c3e38}
@@ -45,7 +49,7 @@ button{font-family:inherit}
 .notice{margin-top:7px;text-align:center;color:#829087;font-size:10px;line-height:1.4}
 @media(max-width:520px){
 .title-wrap h1{font-size:20px}.subtitle{font-size:10px}.top-btn{height:34px;min-width:55px;font-size:11px}
-.visual{height:160px}.mountain-symbol{font-size:56px}.question-area{padding:10px}.question{font-size:19px}.hint{font-size:13px}
+.scorebox{padding:9px 4px}.score-label{font-size:12px}.score-value{font-size:18px}.visual{height:210px;background:#dfe9e1}.mountain-symbol{top:28px;font-size:54px}.visual-copy{left:10px;right:10px;bottom:10px;padding:9px 10px}.question-area{padding:10px}.visual-badge,.height-badge{font-size:14px;padding:7px 11px}.question{font-size:14px}.hint{font-size:16px}
 .answers{grid-template-columns:1fr;gap:6px}.answer-btn{min-height:47px;font-size:16px}.result-desc{font-size:14px}.next-btn{height:44px;font-size:15px}
 }
 </style>
@@ -63,23 +67,21 @@ button{font-family:inherit}
 <div class="scorebox"><div class="score-label">정답률</div><div class="score-value" id="accuracy">0%</div></div>
 </section>
 <section class="quiz-card">
-<div class="visual"><div class="visual-badge" id="regionBadge">대한민국</div><div class="height-badge" id="heightBadge">산 정보</div><div class="mountain-symbol">⛰️</div></div>
+<div class="visual"><div class="visual-badge" id="regionBadge">대한민국</div><div class="height-badge" id="heightBadge">산 정보</div><div class="mountain-symbol">⛰️</div><div class="visual-copy"><h2 class="question">[ 힌 트 ]</h2><div class="hint" id="hintText">문제은행 연결 중...</div></div></div>
 <div class="question-area">
-<h2 class="question">이 산의 이름은 무엇일까요?</h2>
-<div class="hint" id="hintText">문제은행 연결 중...</div>
 <div class="answers" id="answerList"></div>
 <div class="result" id="resultBox"><div class="result-title" id="resultTitle"></div><div class="result-desc" id="resultDesc"></div></div>
 <button class="next-btn" id="nextBtn">다음 문제</button>
 <div class="progress-wrap"><div class="progress-text"><span id="cycleText">1회차</span><span id="bankText">문제은행</span></div><div class="progress"><div class="progress-bar" id="progressBar"></div></div></div>
 </div>
 </section>
-<div class="notice">산 문제는 mountain-data.html 내부에 직접 저장된 정적 데이터로 출제합니다.</div>
+<div class="notice">산 문제는 mountin-data.html 내부에 직접 저장된 정적 데이터로 출제합니다.</div>
 </div></main>
 
 <script>
 (function(){
 "use strict";
-var DATA_URL="mountain-data.html"; // 정적 산 문제 데이터 파일
+var DATA_URL="mountin-data.html"; // 정적 산 문제 데이터 파일
 var SESSION_KEY="geomam-event-session";
 var STATE_KEY="geomam-mountin-quiz-v1";
 var CACHE_KEY="geomam-mountin-data-cache-v2";
@@ -93,7 +95,7 @@ function loadData(){
   var done=false,frame=document.createElement("iframe");frame.hidden=true;frame.src=DATA_URL+"?v=2";document.body.appendChild(frame);
   function clean(){window.removeEventListener("message",msg);if(frame.parentNode)frame.remove()}
   function finish(items){if(done)return;var n=normalize(items);if(n.length<4)return;done=true;mountains=n;try{localStorage.setItem(CACHE_KEY,JSON.stringify(n))}catch(e){}setStatus("국내산 문제은행 "+n.length+"개 불러오기 완료","ready");clean();resolve()}
-  function msg(ev){var d=ev.data||{};if(d.type==="MOUNTAIN_DATABASE_READY")finish(d.items)}
+  function msg(ev){var d=ev.data||{};if(d.type==="MOUNTIN_DATABASE_READY")finish(d.items)}
   window.addEventListener("message",msg);
   frame.onerror=function(){var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){mountains=c;done=true;setStatus("데이터 파일 연결 실패 · 저장자료 "+c.length+"개 사용","error");clean();resolve()}else{clean();reject(new Error("mountin-data.html 연결 실패"))}};
   setTimeout(function(){if(done)return;var c=[];try{c=normalize(JSON.parse(localStorage.getItem(CACHE_KEY)||"[]"))}catch(e){}if(c.length>=4){mountains=c;done=true;setStatus("응답 지연 · 저장자료 "+c.length+"개 사용","error");clean();resolve()}else{clean();reject(new Error("문제은행 응답시간 초과"))}},5000);
@@ -124,8 +126,8 @@ function reset(){if(!mountains.length)return;if(!confirm("기록을 처음부터
 function home(){location.href=new URL("index.html",location.href).href}
 $("nextBtn").onclick=next;$("resetBtn").onclick=reset;$("backBtn").onclick=home;
 session=loadSession();
-loadData().then(function(){state=loadState();render()}).catch(function(e){setStatus(e.message||"문제은행 연결 실패","error");$("hintText").textContent="mountain-data.html 파일 위치를 확인하세요."});
-try{if(parent&&parent!==window)parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"mountain"},"*")}catch(e){}
+loadData().then(function(){state=loadState();render()}).catch(function(e){setStatus(e.message||"문제은행 연결 실패","error");$("hintText").textContent="mountin-data.html 파일 위치를 확인하세요."});
+try{if(parent&&parent!==window)parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"mountin"},"*")}catch(e){}
 window.addEventListener("message",function(ev){var d=ev.data||{};if(d.type==="BUS_SEAT_EVENT_SESSION"&&d.session){var old=stateKey();session=d.session;if(mountains.length&&old!==stateKey()){state=loadState();render()}}});
 })();
 </script>
