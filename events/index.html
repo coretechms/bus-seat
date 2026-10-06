@@ -26,7 +26,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden}button{font-family:inh
 .stats-panel{display:none;margin:0 0 10px;padding:12px;border:1px solid #d8e3ef;border-radius:18px;background:rgba(255,255,255,.98);box-shadow:0 8px 22px rgba(40,60,80,.08)}
 .stats-panel.show{display:block}
 .stats-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}.stats-title{font-size:17px;font-weight:900;color:#0b2d58}.stats-summary{font-size:11px;font-weight:800;color:#667085}
-.stats-list{display:flex;flex-direction:column;gap:9px}.stat-row{display:grid;grid-template-columns:minmax(92px,1.35fr) minmax(120px,3fr) 64px;align-items:center;gap:8px}.stat-name{font-size:13px;font-weight:900;color:#243b53;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stat-bar{height:18px;border-radius:999px;background:#edf2f7;overflow:hidden}.stat-fill{height:100%;min-width:0;border-radius:999px;background:linear-gradient(90deg,#2f6fbd,#48a36d);transition:width .25s ease}.stat-value{text-align:right;font-size:12px;font-weight:900;color:#111827}.stats-empty{padding:14px 6px;text-align:center;color:#667085;font-size:12px;font-weight:800}.stats-foot{display:flex;justify-content:space-between;gap:8px;margin-top:11px;padding-top:9px;border-top:1px solid #edf1f5;font-size:11px;font-weight:800;color:#667085}.reset-stats-btn{border:0;background:transparent;color:#9a3412;font-size:11px;font-weight:900;cursor:pointer}
+.stats-list{display:flex;flex-direction:column;gap:9px}.stat-row{display:grid;grid-template-columns:minmax(92px,1.35fr) minmax(120px,3fr) 64px;align-items:center;gap:8px}.stat-name{font-size:13px;font-weight:900;color:#243b53;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stat-bar{height:18px;border-radius:999px;background:#edf2f7;overflow:hidden}.stat-fill{height:100%;min-width:0;border-radius:999px;background:linear-gradient(90deg,#2f6fbd,#48a36d);transition:width .25s ease}.stat-value{text-align:right;font-size:12px;font-weight:900;color:#111827}.stats-empty{padding:14px 6px;text-align:center;color:#667085;font-size:12px;font-weight:800}.stats-foot{display:flex;justify-content:space-between;gap:8px;margin-top:11px;padding-top:9px;border-top:1px solid #edf1f5;font-size:11px;font-weight:800;color:#667085}#statsStatus{color:#287a45;white-space:nowrap}
 @media(max-width:520px){.app{padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))}.topbar{margin-bottom:6px}.title{font-size:18px}.date{margin-top:2px;font-size:10px}.exit-btn,.stats-btn{height:34px;min-width:64px;padding:0 10px;font-size:11px}.hero{width:96%;margin-bottom:7px;padding:8px 10px;border-radius:14px}.hero strong{font-size:14px;margin-bottom:1px}.hero span{font-size:10px;line-height:1.25}.event-grid{gap:6px}.event-card{min-height:116px;padding:10px;border-radius:16px}.icon{font-size:30px;margin-bottom:6px}.event-name{font-size:14px}.event-desc{margin-top:4px;font-size:10px;line-height:1.3}.badge{top:7px;right:7px;padding:3px 6px;font-size:9px}.top-actions{gap:5px}.stats-panel{padding:10px;border-radius:15px}.stat-row{grid-template-columns:minmax(82px,1.2fr) minmax(96px,2.3fr) 56px;gap:6px}.stat-name{font-size:11px}.stat-bar{height:16px}.stat-value{font-size:10px}.stats-title{font-size:15px}}
 </style>
 </head>
@@ -34,7 +34,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden}button{font-family:inh
 <main class="app"><div class="shell">
 <header class="topbar"><div class="title-wrap"><h1 class="title">🎉 오늘의 이벤트</h1><div class="date" id="todayText"></div></div><div class="top-actions"><button type="button" class="stats-btn" id="statsBtn">사용률</button><button type="button" class="exit-btn" id="exitBtn">나가기</button></div></header>
 <section class="hero"><strong>오늘은 무엇을 해볼까요?</strong><span>원하는 이벤트를 선택해 가볍게 즐겨보세요.</span></section>
-<section class="stats-panel" id="statsPanel"><div class="stats-head"><div class="stats-title">📊 이벤트 앱 사용률</div><div class="stats-summary" id="statsSummary">총 실행 0회</div></div><div class="stats-list" id="statsList"></div><div class="stats-foot"><span id="statsRank">사용기록을 모으는 중입니다.</span><button type="button" class="reset-stats-btn" id="resetStatsBtn">통계 초기화</button></div></section>
+<section class="stats-panel" id="statsPanel"><div class="stats-head"><div class="stats-title">📊 전체 이용객 이벤트 사용률</div><div class="stats-summary" id="statsSummary">총 실행 0회</div></div><div class="stats-list" id="statsList"></div><div class="stats-foot"><span id="statsRank">전체 이용객 사용기록을 불러오는 중입니다.</span><span id="statsStatus">실시간 통계</span></div></section>
 <section class="event-grid">
 <button type="button" class="event-card active" data-event="quiz" data-url="quiz.html"><span class="badge open">실행가능</span><span class="icon">🧠</span><span class="event-name">오늘의 퀴즈</span><span class="event-desc">하루 최대 5문제, 넌센스·상식·정보 퀴즈</span></button>
 <button type="button" class="event-card active" data-event="stamp" data-url="stamp.html"><span class="badge open">실행가능</span><span class="icon">🥾</span><span class="event-name">산행 출석도장</span><span class="event-desc">산행 참여 기록과 도장 모으기</span></button>
@@ -44,20 +44,70 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden}button{font-family:inh
 <button type="button" class="event-card active" data-event="ox" data-url="ox.html"><span class="badge open">실행가능</span><span class="icon">⭕</span><span class="event-name">산행 상식 O/X</span><span class="event-desc">등산과 안전 상식을 O/X로 풀기</span></button>
 </section></div></main>
 <div class="notice" id="notice"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 (function(){
 "use strict";
-var session=null,noticeTimer=null;
-var USAGE_KEY="geomam-event-usage-v1";
+var session=null,noticeTimer=null,usageDb=null,usageRef=null,usageCache={};
+var USAGE_PATH="busSeatApp/eventUsage/v1";
+var FIREBASE_CONFIG={
+  apiKey:"AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgwQ",
+  authDomain:"bus-seat-eb86c.firebaseapp.com",
+  databaseURL:"https://bus-seat-eb86c-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"bus-seat-eb86c",
+  storageBucket:"bus-seat-eb86c.firebasestorage.app",
+  messagingSenderId:"132111967366",
+  appId:"1:132111967366:web:e034a00f8c8cc4aa441d07"
+};
 function $(id){return document.getElementById(id)}
 function displayDate(){try{return new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"numeric",month:"long",day:"numeric",weekday:"long"}).format(new Date())}catch(e){return new Date().toLocaleDateString("ko-KR")}}
+function seoulDayKey(){try{var parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()),m={};parts.forEach(function(p){if(p.type!=="literal")m[p.type]=p.value});return m.year+"-"+m.month+"-"+m.day}catch(e){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}}
 function normalizeSession(data){if(!data||typeof data!=="object")return null;var code=data.code||data.memberCode||data.loginCode||data.id||"";var name=data.name||data.memberName||data.userName||"회원";var birthDate=String(data.birthDate||data.rrn||data.birth||data.birthYear||"").replace(/\D/g,"").slice(0,6);return{code:String(code||"").trim(),name:String(name||"회원").trim()||"회원",birthDate:birthDate}}
 function showNotice(msg){var b=$("notice");b.textContent=msg;b.style.display="block";if(noticeTimer)clearTimeout(noticeTimer);noticeTimer=setTimeout(function(){b.style.display="none"},1800)}
-function loadUsage(){try{var d=JSON.parse(localStorage.getItem(USAGE_KEY)||"{}");return d&&typeof d==="object"?d:{}}catch(e){return {}}}
-function saveUsage(d){try{localStorage.setItem(USAGE_KEY,JSON.stringify(d))}catch(e){}}
 function eventMeta(){return Array.prototype.map.call(document.querySelectorAll(".event-card[data-event]"),function(btn){return{key:btn.getAttribute("data-event")||"",name:(btn.querySelector(".event-name")||{}).textContent||btn.getAttribute("data-event")||"이벤트"}}).filter(function(x){return x.key})}
-function trackUsage(key){var d=loadUsage(),now=new Date(),day=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");if(!d[key]||typeof d[key]!=="object")d[key]={count:0,days:{}};d[key].count=(Number(d[key].count)||0)+1;if(!d[key].days||typeof d[key].days!=="object")d[key].days={};d[key].days[day]=(Number(d[key].days[day])||0)+1;saveUsage(d)}
-function renderUsage(){var list=$("statsList"),summary=$("statsSummary"),rank=$("statsRank"),meta=eventMeta(),d=loadUsage(),rows=meta.map(function(m){return{key:m.key,name:m.name,count:Number(d[m.key]&&d[m.key].count)||0}}),total=rows.reduce(function(a,b){return a+b.count},0);summary.textContent="총 실행 "+total+"회 · 앱 "+rows.length+"개";list.innerHTML="";if(!rows.length){list.innerHTML='<div class="stats-empty">등록된 이벤트 앱이 없습니다.</div>';rank.textContent="";return}rows.sort(function(a,b){return b.count-a.count});rows.forEach(function(r){var pct=total?Math.round(r.count/total*1000)/10:0,row=document.createElement("div");row.className="stat-row";row.innerHTML='<div class="stat-name"></div><div class="stat-bar"><div class="stat-fill"></div></div><div class="stat-value"></div>';row.querySelector(".stat-name").textContent=r.name;row.querySelector(".stat-fill").style.width=pct+"%";row.querySelector(".stat-value").textContent=pct+"% · "+r.count;list.appendChild(row)});var used=rows.filter(function(r){return r.count>0});if(!used.length){rank.textContent="아직 실행 기록이 없습니다."}else{var top=used[0],low=used[used.length-1];rank.textContent="인기: "+top.name+" · 비인기: "+low.name}}
+function normalizeUsage(raw){var out={};if(!raw||typeof raw!=="object")return out;Object.keys(raw).forEach(function(key){var v=raw[key];if(v&&typeof v==="object")out[key]={count:Number(v.count)||0,days:v.days&&typeof v.days==="object"?v.days:{}}});return out}
+function setStatsStatus(text,isError){var el=$("statsStatus");if(!el)return;el.textContent=text;el.style.color=isError?"#b42318":"#287a45"}
+function initUsageDatabase(){
+  try{
+    if(!window.firebase||!firebase.initializeApp||!firebase.database)throw new Error("Firebase SDK를 불러오지 못했습니다.");
+    var app=null;
+    try{app=firebase.app("eventUsageApp")}catch(e){app=firebase.initializeApp(FIREBASE_CONFIG,"eventUsageApp")}
+    usageDb=app.database();
+    usageRef=usageDb.ref(USAGE_PATH);
+    usageRef.on("value",function(snapshot){usageCache=normalizeUsage(snapshot.val());setStatsStatus("실시간 통계",false);if($("statsPanel").classList.contains("show"))renderUsage()},function(error){console.error("전체 이벤트 통계 읽기 실패:",error);setStatsStatus("통계 연결 실패",true);if($("statsPanel").classList.contains("show"))renderUsage()});
+  }catch(error){console.error("전체 이벤트 통계 초기화 실패:",error);usageDb=null;usageRef=null;setStatsStatus("통계 연결 실패",true)}
+}
+function trackUsage(key,done){
+  var finished=false,timer=null;
+  function finish(){if(finished)return;finished=true;if(timer)clearTimeout(timer);if(typeof done==="function")done()}
+  if(!key||!usageDb){showNotice("전체 사용 통계 서버에 연결하지 못했습니다.");finish();return}
+  var day=seoulDayKey(),ref=usageDb.ref(USAGE_PATH+"/"+key);
+  timer=setTimeout(finish,1400);
+  ref.transaction(function(current){
+    current=current&&typeof current==="object"?current:{};
+    var days=current.days&&typeof current.days==="object"?current.days:{};
+    days[day]=(Number(days[day])||0)+1;
+    current.count=(Number(current.count)||0)+1;
+    current.days=days;
+    return current;
+  },function(error,committed){
+    if(error||!committed){console.error("전체 이벤트 통계 저장 실패:",error);showNotice("사용 통계를 저장하지 못했습니다.")}
+    finish();
+  },false)
+}
+function renderUsage(){
+  var list=$("statsList"),summary=$("statsSummary"),rank=$("statsRank"),meta=eventMeta(),d=usageCache;
+  var rows=meta.map(function(m){return{key:m.key,name:m.name,count:Number(d[m.key]&&d[m.key].count)||0}}),total=rows.reduce(function(a,b){return a+b.count},0);
+  summary.textContent="전체 누적 실행 "+total+"회 · 앱 "+rows.length+"개";
+  list.innerHTML="";
+  if(!rows.length){list.innerHTML='<div class="stats-empty">등록된 이벤트 앱이 없습니다.</div>';rank.textContent="";return}
+  rows.sort(function(a,b){return b.count-a.count});
+  rows.forEach(function(r){var pct=total?Math.round(r.count/total*1000)/10:0,row=document.createElement("div");row.className="stat-row";row.innerHTML='<div class="stat-name"></div><div class="stat-bar"><div class="stat-fill"></div></div><div class="stat-value"></div>';row.querySelector(".stat-name").textContent=r.name;row.querySelector(".stat-fill").style.width=pct+"%";row.querySelector(".stat-value").textContent=pct+"% · "+r.count;list.appendChild(row)});
+  var used=rows.filter(function(r){return r.count>0});
+  if(!used.length){rank.textContent=usageDb?"아직 전체 이용객 실행 기록이 없습니다.":"전체 이용객 통계 서버에 연결하지 못했습니다."}
+  else{var top=used[0],low=used[used.length-1];rank.textContent="전체 인기: "+top.name+" · 전체 비인기: "+low.name}
+}
 function toggleUsage(){var p=$("statsPanel"),show=!p.classList.contains("show");p.classList.toggle("show",show);if(show)renderUsage()}
 function sendReady(){try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:"BUS_SEAT_EVENT_READY",event:"index"},"*")}catch(e){}}
 function sendExit(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:"BUS_SEAT_EVENT_EXIT",event:"index"},"*");return}}catch(e){}try{history.back()}catch(e){}}
@@ -68,14 +118,17 @@ document.querySelectorAll(".event-card").forEach(function(btn){
     var target=btn.getAttribute("data-url")||"";
     if(btn.classList.contains("disabled")||!target){showNotice("이 이벤트는 준비 중입니다.");return}
     try{if(session)sessionStorage.setItem("geomam-event-session",JSON.stringify(session))}catch(e){}
-    trackUsage(eventName);
-    if($("statsPanel").classList.contains("show"))renderUsage();
-    try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:"BUS_SEAT_EVENT_USAGE",event:eventName,name:(btn.querySelector(".event-name")||{}).textContent||eventName},"*")}catch(e){}
-    window.location.href=new URL(target,window.location.href).href;
-  });
+    if(btn.dataset.usagePending==="1")return;
+    btn.dataset.usagePending="1";
+    try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:"BUS_SEAT_EVENT_USAGE",event:eventName,name:(btn.querySelector(".event-name")||{}).textContent||eventName,scope:"global"},"*")}catch(e){}
+    trackUsage(eventName,function(){window.location.href=new URL(target,window.location.href).href});
+  })
 });
-$("statsBtn").addEventListener("click",toggleUsage);$("resetStatsBtn").addEventListener("click",function(){if(confirm("이 기기의 이벤트 사용 통계를 초기화할까요?")){try{localStorage.removeItem(USAGE_KEY)}catch(e){}renderUsage();showNotice("사용 통계를 초기화했습니다.")}});$("exitBtn").addEventListener("click",sendExit);$("todayText").textContent=displayDate();
+$("statsBtn").addEventListener("click",toggleUsage);
+$("exitBtn").addEventListener("click",sendExit);
+$("todayText").textContent=displayDate();
 try{var saved=sessionStorage.getItem("geomam-event-session");if(saved){session=normalizeSession(JSON.parse(saved))}}catch(e){}
+initUsageDatabase();
 sendReady();setInterval(function(){if(!session)sendReady()},700);
 })();
 </script>
