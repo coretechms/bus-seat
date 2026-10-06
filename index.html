@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#0b2d58" />
-  <meta name="bus-seat-version" content="50.9.7" />
+  <meta name="bus-seat-version" content="50.9.8" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" sizes="180x180" href="geomam-icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="geomam-icon-192.png" />
@@ -38,7 +38,7 @@
        ============================================================== -->
   <script id="bus-seat-map-maintenance-config">
     window.BUS_SEAT_MAP_CONFIG = Object.freeze({
-      version: "50.9.7-full-seat-prompt-soft-event",
+      version: "50.9.8-login-log-button-width",
       mobileQuery: "(max-width: 760px), (pointer: coarse)",
 
       back: Object.freeze({
@@ -4421,16 +4421,30 @@ body.member-mode .alt-arrow-cell {
                 </div>
               </div>
             </div>
+
+
+            
+
+            
+
+            
+
+            
+
             </div>
+
           </div>
+
           <div id="memberManagePanel" class="hidden" style="margin-top:10px;">
             <div style="border:1px solid #cfd8ff; border-radius:16px; padding:10px; background:#f7f9ff;">
               <div class="member-manage-topbar">
                 <div class="member-manage-header-actions member-manage-main-actions">
-                  <button class="btn btn-outline" id="memberManageCloseBtn" type="button">     나 가 기     </button>
+                  <button class="btn btn-outline" id="memberManageCloseBtn" type="button">     나   가   기     </button>
                   <button class="btn btn-outline" id="memberManageMemberListBtn" type="button" title="회원정보 페이지로 이동">회원 데이터</button>
                   <button class="btn btn-outline" id="memberApprovedToggleBtn" type="button" aria-expanded="false">가입회원보기</button>
                   <button class="btn btn-outline" id="memberLoginManageBtn" type="button">  로 그 관 리  </button>
+
+
                   <button class="btn btn-outline" id="memberManageAdminToggleBtn" type="button" aria-expanded="false">  관리자  </button>
                   <div id="memberManageAdminGroupPanel" class="member-manage-admin-group-panel" hidden>
                     <button class="btn btn-outline" id="memberJsonBackupBtn" type="button">백업</button>
@@ -4464,6 +4478,8 @@ body.member-mode .alt-arrow-cell {
               <div class="login-manage-topbar">
                 <div class="login-manage-title">로그관리</div>
                 <div class="login-manage-actions">
+                  <button class="btn btn-outline" id="loginManageBackBtn" type="button">   나가기   </button>
+
                   <button class="btn btn-outline" id="loginLogDownloadBtn" type="button">텍스트저장</button>
                   <button class="btn btn-outline" id="loginLogDeleteBtn" type="button">기록삭제</button>
                 </div>
@@ -18840,16 +18856,17 @@ body.member-manage-mode #memberManagePanel .member-manage-main-actions > #member
   }
 }
 
-/* 로그관리 내부 상단 버튼도 글자 수 비율과 동일한 세로 크기로 통일 */
+/* 로그관리 내부 상단 버튼 3개 폭 정리
+   - 실제 버튼: 나가기 / 텍스트저장 / 기록삭제
+   - 텍스트저장 버튼에 가장 넓은 폭을 배정하여 글자 넘침 방지 */
 body.member-manage-mode #loginManagePanel .login-manage-actions {
   display: grid !important;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr) !important;
-  column-gap: 2ch !important;
+  grid-template-columns: minmax(44px, 2fr) minmax(72px, 5fr) minmax(58px, 4fr) !important;
+  column-gap: 4px !important;
   row-gap: 0 !important;
   width: min(76%, 360px) !important;
 }
 body.member-manage-mode #loginManageBackBtn,
-body.member-manage-mode #loginLogRefreshBtn,
 body.member-manage-mode #loginLogDownloadBtn,
 body.member-manage-mode #loginLogDeleteBtn {
   width: 100% !important;
@@ -18862,19 +18879,22 @@ body.member-manage-mode #loginLogDeleteBtn {
   font-size: 10px !important;
   line-height: 1 !important;
   white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  box-sizing: border-box !important;
 }
 @media (max-width: 760px) {
   body.member-manage-mode #loginManagePanel .login-manage-actions {
-    column-gap: 2ch !important;
+    grid-template-columns: minmax(40px, 2fr) minmax(68px, 5fr) minmax(54px, 4fr) !important;
+    column-gap: 3px !important;
     width: 78% !important;
   }
   body.member-manage-mode #loginManageBackBtn,
-  body.member-manage-mode #loginLogRefreshBtn,
   body.member-manage-mode #loginLogDownloadBtn,
   body.member-manage-mode #loginLogDeleteBtn {
     height: 22px !important;
     min-height: 22px !important;
-    padding: 0 2px !important;
+    padding: 0 3px !important;
     font-size: 8px !important;
   }
 }
