@@ -36,7 +36,6 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden}button{font-family:inh
 <section class="hero"><strong>오늘은 무엇을 해볼까요?</strong><span>원하는 이벤트를 선택해 가볍게 즐겨보세요.</span></section>
 <section class="stats-panel" id="statsPanel"><div class="stats-head"><div class="stats-title">📊 전체 이용객 이벤트 사용률</div><div class="stats-summary" id="statsSummary">총 실행 0회</div></div><div class="stats-list" id="statsList"></div><div class="stats-foot"><span id="statsRank">전체 이용객 사용기록을 불러오는 중입니다.</span><span id="statsStatus">실시간 통계</span></div></section>
 <section class="event-grid">
-<button type="button" class="event-card active" data-event="quiz" data-url="quiz.html"><span class="badge open">실행가능</span><span class="icon">🧠</span><span class="event-name">오늘의 퀴즈</span><span class="event-desc">하루 최대 5문제, 넌센스·상식·정보 퀴즈</span></button>
 <button type="button" class="event-card active" data-event="stamp" data-url="stamp.html"><span class="badge open">실행가능</span><span class="icon">🥾</span><span class="event-name">산행 출석도장</span><span class="event-desc">산행 참여 기록과 도장 모으기</span></button>
 <button type="button" class="event-card active" data-event="fortune" data-url="fortune.html"><span class="badge open">실행가능</span><span class="icon">🔮</span><span class="event-name">오늘의 운세</span><span class="event-desc">띠별 오늘의 한마디와 가벼운 운세</span></button>
 <button type="button" class="event-card active" data-event="mountain" data-url="mountain.html"><span class="badge open">실행가능</span><span class="icon">🏔️</span><span class="event-name">산 이름 맞히기</span><span class="event-desc">국내산 힌트로 산 이름 맞히기</span></button>
@@ -50,7 +49,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden}button{font-family:inh
 var session=null,noticeTimer=null,usageDb=null,usageRef=null,usageCache={};
 var USAGE_PATH="busSeatApp/eventUsage/v1";
 var FIREBASE_CONFIG={
-  apiKey:"AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgwQ",
+  apiKey:"AIzaSyBH3866EIMkhI--ms4xAZ7k7XS9sQFvgw",
   authDomain:"bus-seat-eb86c.firebaseapp.com",
   databaseURL:"https://bus-seat-eb86c-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId:"bus-seat-eb86c",
