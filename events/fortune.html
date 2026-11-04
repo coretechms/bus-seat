@@ -196,100 +196,6 @@ button,select{font-family:inherit}
   font-weight:900;
 }
 
-.total-fortune-row{
-  margin-bottom:9px;
-  padding:14px 15px;
-  border-radius:18px;
-  background:
-    radial-gradient(circle at 90% 0%,rgba(255,255,255,.13),transparent 28%),
-    linear-gradient(135deg,#5d3b82,#7b4da7);
-  color:#fff;
-  box-shadow:0 10px 24px rgba(78,44,110,.18);
-}
-.total-fortune-head{
-  display:flex;
-  align-items:center;
-  gap:7px;
-  margin-bottom:7px;
-}
-.total-fortune-title{
-  font-size:16px;
-  font-weight:900;
-}
-.total-fortune-score{
-  font-size:18px;
-  font-weight:900;
-  color:#fff0a8;
-}
-.total-fortune-summary{
-  padding-left:10px;
-  font-size:15px;
-  font-weight:800;
-  line-height:1.55;
-  word-break:keep-all;
-}
-
-.grid{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:7px;
-  margin-top:0;
-}
-.card{
-  background:rgba(255,255,255,.98);
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:12px 14px;
-  box-shadow:var(--shadow);
-}
-.card h3{
-  margin:0 0 6px;
-  font-size:16px;
-  font-weight:900;
-  color:var(--purple);
-}
-.card p{
-  margin:0;
-  padding-left:8px;
-  font-size:14px;
-  font-weight:700;
-  line-height:1.55;
-  color:#4e4655;
-  word-break:keep-all;
-}
-
-.lucky{
-  margin-top:8px;
-  display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:7px;
-}
-.lucky-box{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:4px;
-  min-height:70px;
-  padding:9px 5px;
-  background:linear-gradient(180deg,#fffefb,#fff8e9);
-  border:1px solid #eadfbe;
-  border-radius:15px;
-  box-shadow:0 6px 16px rgba(104,83,42,.06);
-}
-.lucky-label{
-  font-size:12px;
-  font-weight:900;
-  color:#988662;
-  white-space:nowrap;
-}
-.lucky-value{
-  font-size:15px;
-  font-weight:900;
-  color:#6a4b1d;
-  white-space:nowrap;
-}
-
 .message{
   margin-top:8px;
   padding:12px 14px;
@@ -302,15 +208,6 @@ button,select{font-family:inherit}
   font-weight:900;
   line-height:1.5;
 }
-.notice{
-  margin-top:7px;
-  padding:0 6px;
-  text-align:center;
-  color:#91869a;
-  font-size:10px;
-  line-height:1.45;
-}
-
 @media(max-width:520px){
   .app{
     padding:max(8px,env(safe-area-inset-top)) 8px max(9px,env(safe-area-inset-bottom));
@@ -376,59 +273,13 @@ button,select{font-family:inherit}
   .age-row strong{font-size:13px}
   .age-divider{font-size:12px}
 
-  .total-fortune-row{
-    margin-bottom:7px;
-    padding:11px 12px;
-    border-radius:14px;
-  }
-  .total-fortune-head{
-    margin-bottom:5px;
-    gap:5px;
-  }
-  .total-fortune-title{font-size:14px}
-  .total-fortune-score{font-size:16px}
-  .total-fortune-summary{
-    padding-left:8px;
-    font-size:13px;
-    line-height:1.5;
-  }
-
-  .grid{gap:6px}
-  .card{
-    padding:10px 11px;
-    border-radius:13px;
-  }
-  .card h3{
-    font-size:14px;
-    margin-bottom:4px;
-  }
-  .card p{
-    padding-left:7px;
-    font-size:13px;
-    line-height:1.5;
-  }
-
-  .lucky{
-    margin-top:7px;
-    gap:5px;
-  }
-  .lucky-box{
-    min-height:58px;
-    padding:7px 3px;
-    border-radius:12px;
-    gap:3px;
-  }
-  .lucky-label{font-size:10px}
-  .lucky-value{font-size:13px}
-
   .message{
     margin-top:7px;
     padding:10px 11px;
     border-radius:13px;
     font-size:13px;
   }
-  .notice{margin-top:6px;font-size:9px}
-}
+  }
 </style>
 </head>
 <body>
@@ -485,29 +336,7 @@ button,select{font-family:inherit}
 <section class="message" id="traditionalFactBox" style="margin-top:0;margin-bottom:8px;background:#f7f1fb;color:#5d4670;">
   <strong>📚 전통 띠 정보</strong><br><span id="traditionalFactText"></span>
 </section>
-<section class="total-fortune-row">
-  <div class="total-fortune-head">
-    <strong class="total-fortune-title">오늘의 총운 :</strong>
-    <strong class="total-fortune-score" id="fortuneScore">--점</strong>
-  </div>
-  <div class="total-fortune-summary" id="fortuneSummary"></div>
-</section>
 
-<section class="grid">
-  <article class="card"><h3>💪 건강운</h3><p id="healthText"></p></article>
-  <article class="card"><h3>💰 금전운</h3><p id="moneyText"></p></article>
-  <article class="card"><h3>🤝 인간관계운</h3><p id="relationText"></p></article>
-  <article class="card"><h3>🥾 산행운</h3><p id="hikingText"></p></article>
-</section>
-
-<section class="lucky">
-  <div class="lucky-box"><div class="lucky-label">행운의 색</div><div class="lucky-value" id="colorText"></div></div>
-  <div class="lucky-box"><div class="lucky-label">행운 숫자</div><div class="lucky-value" id="numberText"></div></div>
-  <div class="lucky-box"><div class="lucky-label">좋은 시간</div><div class="lucky-value" id="timeText"></div></div>
-</section>
-
-<div class="message" id="messageText"></div>
-<div class="notice">오늘의 운세는 재미로 즐기는 콘텐츠입니다. 실제 미래를 예측하거나 중요한 결정을 대신하지 않습니다.</div>
 </div></main>
 
 <script>
@@ -518,82 +347,15 @@ var SESSION_KEY="geomam-event-session";
 var PROFILE_KEY="geomam-fortune-profile-v3:";
 var session=null;
 
-var FORTUNE_DATA_URL="fortune-data.html";
-var FORTUNE_DATA_CACHE_KEY="geomam-fortune-data-cache-v1";
-var FORTUNE_DB=null;
-
 var zodiacOrder=["쥐","소","호랑이","토끼","용","뱀","말","양","원숭이","닭","개","돼지"];
 var zodiacEmoji={
   "쥐":"🐭","소":"🐮","호랑이":"🐯","토끼":"🐰","용":"🐲","뱀":"🐍",
   "말":"🐴","양":"🐑","원숭이":"🐵","닭":"🐔","개":"🐶","돼지":"🐷"
 };
 
-var summaries=[],health=[],money=[],relation=[],hiking=[],colors=[],times=[],messages=[];
-
-function applyFortuneData(db){
-  if(!db||typeof db!=="object")return false;
-  var advice=db.advice||{},ent=db.entertainment||{};
-  summaries=Array.isArray(advice.summaries)?advice.summaries:[];
-  health=Array.isArray(advice.health)?advice.health:[];
-  money=Array.isArray(advice.money)?advice.money:[];
-  relation=Array.isArray(advice.relation)?advice.relation:[];
-  hiking=Array.isArray(advice.hiking)?advice.hiking:[];
-  messages=Array.isArray(advice.messages)?advice.messages:[];
-  colors=Array.isArray(ent.colors)?ent.colors:[];
-  times=Array.isArray(ent.times)?ent.times:[];
-  FORTUNE_DB=db;
-  return summaries.length&&health.length&&money.length&&relation.length&&hiking.length;
-}
-
-function loadFortuneDatabase(){
-  return new Promise(function(resolve,reject){
-    var done=false,frame=document.createElement("iframe");
-    frame.hidden=true;
-    frame.src=FORTUNE_DATA_URL+"?v=1";
-    document.body.appendChild(frame);
-
-    function clean(){
-      window.removeEventListener("message",onMessage);
-      if(frame.parentNode)frame.remove();
-    }
-    function finish(db){
-      if(done)return;
-      if(!applyFortuneData(db))return;
-      done=true;
-      try{localStorage.setItem(FORTUNE_DATA_CACHE_KEY,JSON.stringify(db))}catch(e){}
-      clean();resolve(true);
-    }
-    function onMessage(ev){
-      var d=ev.data||{};
-      if(d.type==="FORTUNE_DATABASE_READY")finish(d.data);
-    }
-    window.addEventListener("message",onMessage);
-
-    frame.onerror=function(){
-      var cached=null;
-      try{cached=JSON.parse(localStorage.getItem(FORTUNE_DATA_CACHE_KEY)||"null")}catch(e){}
-      if(cached&&applyFortuneData(cached)){done=true;clean();resolve(true)}
-      else{clean();reject(new Error("fortune-data.html 연결 실패"))}
-    };
-    setTimeout(function(){
-      if(done)return;
-      var cached=null;
-      try{cached=JSON.parse(localStorage.getItem(FORTUNE_DATA_CACHE_KEY)||"null")}catch(e){}
-      if(cached&&applyFortuneData(cached)){done=true;clean();resolve(true)}
-      else{clean();reject(new Error("운세 데이터 응답시간 초과"))}
-    },5000);
-  });
-}
-
 function zodiacTraditionalFact(zodiac){
-  try{
-    var list=FORTUNE_DB&&FORTUNE_DB.facts&&FORTUNE_DB.facts.zodiac;
-    if(Array.isArray(list)){
-      var item=list.find(function(x){return x.animal===zodiac});
-      if(item)return item.fact;
-    }
-  }catch(e){}
-  return "";
+  var index=zodiacOrder.indexOf(zodiac);
+  return index<0 ? "" : zodiac+"띠는 십이지의 "+(index+1)+"번째 띠이며, 12년 주기로 돌아옵니다.";
 }
 
 function $(id){return document.getElementById(id)}
@@ -1053,16 +815,6 @@ function yearAge(year){
   return now.year-Number(year);
 }
 
-function hashText(text){
-  var h=2166136261;
-  for(var i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619)}
-  return h>>>0;
-}
-
-function pick(arr,seed,salt){
-  return arr[hashText(seed+"|"+salt)%arr.length];
-}
-
 function renderFortune(syncRemote){
   var context;
   try{
@@ -1111,22 +863,6 @@ function renderFortune(syncRemote){
   $("fullAgeText").textContent="만 "+fullAge+"세";
   $("yearAgeText").textContent="연나이 "+simpleYearAge+"세";
 
-  var seed=koreaDateKey()+"|"+String(session&&session.code||"guest")+"|"+
-    profile.calendarType+"|"+profile.year+"|"+profile.month+"|"+profile.lunarMonthKey+"|"+profile.day+"|"+zodiac;
-
-  var score=70+(hashText(seed+"|score")%30);
-
-  $("fortuneScore").textContent=score+"점";
-  $("fortuneSummary").textContent=pick(summaries,seed,"summary");
-  $("healthText").textContent=pick(health,seed,"health");
-  $("moneyText").textContent=pick(money,seed,"money");
-  $("relationText").textContent=pick(relation,seed,"relation");
-  $("hikingText").textContent=pick(hiking,seed,"hiking");
-  $("colorText").textContent=pick(colors,seed,"color");
-  $("numberText").textContent=String(1+(hashText(seed+"|number")%9));
-  $("timeText").textContent=pick(times,seed,"time");
-  $("messageText").textContent="✨ "+pick(messages,seed,"message")+"  ·  운세 점수/행운 정보는 오락용입니다.";
-
   if(syncRemote!==false){
     saveRemoteProfile(profile);
   }
@@ -1166,14 +902,8 @@ refreshMonthAndDaySelectors({
   dayValue:savedProfile.day
 });
 
-loadFortuneDatabase().then(function(){
-  renderFortune(false);
-  requestRemoteProfile();
-}).catch(function(error){
-  $("fortuneSummary").textContent="운세 데이터 파일을 불러오지 못했습니다.";
-  $("messageText").textContent="fortune-data.html 파일 위치를 확인하세요.";
-  try{$("traditionalFactText").textContent=String(error&&error.message||"데이터 연결 오류");}catch(e){}
-});
+renderFortune(false);
+requestRemoteProfile();
 
 })();
 </script>
